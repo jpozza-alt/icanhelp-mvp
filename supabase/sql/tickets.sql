@@ -12,20 +12,20 @@ create or replace function public.is_admin(uid uuid)
 returns boolean
 language sql
 stable
-as chore: roadmap de prioridades e estrutura inicial para tickets (fix path + git identity)
+as .\supabase\sql\tickets.sql
   select exists(
     select 1 from public.user_roles
     where user_id = uid and role = 'admin'
   );
-chore: roadmap de prioridades e estrutura inicial para tickets (fix path + git identity);
+.\supabase\sql\tickets.sql;
 
 -- 4) ENUM opcional p/ status (ou use CHECK com text)
-do chore: roadmap de prioridades e estrutura inicial para tickets (fix path + git identity)
+do .\supabase\sql\tickets.sql
 begin
   if not exists (select 1 from pg_type where typname = 'ticket_status') then
     create type ticket_status as enum ('open','in_progress','closed');
   end if;
-endchore: roadmap de prioridades e estrutura inicial para tickets (fix path + git identity);
+end.\supabase\sql\tickets.sql;
 
 -- 5) TABELA: tickets
 create table if not exists public.tickets (
@@ -41,12 +41,12 @@ create table if not exists public.tickets (
 
 -- gatilho p/ updated_at
 create or replace function public.set_updated_at()
-returns trigger language plpgsql as chore: roadmap de prioridades e estrutura inicial para tickets (fix path + git identity)
+returns trigger language plpgsql as .\supabase\sql\tickets.sql
 begin
   new.updated_at = now();
   return new;
 end;
-chore: roadmap de prioridades e estrutura inicial para tickets (fix path + git identity);
+.\supabase\sql\tickets.sql;
 
 drop trigger if exists trg_tickets_updated_at on public.tickets;
 create trigger trg_tickets_updated_at
@@ -62,7 +62,6 @@ create index if not exists idx_tickets_assigned_to on public.tickets(assigned_to
 alter table public.tickets enable row level security;
 
 -- 8) POLICIES
--- SELECT: dono ou admin
 drop policy if exists "read_own_or_admin" on public.tickets;
 create policy "read_own_or_admin"
 on public.tickets
@@ -70,7 +69,6 @@ for select
 to authenticated
 using (created_by = auth.uid() or public.is_admin(auth.uid()));
 
--- INSERT: somente se created_by = auth.uid()
 drop policy if exists "insert_self" on public.tickets;
 create policy "insert_self"
 on public.tickets
@@ -78,7 +76,6 @@ for insert
 to authenticated
 with check (created_by = auth.uid());
 
--- UPDATE: dono ou admin
 drop policy if exists "update_own_or_admin" on public.tickets;
 create policy "update_own_or_admin"
 on public.tickets
@@ -87,7 +84,6 @@ to authenticated
 using (created_by = auth.uid() or public.is_admin(auth.uid()))
 with check (created_by = auth.uid() or public.is_admin(auth.uid()));
 
--- DELETE: dono ou admin
 drop policy if exists "delete_own_or_admin" on public.tickets;
 create policy "delete_own_or_admin"
 on public.tickets
@@ -95,6 +91,7 @@ for delete
 to authenticated
 using (created_by = auth.uid() or public.is_admin(auth.uid()));
 
--- 9) ADMIN SEED (OPCIONAL): coloque seu user_id para ser admin
--- select * from auth.users;  -> copie seu id e substitua abaixo, então rode uma vez
--- insert into public.user_roles (user_id, role) values ('00000000-0000-0000-0000-000000000000','admin');
+-- 9) ADMIN SEED (OPCIONAL)
+-- insert into public.user_roles (user_id, role)
+-- values ('SEU-UUID-AQUI','admin')
+-- on conflict (user_id) do update set role = excluded.role;
