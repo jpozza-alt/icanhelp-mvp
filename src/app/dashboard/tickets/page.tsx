@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { z } from 'zod';
-import { ticketCreateSchema, ticketUpdateSchema } from '@/src/lib/validators/ticket';
+import { ticketCreateSchema, ticketUpdateSchema } from '@\/lib/validators/ticket';
 
 type Ticket = {
   id: string;

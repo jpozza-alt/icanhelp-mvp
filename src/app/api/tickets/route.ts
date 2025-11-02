@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/src/lib/supabase/server";
+import { createClient } from "@\/lib/supabase/server";
 import { z } from "zod";
-import { ticketCreateSchema } from "@/src/lib/validators/ticket";
+import { ticketCreateSchema } from "@\/lib/validators/ticket";
 
 export async function GET() {
   const supabase = createClient();
