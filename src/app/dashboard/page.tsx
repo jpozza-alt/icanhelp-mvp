@@ -1,4 +1,4 @@
-import TopBar from "@/components/TopBar";
+import { TopBar } from "@/components/TopBar";
 
 export default function DashboardPage() {
   return (
@@ -15,3 +15,4 @@ export default function DashboardPage() {
     </>
   );
 }
+
