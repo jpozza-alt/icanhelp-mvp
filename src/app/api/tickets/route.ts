@@ -1,43 +1,48 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@\/lib/supabase/server";
-import { z } from "zod";
-import { ticketCreateSchema } from "@\/lib/validators/ticket";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
-  const supabase = createClient();
-  const { data: { user }, error: uerr } = await supabase.auth.getUser();
-  if (uerr || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("tickets")
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ tickets: data ?? [] });
-}
-
-export async function POST(req: Request) {
-  const supabase = createClient();
-  const { data: { user }, error: uerr } = await supabase.auth.getUser();
-  if (uerr || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const body = await req.json().catch(() => ({}));
-  const parsed = ticketCreateSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 });
+  if (error) {
+    return NextResponse.json(
+      { error: "Falha ao listar tickets." },
+      { status: 500 }
+    );
   }
 
-  const payload = parsed.data;
-  const insert = {
-    title: payload.title,
-    description: payload.description || null,
-    created_by: user.id,
-    assigned_to: payload.assigned_to ? payload.assigned_to : null,
-  };
+  return NextResponse.json(data);
+}
 
-  const { data, error } = await supabase.from("tickets").insert(insert).select("*").single();
+export async function POST(request: Request) {
+  const supabase = await createClient();
+  const body = await request.json();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ ticket: data }, { status: 201 });
+  if (!body?.title) {
+    return NextResponse.json(
+      { error: "Título é obrigatório." },
+      { status: 400 }
+    );
+  }
+
+  const { error } = await supabase.from("tickets").insert({
+    title: body.title,
+    description: body.description ?? null,
+    status: "open",
+    // tenant_id e created_by vêm do RLS
+  });
+
+  if (error) {
+    return NextResponse.json(
+      { error: "Falha ao criar ticket." },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ ok: true }, { status: 201 });
 }
