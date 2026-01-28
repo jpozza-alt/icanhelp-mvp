@@ -1,13 +1,12 @@
-import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 
 /**
- * Cria um client Supabase para uso no SERVER (App Router).
- * - Compatível com Route Handlers, Server Actions e Server Components
- * - Usa cookies corretamente (sem headers inválidos)
+ * Supabase client para uso em Server Components e App Router
+ * Compatível com Next.js 16
  */
-export function createSupabaseServerClient() {
-  const cookieStore = cookies();
+export async function createClient() {
+  const cookieStore = await cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,10 +16,10 @@ export function createSupabaseServerClient() {
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
-        set(name: string, value: string, options) {
+        set(name: string, value: string, options: any) {
           cookieStore.set({ name, value, ...options });
         },
-        remove(name: string, options) {
+        remove(name: string, options: any) {
           cookieStore.set({ name, value: "", ...options });
         },
       },
