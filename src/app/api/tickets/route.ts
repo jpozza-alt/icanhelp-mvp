@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-/**
- * GET /api/tickets
- */
 export async function GET() {
   const supabase = createSupabaseServerClient();
 
@@ -13,18 +10,12 @@ export async function GET() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json(data, { status: 200 });
 }
 
-/**
- * POST /api/tickets
- */
 export async function POST(request: Request) {
   const supabase = createSupabaseServerClient();
 
@@ -45,10 +36,7 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json(data, { status: 201 });
