@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+/**
+ * GET /api/tickets
+ */
 export async function GET() {
-  const supabase = await createClient();
+  const supabase = createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("tickets")
@@ -11,38 +14,42 @@ export async function GET() {
 
   if (error) {
     return NextResponse.json(
-      { error: "Falha ao listar tickets." },
+      { error: error.message },
       { status: 500 }
     );
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json(data, { status: 200 });
 }
 
+/**
+ * POST /api/tickets
+ */
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const body = await request.json();
+  const supabase = createSupabaseServerClient();
 
-  if (!body?.title) {
+  const body = await request.json();
+  const { title } = body;
+
+  if (!title) {
     return NextResponse.json(
-      { error: "Título é obrigatório." },
+      { error: "title é obrigatório" },
       { status: 400 }
     );
   }
 
-  const { error } = await supabase.from("tickets").insert({
-    title: body.title,
-    description: body.description ?? null,
-    status: "open",
-    // tenant_id e created_by vêm do RLS
-  });
+  const { data, error } = await supabase
+    .from("tickets")
+    .insert({ title })
+    .select()
+    .single();
 
   if (error) {
     return NextResponse.json(
-      { error: "Falha ao criar ticket." },
+      { error: error.message },
       { status: 500 }
     );
   }
 
-  return NextResponse.json({ ok: true }, { status: 201 });
+  return NextResponse.json(data, { status: 201 });
 }
