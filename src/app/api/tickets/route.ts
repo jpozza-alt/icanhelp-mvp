@@ -1,9 +1,17 @@
-// src/app/api/tickets/route.ts
+﻿// src/app/api/tickets/route.ts
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
+const BUILD_SHA = "978242c";
+
+function jsonWithBuild(body: any, init?: ResponseInit) {
+  const res = jsonWithBuild(body, init);
+  res.headers.set("x-icanhelp-build", BUILD_SHA);
+  return res;
+}
+
 function jsonError(status: number, message: string, details?: unknown) {
-  return NextResponse.json(
+  return jsonWithBuild(
     { error: message, ...(details ? { details } : {}) },
     { status }
   );
@@ -111,7 +119,7 @@ export async function GET(req: Request) {
     return jsonError(500, "Falha ao listar tickets.", { code: error.code });
   }
 
-  return NextResponse.json(data ?? []);
+  return jsonWithBuild(data ?? []);
 }
 
 export async function POST(req: Request) {
@@ -142,7 +150,7 @@ export async function POST(req: Request) {
     return jsonError(500, "Falha ao criar ticket.", { code: error.code });
   }
 
-  return NextResponse.json(data ?? []);
+  return jsonWithBuild(data ?? []);
 }
 
 export async function DELETE(req: Request) {
@@ -168,5 +176,6 @@ export async function DELETE(req: Request) {
     return jsonError(500, "Falha ao remover ticket.", { code: error.code });
   }
 
-  return NextResponse.json({ ok: true });
+  return jsonWithBuild({ ok: true });
 }
+
