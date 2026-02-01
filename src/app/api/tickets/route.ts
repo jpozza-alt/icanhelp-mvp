@@ -3,7 +3,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const BUILD_SHA = "7cfcd48";
+const BUILD_SHA = "0c2eece";
 
 function jsonWithBuild(body: any, init?: ResponseInit) {
   const res = NextResponse.json(body, init);
@@ -27,14 +27,22 @@ function getEnvTrimmed(name: string): string | null {
   return v.length ? v : null;
 }
 
+function mapDbError(err: any) {
+  const msg = (err?.message || "").toLowerCase();
+  if (msg.includes("row-level security") || msg.includes("permission denied") || msg.includes("rls")) {
+    return { status: 403, body: { error: "Acesso negado (RLS bloqueou)." } };
+  }
+  return { status: 500, body: { error: "Erro interno." } };
+}
+
 export async function GET(req: Request) {
   const jwt = getBearerToken(req);
-  if (!jwt) return jsonWithBuild({ ok: false, stage: "bearer", error: "Nao autenticado." }, { status: 401 });
+  if (!jwt) return jsonWithBuild({ error: "Nao autenticado." }, { status: 401 });
 
   const url = getEnvTrimmed("NEXT_PUBLIC_SUPABASE_URL");
   const anon = getEnvTrimmed("NEXT_PUBLIC_SUPABASE_ANON_KEY");
   if (!url || !anon) {
-    return jsonWithBuild({ ok: false, stage: "env", error: "Missing env vars.", hasUrl: !!url, hasAnon: !!anon }, { status: 500 });
+    return jsonWithBuild({ error: "Missing env vars.", hasUrl: !!url, hasAnon: !!anon }, { status: 500 });
   }
 
   const client = createClient(url, anon, {
@@ -42,14 +50,21 @@ export async function GET(req: Request) {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   });
 
-  try {
-    const { data, error } = await client.auth.getUser();
-    if (error || !data?.user) {
-      return jsonWithBuild({ ok: false, stage: "getUser", error: "Nao autenticado.", details: error?.message || null }, { status: 401 });
-    }
-    return jsonWithBuild({ ok: true, stage: "getUser", userId: data.user.id, build: BUILD_SHA }, { status: 200 });
-  } catch (e: any) {
-    return jsonWithBuild({ ok: false, stage: "getUser", error: "Exception", details: (e?.message || String(e)) }, { status: 500 });
+  const { data: u, error: uerr } = await client.auth.getUser();
+  if (uerr || !u?.user) {
+    return jsonWithBuild({ error: "Nao autenticado." }, { status: 401 });
   }
+
+  const { data, error } = await client
+    .from("tickets")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    const mapped = mapDbError(error);
+    return jsonWithBuild(mapped.body, { status: mapped.status });
+  }
+
+  return jsonWithBuild({ data: data ?? [] }, { status: 200 });
 }
 
