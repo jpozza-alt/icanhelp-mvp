@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
-const BUILD = "20260201-113056";
+const BUILD = "20260201-113545";
 
 function json(status: number, payload: any) {
   return NextResponse.json(payload, {
@@ -17,7 +17,6 @@ function json(status: number, payload: any) {
 
 function extractBearerToken(req: Request): string | null {
   const h = req.headers.get("authorization") || "";
-  // Aceita: "Bearer <token>"
   const m = h.match(/^Bearer\s+(.+)\s*$/i);
   return m ? m[1] : null;
 }
@@ -41,7 +40,7 @@ export async function GET(req: Request) {
     if (!url || !anon) {
       return json(500, {
         error: "server_misconfigured",
-        message: "Variáveis do Supabase não estão configuradas no ambiente.",
+        message: "VariÃ¡veis do Supabase nÃ£o estÃ£o configuradas no ambiente.",
       });
     }
 
@@ -53,7 +52,6 @@ export async function GET(req: Request) {
       });
     }
 
-    // Importante: sempre validar o usuário via supabase.auth.getUser()
     const supabase = createClient(url, anon, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
       global: { headers: { Authorization: Bearer \ } },
@@ -63,12 +61,11 @@ export async function GET(req: Request) {
     if (userErr || !userData?.user) {
       return json(401, {
         error: "unauthorized",
-        message: "JWT inválido ou expirado.",
+        message: "JWT invÃ¡lido ou expirado.",
         detail: userErr?.message || null,
       });
     }
 
-    // Consulta real confiando exclusivamente em RLS
     const { data, error } = await supabase
       .from("tickets")
       .select("*")
@@ -76,11 +73,10 @@ export async function GET(req: Request) {
 
     if (error) {
       const msg = error.message || "";
-      // Muitos cenários de RLS/perm aparecem como "permission denied" / RLS
       if (error.code === "42501" || looksLikeRlsOrPermError(msg)) {
         return json(403, {
           error: "forbidden",
-          message: "Acesso negado pela política de segurança (RLS).",
+          message: "Acesso negado pela polÃ­tica de seguranÃ§a (RLS).",
           detail: msg,
           code: error.code || null,
         });
