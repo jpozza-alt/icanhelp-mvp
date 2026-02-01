@@ -1,6 +1,9 @@
-﻿import { NextResponse } from "next/server";
+﻿export const runtime = "nodejs";
 
-const BUILD_SHA = "61817b3";
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+const BUILD_SHA = "082915c";
 
 function jsonWithBuild(body: any, init?: ResponseInit) {
   const res = NextResponse.json(body, init);
@@ -17,27 +20,29 @@ function getBearerToken(req: Request): string | null {
   return token.length ? token : null;
 }
 
-/**
- * DIAGNOSTIC STUB (NO SUPABASE)
- * Goal: prove whether the crash comes from Supabase import/bundle.
- * Security: still requires Bearer token for any response != 401.
- */
+function getEnvTrimmed(name: string): string | null {
+  const raw = process.env[name];
+  if (!raw) return null;
+  const v = raw.trim();
+  return v.length ? v : null;
+}
+
 export async function GET(req: Request) {
   const jwt = getBearerToken(req);
   if (!jwt) return jsonWithBuild({ error: "Nao autenticado." }, { status: 401 });
-  return jsonWithBuild({ error: "Diagnostic stub (no Supabase).", build: BUILD_SHA }, { status: 501 });
-}
 
-export async function POST(req: Request) {
-  const jwt = getBearerToken(req);
-  if (!jwt) return jsonWithBuild({ error: "Nao autenticado." }, { status: 401 });
-  return jsonWithBuild({ error: "Diagnostic stub (POST disabled).", build: BUILD_SHA }, { status: 501 });
-}
+  // PROBE: apenas confirmar que o import do Supabase nao crasha em runtime.
+  // Nao executa DB, nao valida JWT, nao usa cookies.
+  const url = getEnvTrimmed("NEXT_PUBLIC_SUPABASE_URL");
+  const anon = getEnvTrimmed("NEXT_PUBLIC_SUPABASE_ANON_KEY");
 
-export async function DELETE(req: Request) {
-  const jwt = getBearerToken(req);
-  if (!jwt) return jsonWithBuild({ error: "Nao autenticado." }, { status: 401 });
-  return jsonWithBuild({ error: "Diagnostic stub (DELETE disabled).", build: BUILD_SHA }, { status: 501 });
-}
+  // Criar client sem chamar nada (tambem ajuda a separar import vs createClient)
+  const client = createClient(url || "missing", anon || "missing", {
+    global: { headers: { Authorization: `Bearer ${jwt}` } },
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
 
+  // Nao chamar client.auth.getUser aqui.
+  return jsonWithBuild({ ok: true, probe: "import+createClient ok", build: BUILD_SHA, hasUrl: !!url, hasAnon: !!anon }, { status: 200 });
+}
 
