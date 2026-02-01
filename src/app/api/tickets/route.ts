@@ -1,9 +1,9 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
-const BUILD = "20260201-113545";
+const BUILD = "20260201-115027";
 
 function json(status: number, payload: any) {
   return NextResponse.json(payload, {
@@ -54,7 +54,7 @@ export async function GET(req: Request) {
 
     const supabase = createClient(url, anon, {
       auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-      global: { headers: { Authorization: Bearer \ } },
+      global: { headers: { Authorization: "Bearer " + token } },
     });
 
     const { data: userData, error: userErr } = await supabase.auth.getUser();
