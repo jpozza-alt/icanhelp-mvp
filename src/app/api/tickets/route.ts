@@ -11,7 +11,7 @@ function jsonWithBuild(body: any, init?: ResponseInit) {
 function getBearerToken(req: Request): string | null {
   const auth = req.headers.get("authorization") || req.headers.get("Authorization");
   if (!auth) return null;
-  const m = auth.match(/^Bearer\\s+(.+)$/i);
+  const m = auth.match(/^Bearer\s+(.+)$/i);
   if (!m) return null;
   const token = m[1].trim();
   return token.length ? token : null;
@@ -39,4 +39,5 @@ export async function DELETE(req: Request) {
   if (!jwt) return jsonWithBuild({ error: "Nao autenticado." }, { status: 401 });
   return jsonWithBuild({ error: "Diagnostic stub (DELETE disabled).", build: BUILD_SHA }, { status: 501 });
 }
+
 
