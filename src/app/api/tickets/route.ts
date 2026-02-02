@@ -3,28 +3,23 @@ import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
-function unauthorized(msg: string, detail?: string) {
-  return NextResponse.json(
-    { error: "unauthorized", message: msg, detail },
-    { status: 401 }
-  );
+function json(status: number, payload: any) {
+  return NextResponse.json(payload, { status });
 }
 
-function forbidden(msg: string) {
-  return NextResponse.json(
-    { error: "forbidden", message: msg },
-    { status: 403 }
-  );
-}
-
-function getSupabaseFromRequest(req: NextRequest) {
+function getBearer(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    throw new Error("missing_bearer");
-  }
+  if (!authHeader?.startsWith("Bearer ")) return null;
+  return authHeader.replace("Bearer ", "").trim();
+}
 
-  const token = authHeader.replace("Bearer ", "").trim();
+function getTenant(req: NextRequest) {
+  // Header canônico do MVP (testável via curl/PowerShell)
+  const t = req.headers.get("x-icanhelp-tenant");
+  return t?.trim() || null;
+}
 
+function makeSupabase(token: string, tenantId: string) {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -37,28 +32,26 @@ function getSupabaseFromRequest(req: NextRequest) {
       global: {
         headers: {
           Authorization: `Bearer ${token}`,
+          // Este header vai para o PostgREST e pode ser lido no RLS via request.headers
+          "x-icanhelp-tenant": tenantId,
         },
       },
     }
   );
 }
 
-/* =========================
-   GET /api/tickets
-========================= */
 export async function GET(req: NextRequest) {
-  let supabase;
-  try {
-    supabase = getSupabaseFromRequest(req);
-  } catch {
-    return unauthorized("Envie Authorization: Bearer <JWT>.");
-  }
+  const token = getBearer(req);
+  if (!token) return json(401, { error: "missing_bearer", message: "Envie Authorization: Bearer <JWT>." });
 
-  const { data: userData, error: userError } =
-    await supabase.auth.getUser();
+  const tenantId = getTenant(req);
+  if (!tenantId) return json(400, { error: "missing_tenant", message: "Envie x-icanhelp-tenant: <tenant_id>." });
 
+  const supabase = makeSupabase(token, tenantId);
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) {
-    return unauthorized("JWT inválido ou expirado.", userError?.message);
+    return json(401, { error: "unauthorized", message: "JWT inválido ou expirado.", detail: userError?.message });
   }
 
   const { data, error } = await supabase
@@ -67,74 +60,52 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: false });
 
   if (error) {
-    return forbidden("RLS bloqueou a leitura.");
+    // quando RLS bloquear, o PostgREST costuma responder erro
+    return json(403, { error: "forbidden", message: "RLS bloqueou a leitura.", detail: error.message });
   }
 
-  return NextResponse.json({ items: data ?? [] });
+  return json(200, { items: data ?? [] });
 }
 
-/* =========================
-   POST /api/tickets
-========================= */
 export async function POST(req: NextRequest) {
-  let supabase;
-  try {
-    supabase = getSupabaseFromRequest(req);
-  } catch {
-    return unauthorized("Envie Authorization: Bearer <JWT>.");
-  }
+  const token = getBearer(req);
+  if (!token) return json(401, { error: "missing_bearer", message: "Envie Authorization: Bearer <JWT>." });
 
-  const { data: userData, error: userError } =
-    await supabase.auth.getUser();
+  const tenantId = getTenant(req);
+  if (!tenantId) return json(400, { error: "missing_tenant", message: "Envie x-icanhelp-tenant: <tenant_id>." });
 
+  const supabase = makeSupabase(token, tenantId);
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) {
-    return unauthorized("JWT inválido ou expirado.", userError?.message);
+    return json(401, { error: "unauthorized", message: "JWT inválido ou expirado.", detail: userError?.message });
   }
 
   let body: { title?: string; description?: string };
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json(
-      { error: "bad_request", message: "JSON inválido." },
-      { status: 400 }
-    );
+    return json(400, { error: "bad_request", message: "JSON inválido." });
   }
 
   if (!body.title || !body.description) {
-    return NextResponse.json(
-      {
-        error: "validation_error",
-        message: "title e description são obrigatórios.",
-      },
-      { status: 400 }
-    );
+    return json(400, { error: "validation_error", message: "title e description são obrigatórios." });
   }
 
   const { data, error } = await supabase
     .from("tickets")
     .insert({
+      tenant_id: tenantId,          // obrigatório a partir de agora
       title: body.title,
       description: body.description,
-      created_by: userData.user.id,
+      created_by: userData.user.id, // RLS também valida
     })
     .select()
     .single();
 
   if (error) {
-    if (error.code === "42501") {
-      return forbidden("RLS bloqueou a inserção.");
-    }
-
-    return NextResponse.json(
-      {
-        error: "insert_failed",
-        message: "Falha ao criar ticket.",
-        detail: error.message,
-      },
-      { status: 500 }
-    );
+    return json(403, { error: "forbidden", message: "RLS bloqueou a inserção.", detail: error.message, code: error.code ?? null });
   }
 
-  return NextResponse.json({ item: data }, { status: 201 });
+  return json(201, { item: data });
 }
