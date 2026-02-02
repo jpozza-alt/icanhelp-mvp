@@ -3,8 +3,17 @@ import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
+// CARIMBO DE BUILD (mudará a cada commit deste arquivo)
+const BUILD_STAMP = "20260202-204923";
+
+function withHeaders(res: NextResponse) {
+  res.headers.set("x-icanhelp-build", BUILD_STAMP);
+  res.headers.set("x-icanhelp-commit", process.env.VERCEL_GIT_COMMIT_SHA ?? "unknown");
+  return res;
+}
+
 function json(status: number, payload: any) {
-  return NextResponse.json(payload, { status });
+  return withHeaders(NextResponse.json(payload, { status }));
 }
 
 function getBearer(req: NextRequest) {
@@ -30,7 +39,7 @@ function makeSupabase(token: string, tenantId: string) {
       },
       global: {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: Bearer ,
           "x-icanhelp-tenant": tenantId,
         },
       },
@@ -38,13 +47,14 @@ function makeSupabase(token: string, tenantId: string) {
   );
 }
 
-async function assertTenantMember(supabase: ReturnType<typeof createClient>, tenantId: string) {
-  // Usa função SECURITY DEFINER (já criada no banco):
+async function assertTenantMember(
+  supabase: ReturnType<typeof createClient>,
+  tenantId: string
+) {
   // public.is_tenant_member(p_tenant uuid) returns boolean
   const { data, error } = await supabase.rpc("is_tenant_member", { p_tenant: tenantId });
 
   if (error) {
-    // Se a RPC falhar, tratamos como "não autorizado" (fail-closed)
     return { ok: false as const, reason: "rpc_failed", detail: error.message };
   }
 
@@ -57,16 +67,20 @@ async function assertTenantMember(supabase: ReturnType<typeof createClient>, ten
 
 export async function GET(req: NextRequest) {
   const token = getBearer(req);
-  if (!token) return json(401, { error: "missing_bearer", message: "Envie Authorization: Bearer <JWT>." });
+  if (!token) {
+    return json(401, { error: "missing_bearer", message: "Envie Authorization: Bearer <JWT>.", _debug: { build: BUILD_STAMP } });
+  }
 
   const tenantId = getTenant(req);
-  if (!tenantId) return json(400, { error: "missing_tenant", message: "Envie x-icanhelp-tenant: <tenant_id>." });
+  if (!tenantId) {
+    return json(400, { error: "missing_tenant", message: "Envie x-icanhelp-tenant: <tenant_id>.", _debug: { build: BUILD_STAMP } });
+  }
 
   const supabase = makeSupabase(token, tenantId);
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) {
-    return json(401, { error: "unauthorized", message: "JWT inválido ou expirado.", detail: userError?.message });
+    return json(401, { error: "unauthorized", message: "JWT inválido ou expirado.", detail: userError?.message, _debug: { build: BUILD_STAMP } });
   }
 
   const membership = await assertTenantMember(supabase, tenantId);
@@ -75,6 +89,7 @@ export async function GET(req: NextRequest) {
       error: "forbidden",
       message: "Você não tem acesso a este tenant.",
       detail: membership.reason === "rpc_failed" ? membership.detail : null,
+      _debug: { build: BUILD_STAMP, tenantId, membership: membership.reason },
     });
   }
 
@@ -84,24 +99,28 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: false });
 
   if (error) {
-    return json(403, { error: "forbidden", message: "RLS bloqueou a leitura.", detail: error.message });
+    return json(403, { error: "forbidden", message: "RLS bloqueou a leitura.", detail: error.message, _debug: { build: BUILD_STAMP } });
   }
 
-  return json(200, { items: data ?? [] });
+  return json(200, { items: data ?? [], _debug: { build: BUILD_STAMP, tenantId } });
 }
 
 export async function POST(req: NextRequest) {
   const token = getBearer(req);
-  if (!token) return json(401, { error: "missing_bearer", message: "Envie Authorization: Bearer <JWT>." });
+  if (!token) {
+    return json(401, { error: "missing_bearer", message: "Envie Authorization: Bearer <JWT>.", _debug: { build: BUILD_STAMP } });
+  }
 
   const tenantId = getTenant(req);
-  if (!tenantId) return json(400, { error: "missing_tenant", message: "Envie x-icanhelp-tenant: <tenant_id>." });
+  if (!tenantId) {
+    return json(400, { error: "missing_tenant", message: "Envie x-icanhelp-tenant: <tenant_id>.", _debug: { build: BUILD_STAMP } });
+  }
 
   const supabase = makeSupabase(token, tenantId);
 
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) {
-    return json(401, { error: "unauthorized", message: "JWT inválido ou expirado.", detail: userError?.message });
+    return json(401, { error: "unauthorized", message: "JWT inválido ou expirado.", detail: userError?.message, _debug: { build: BUILD_STAMP } });
   }
 
   const membership = await assertTenantMember(supabase, tenantId);
@@ -110,6 +129,7 @@ export async function POST(req: NextRequest) {
       error: "forbidden",
       message: "Você não tem acesso a este tenant.",
       detail: membership.reason === "rpc_failed" ? membership.detail : null,
+      _debug: { build: BUILD_STAMP, tenantId, membership: membership.reason },
     });
   }
 
@@ -117,11 +137,11 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return json(400, { error: "bad_request", message: "JSON inválido." });
+    return json(400, { error: "bad_request", message: "JSON inválido.", _debug: { build: BUILD_STAMP } });
   }
 
   if (!body.title || !body.description) {
-    return json(400, { error: "validation_error", message: "title e description são obrigatórios." });
+    return json(400, { error: "validation_error", message: "title e description são obrigatórios.", _debug: { build: BUILD_STAMP } });
   }
 
   const { data, error } = await supabase
@@ -136,8 +156,8 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) {
-    return json(403, { error: "forbidden", message: "RLS bloqueou a inserção.", detail: error.message, code: error.code ?? null });
+    return json(403, { error: "forbidden", message: "RLS bloqueou a inserção.", detail: error.message, code: error.code ?? null, _debug: { build: BUILD_STAMP } });
   }
 
-  return json(201, { item: data });
+  return json(201, { item: data, _debug: { build: BUILD_STAMP, tenantId } });
 }
