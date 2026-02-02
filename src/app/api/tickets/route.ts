@@ -1,101 +1,140 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
-const BUILD = "20260201-115027";
-
-function json(status: number, payload: any) {
-  return NextResponse.json(payload, {
-    status,
-    headers: {
-      "x-icanhelp-build": BUILD,
-      "cache-control": "no-store",
-    },
-  });
-}
-
-function extractBearerToken(req: Request): string | null {
-  const h = req.headers.get("authorization") || "";
-  const m = h.match(/^Bearer\s+(.+)\s*$/i);
-  return m ? m[1] : null;
-}
-
-function looksLikeRlsOrPermError(msg: string) {
-  const s = (msg || "").toLowerCase();
-  return (
-    s.includes("row-level security") ||
-    s.includes("rls") ||
-    s.includes("permission denied") ||
-    s.includes("not allowed") ||
-    s.includes("insufficient privilege")
+function unauthorized(msg: string, detail?: string) {
+  return NextResponse.json(
+    { error: "unauthorized", message: msg, detail },
+    { status: 401 }
   );
 }
 
-export async function GET(req: Request) {
-  try {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+function forbidden(msg: string) {
+  return NextResponse.json(
+    { error: "forbidden", message: msg },
+    { status: 403 }
+  );
+}
 
-    if (!url || !anon) {
-      return json(500, {
-        error: "server_misconfigured",
-        message: "VariÃ¡veis do Supabase nÃ£o estÃ£o configuradas no ambiente.",
-      });
-    }
-
-    const token = extractBearerToken(req);
-    if (!token) {
-      return json(401, {
-        error: "missing_bearer",
-        message: "Envie Authorization: Bearer <JWT>.",
-      });
-    }
-
-    const supabase = createClient(url, anon, {
-      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-      global: { headers: { Authorization: "Bearer " + token } },
-    });
-
-    const { data: userData, error: userErr } = await supabase.auth.getUser();
-    if (userErr || !userData?.user) {
-      return json(401, {
-        error: "unauthorized",
-        message: "JWT invÃ¡lido ou expirado.",
-        detail: userErr?.message || null,
-      });
-    }
-
-    const { data, error } = await supabase
-      .from("tickets")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      const msg = error.message || "";
-      if (error.code === "42501" || looksLikeRlsOrPermError(msg)) {
-        return json(403, {
-          error: "forbidden",
-          message: "Acesso negado pela polÃ­tica de seguranÃ§a (RLS).",
-          detail: msg,
-          code: error.code || null,
-        });
-      }
-
-      return json(500, {
-        error: "db_error",
-        message: "Falha ao consultar tickets.",
-        detail: msg,
-        code: error.code || null,
-      });
-    }
-
-    return json(200, { items: data ?? [] });
-  } catch (e: any) {
-    return json(500, {
-      error: "internal_error",
-      message: "Erro interno inesperado.",
-      detail: e?.message || String(e),
-    });
+function getSupabaseFromRequest(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    throw new Error("missing_bearer");
   }
+
+  const token = authHeader.replace("Bearer ", "").trim();
+
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    }
+  );
+}
+
+/* =========================
+   GET /api/tickets
+========================= */
+export async function GET(req: NextRequest) {
+  let supabase;
+  try {
+    supabase = getSupabaseFromRequest(req);
+  } catch {
+    return unauthorized("Envie Authorization: Bearer <JWT>.");
+  }
+
+  const { data: userData, error: userError } =
+    await supabase.auth.getUser();
+
+  if (userError || !userData.user) {
+    return unauthorized("JWT inválido ou expirado.", userError?.message);
+  }
+
+  const { data, error } = await supabase
+    .from("tickets")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    return forbidden("RLS bloqueou a leitura.");
+  }
+
+  return NextResponse.json({ items: data ?? [] });
+}
+
+/* =========================
+   POST /api/tickets
+========================= */
+export async function POST(req: NextRequest) {
+  let supabase;
+  try {
+    supabase = getSupabaseFromRequest(req);
+  } catch {
+    return unauthorized("Envie Authorization: Bearer <JWT>.");
+  }
+
+  const { data: userData, error: userError } =
+    await supabase.auth.getUser();
+
+  if (userError || !userData.user) {
+    return unauthorized("JWT inválido ou expirado.", userError?.message);
+  }
+
+  let body: { title?: string; description?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "bad_request", message: "JSON inválido." },
+      { status: 400 }
+    );
+  }
+
+  if (!body.title || !body.description) {
+    return NextResponse.json(
+      {
+        error: "validation_error",
+        message: "title e description são obrigatórios.",
+      },
+      { status: 400 }
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("tickets")
+    .insert({
+      title: body.title,
+      description: body.description,
+      created_by: userData.user.id,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === "42501") {
+      return forbidden("RLS bloqueou a inserção.");
+    }
+
+    return NextResponse.json(
+      {
+        error: "insert_failed",
+        message: "Falha ao criar ticket.",
+        detail: error.message,
+      },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ item: data }, { status: 201 });
 }
