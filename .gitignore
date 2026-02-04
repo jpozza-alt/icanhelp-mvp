@@ -44,3 +44,5 @@ node_modules/
 .next/
 .vercel/
 *.log
+.env.local
+jwt.txt
