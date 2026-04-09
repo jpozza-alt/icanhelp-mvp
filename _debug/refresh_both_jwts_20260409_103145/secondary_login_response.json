@@ -1,0 +1,56 @@
+﻿{
+    "ok":  true,
+    "status":  200,
+    "body_text":  "{\"access_token\":\"eyJhbGciOiJIUzI1NiIsImtpZCI6ImVPRDJKV2VQOHoyN1NNNjQiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2J1ZXFscXRmZWFjbmxocWx3dGdvLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI1ZjMxZTZhOC0wNWI4LTQzMzYtYWE2Zi01MjQ4Yzk1ZmI4YjciLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc1NzQ1MTE2LCJpYXQiOjE3NzU3NDE1MTYsImVtYWlsIjoicGhhc2U0LnNlY29uZGFyeS4yMDI2MDQwNzEwMDgxMi45N2p0Y3ZAZXhhbXBsZS5jb20iLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6ImVtYWlsIiwicHJvdmlkZXJzIjpbImVtYWlsIl19LCJ1c2VyX21ldGFkYXRhIjp7ImNyZWF0ZWRfYXQiOiIyMDI2LTA0LTA3VDEwOjA4OjE3IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInNvdXJjZSI6InBoYXNlNF9hZG1pbl9maXhfc2Vjb25kYXJ5X2NyZWRlbnRpYWxzX2FuZF9nZXRfand0In0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3NzU3NDE1MTZ9XSwic2Vzc2lvbl9pZCI6ImRlNmEyMGJmLWQxN2MtNGY2MC04NzUyLTRkZDA5MDczZWRlZCIsImlzX2Fub255bW91cyI6ZmFsc2V9.fzQPlwpxQqE1yOauAdY0X14sKLkNlevZjGlEs7itQTE\",\"token_type\":\"bearer\",\"expires_in\":3600,\"expires_at\":1775745116,\"refresh_token\":\"2ui3i7tkjn55\",\"user\":{\"id\":\"5f31e6a8-05b8-4336-aa6f-5248c95fb8b7\",\"aud\":\"authenticated\",\"role\":\"authenticated\",\"email\":\"phase4.secondary.20260407100812.97jtcv@example.com\",\"email_confirmed_at\":\"2026-04-07T21:46:52.660116Z\",\"phone\":\"\",\"confirmed_at\":\"2026-04-07T21:46:52.660116Z\",\"last_sign_in_at\":\"2026-04-09T13:31:56.80676421Z\",\"app_metadata\":{\"provider\":\"email\",\"providers\":[\"email\"]},\"user_metadata\":{\"created_at\":\"2026-04-07T10:08:17\",\"email_verified\":true,\"source\":\"phase4_admin_fix_secondary_credentials_and_get_jwt\"},\"identities\":[{\"identity_id\":\"64e8970e-70f1-4b55-85ce-3f2cc2b1bc96\",\"id\":\"5f31e6a8-05b8-4336-aa6f-5248c95fb8b7\",\"user_id\":\"5f31e6a8-05b8-4336-aa6f-5248c95fb8b7\",\"identity_data\":{\"email\":\"phase4.secondary.20260407100812.97jtcv@example.com\",\"email_verified\":false,\"phone_verified\":false,\"sub\":\"5f31e6a8-05b8-4336-aa6f-5248c95fb8b7\"},\"provider\":\"email\",\"last_sign_in_at\":\"2026-04-07T13:08:20.298673Z\",\"created_at\":\"2026-04-07T13:08:20.298731Z\",\"updated_at\":\"2026-04-07T13:08:20.298731Z\",\"email\":\"phase4.secondary.20260407100812.97jtcv@example.com\"}],\"created_at\":\"2026-04-07T13:08:20.250209Z\",\"updated_at\":\"2026-04-09T13:31:56.810953Z\",\"is_anonymous\":false},\"weak_password\":null}",
+    "json":  {
+                 "access_token":  "eyJhbGciOiJIUzI1NiIsImtpZCI6ImVPRDJKV2VQOHoyN1NNNjQiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL2J1ZXFscXRmZWFjbmxocWx3dGdvLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI1ZjMxZTZhOC0wNWI4LTQzMzYtYWE2Zi01MjQ4Yzk1ZmI4YjciLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc1NzQ1MTE2LCJpYXQiOjE3NzU3NDE1MTYsImVtYWlsIjoicGhhc2U0LnNlY29uZGFyeS4yMDI2MDQwNzEwMDgxMi45N2p0Y3ZAZXhhbXBsZS5jb20iLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6ImVtYWlsIiwicHJvdmlkZXJzIjpbImVtYWlsIl19LCJ1c2VyX21ldGFkYXRhIjp7ImNyZWF0ZWRfYXQiOiIyMDI2LTA0LTA3VDEwOjA4OjE3IiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInNvdXJjZSI6InBoYXNlNF9hZG1pbl9maXhfc2Vjb25kYXJ5X2NyZWRlbnRpYWxzX2FuZF9nZXRfand0In0sInJvbGUiOiJhdXRoZW50aWNhdGVkIiwiYWFsIjoiYWFsMSIsImFtciI6W3sibWV0aG9kIjoicGFzc3dvcmQiLCJ0aW1lc3RhbXAiOjE3NzU3NDE1MTZ9XSwic2Vzc2lvbl9pZCI6ImRlNmEyMGJmLWQxN2MtNGY2MC04NzUyLTRkZDA5MDczZWRlZCIsImlzX2Fub255bW91cyI6ZmFsc2V9.fzQPlwpxQqE1yOauAdY0X14sKLkNlevZjGlEs7itQTE",
+                 "token_type":  "bearer",
+                 "expires_in":  3600,
+                 "expires_at":  1775745116,
+                 "refresh_token":  "2ui3i7tkjn55",
+                 "user":  {
+                              "id":  "5f31e6a8-05b8-4336-aa6f-5248c95fb8b7",
+                              "aud":  "authenticated",
+                              "role":  "authenticated",
+                              "email":  "phase4.secondary.20260407100812.97jtcv@example.com",
+                              "email_confirmed_at":  "2026-04-07T21:46:52.660116Z",
+                              "phone":  "",
+                              "confirmed_at":  "2026-04-07T21:46:52.660116Z",
+                              "last_sign_in_at":  "2026-04-09T13:31:56.80676421Z",
+                              "app_metadata":  {
+                                                   "provider":  "email",
+                                                   "providers":  [
+                                                                     "email"
+                                                                 ]
+                                               },
+                              "user_metadata":  {
+                                                    "created_at":  "2026-04-07T10:08:17",
+                                                    "email_verified":  true,
+                                                    "source":  "phase4_admin_fix_secondary_credentials_and_get_jwt"
+                                                },
+                              "identities":  [
+                                                 {
+                                                     "identity_id":  "64e8970e-70f1-4b55-85ce-3f2cc2b1bc96",
+                                                     "id":  "5f31e6a8-05b8-4336-aa6f-5248c95fb8b7",
+                                                     "user_id":  "5f31e6a8-05b8-4336-aa6f-5248c95fb8b7",
+                                                     "identity_data":  {
+                                                                           "email":  "phase4.secondary.20260407100812.97jtcv@example.com",
+                                                                           "email_verified":  false,
+                                                                           "phone_verified":  false,
+                                                                           "sub":  "5f31e6a8-05b8-4336-aa6f-5248c95fb8b7"
+                                                                       },
+                                                     "provider":  "email",
+                                                     "last_sign_in_at":  "2026-04-07T13:08:20.298673Z",
+                                                     "created_at":  "2026-04-07T13:08:20.298731Z",
+                                                     "updated_at":  "2026-04-07T13:08:20.298731Z",
+                                                     "email":  "phase4.secondary.20260407100812.97jtcv@example.com"
+                                                 }
+                                             ],
+                              "created_at":  "2026-04-07T13:08:20.250209Z",
+                              "updated_at":  "2026-04-09T13:31:56.810953Z",
+                              "is_anonymous":  false
+                          },
+                 "weak_password":  null
+             },
+    "exception":  null
+}

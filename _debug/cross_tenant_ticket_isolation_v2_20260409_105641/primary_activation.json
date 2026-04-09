@@ -1,0 +1,63 @@
+﻿{
+    "success":  true,
+    "chosen_body":  {
+                        "tenant_id":  "21c18b0b-0433-4fa1-bd5b-3f92f81beee6"
+                    },
+    "status":  200,
+    "response":  {
+                     "ok":  true,
+                     "status":  200,
+                     "body_text":  "{\"ok\":true,\"request_id\":\"1c9e04ec-8d2a-419b-94fb-bcb9ac79e9ff\",\"tenant\":{\"active_tenant_id\":\"21c18b0b-0433-4fa1-bd5b-3f92f81beee6\",\"role\":\"admin\"},\"mode\":\"active_cookie_guarded\"}",
+                     "json":  {
+                                  "ok":  true,
+                                  "request_id":  "1c9e04ec-8d2a-419b-94fb-bcb9ac79e9ff",
+                                  "tenant":  {
+                                                 "active_tenant_id":  "21c18b0b-0433-4fa1-bd5b-3f92f81beee6",
+                                                 "role":  "admin"
+                                             },
+                                  "mode":  "active_cookie_guarded"
+                              },
+                     "headers":  {
+                                     "Keep-Alive":  "timeout=5",
+                                     "vary":  "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+                                     "Transfer-Encoding":  "chunked",
+                                     "Content-Type":  "application/json",
+                                     "Date":  "Thu, 09 Apr 2026 13:56:45 GMT",
+                                     "Connection":  "keep-alive",
+                                     "Set-Cookie":  "icanhelp_tenant=21c18b0b-0433-4fa1-bd5b-3f92f81beee6; Path=/; Expires=Sat, 09 May 2026 13:56:45 GMT; Max-Age=2592000; HttpOnly; SameSite=lax"
+                                 },
+                     "exception":  null,
+                     "url":  "http://localhost:3000/api/tenants/active",
+                     "method":  "POST"
+                 },
+    "cookie_tenant":  "21c18b0b-0433-4fa1-bd5b-3f92f81beee6",
+    "attempts":  [
+                     {
+                         "body":  {
+                                      "tenantId":  "21c18b0b-0433-4fa1-bd5b-3f92f81beee6"
+                                  },
+                         "status":  400,
+                         "ok":  false,
+                         "response_text":  "{\"ok\":false,\"error\":{\"code\":\"invalid_tenant_id\",\"message\":\"tenant_id invalido.\"},\"request_id\":\"b8bb1c21-a6e8-4873-9e9b-d2f799c009a2\"}",
+                         "cookie_tenant":  null
+                     },
+                     {
+                         "body":  {
+                                      "id":  "21c18b0b-0433-4fa1-bd5b-3f92f81beee6"
+                                  },
+                         "status":  400,
+                         "ok":  false,
+                         "response_text":  "{\"ok\":false,\"error\":{\"code\":\"invalid_tenant_id\",\"message\":\"tenant_id invalido.\"},\"request_id\":\"81fa90aa-3e28-484b-bb1d-1d45adc8efc7\"}",
+                         "cookie_tenant":  null
+                     },
+                     {
+                         "body":  {
+                                      "tenant_id":  "21c18b0b-0433-4fa1-bd5b-3f92f81beee6"
+                                  },
+                         "status":  200,
+                         "ok":  true,
+                         "response_text":  "{\"ok\":true,\"request_id\":\"1c9e04ec-8d2a-419b-94fb-bcb9ac79e9ff\",\"tenant\":{\"active_tenant_id\":\"21c18b0b-0433-4fa1-bd5b-3f92f81beee6\",\"role\":\"admin\"},\"mode\":\"active_cookie_guarded\"}",
+                         "cookie_tenant":  "21c18b0b-0433-4fa1-bd5b-3f92f81beee6"
+                     }
+                 ]
+}

@@ -1,0 +1,9 @@
+﻿MILESTONE=RESOURCE_LEVEL_CROSS_TENANT_ISOLATION_PASS
+DATE_UTC=2026-04-09T14:06:15.0280453Z
+REPO_ROOT=C:\icanhelp-mvp
+LATEST_V2_PASS_RUN=C:\icanhelp-mvp\_debug\cross_tenant_ticket_isolation_v2_20260409_105641
+LATEST_REFRESH_RUN=C:\icanhelp-mvp\_debug\refresh_both_jwts_20260409_103145
+CANONICAL_SCRIPT=C:\icanhelp-mvp\scripts\77_cross_tenant_ticket_isolation.ps1
+BACKUP_OF_OLD_77=C:\icanhelp-mvp\scripts\quarantine\77_cross_tenant_ticket_isolation_PRE_V2_20260409_110614.ps1
+DECISION=V2 promoted as canonical resource-level cross-tenant proof
+NEXT_FOCUS=freeze milestone first; only then move to next product hardening step

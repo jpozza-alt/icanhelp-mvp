@@ -1,0 +1,36 @@
+﻿{
+    "success":  false,
+    "chosen_body":  null,
+    "status":  null,
+    "response":  null,
+    "cookie_tenant":  "ba05b747-2789-4cae-af65-268b635da959",
+    "attempts":  [
+                     {
+                         "body":  {
+                                      "tenantId":  "21c18b0b-0433-4fa1-bd5b-3f92f81beee6"
+                                  },
+                         "status":  400,
+                         "ok":  false,
+                         "response_text":  "{\"ok\":false,\"error\":{\"code\":\"invalid_tenant_id\",\"message\":\"tenant_id invalido.\"},\"request_id\":\"b3861b5d-1684-4cb8-adbf-17b967666c2b\"}",
+                         "cookie_tenant":  "ba05b747-2789-4cae-af65-268b635da959"
+                     },
+                     {
+                         "body":  {
+                                      "id":  "21c18b0b-0433-4fa1-bd5b-3f92f81beee6"
+                                  },
+                         "status":  400,
+                         "ok":  false,
+                         "response_text":  "{\"ok\":false,\"error\":{\"code\":\"invalid_tenant_id\",\"message\":\"tenant_id invalido.\"},\"request_id\":\"97c568e7-aa30-4993-a4b3-fe49714ca8ac\"}",
+                         "cookie_tenant":  "ba05b747-2789-4cae-af65-268b635da959"
+                     },
+                     {
+                         "body":  {
+                                      "tenant_id":  "21c18b0b-0433-4fa1-bd5b-3f92f81beee6"
+                                  },
+                         "status":  403,
+                         "ok":  false,
+                         "response_text":  "{\"ok\":false,\"error\":{\"code\":\"forbidden\",\"message\":\"Voce nao possui acesso a este tenant.\"},\"request_id\":\"cee8f7cd-9e6e-4097-9b37-bca6f9d6479a\",\"auth\":{\"uid\":\"5f31e6a8-05b8-4336-aa6f-5248c95fb8b7\"},\"tenant_id\":\"21c18b0b-0433-4fa1-bd5b-3f92f81beee6\"}",
+                         "cookie_tenant":  "ba05b747-2789-4cae-af65-268b635da959"
+                     }
+                 ]
+}

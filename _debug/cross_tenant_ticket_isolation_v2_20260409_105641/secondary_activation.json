@@ -1,0 +1,63 @@
+﻿{
+    "success":  true,
+    "chosen_body":  {
+                        "tenant_id":  "ba05b747-2789-4cae-af65-268b635da959"
+                    },
+    "status":  200,
+    "response":  {
+                     "ok":  true,
+                     "status":  200,
+                     "body_text":  "{\"ok\":true,\"request_id\":\"2a85c07a-ed40-4c24-b0ea-284d5fec68e2\",\"tenant\":{\"active_tenant_id\":\"ba05b747-2789-4cae-af65-268b635da959\",\"role\":\"owner\"},\"mode\":\"active_cookie_guarded\"}",
+                     "json":  {
+                                  "ok":  true,
+                                  "request_id":  "2a85c07a-ed40-4c24-b0ea-284d5fec68e2",
+                                  "tenant":  {
+                                                 "active_tenant_id":  "ba05b747-2789-4cae-af65-268b635da959",
+                                                 "role":  "owner"
+                                             },
+                                  "mode":  "active_cookie_guarded"
+                              },
+                     "headers":  {
+                                     "Keep-Alive":  "timeout=5",
+                                     "vary":  "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+                                     "Transfer-Encoding":  "chunked",
+                                     "Content-Type":  "application/json",
+                                     "Date":  "Thu, 09 Apr 2026 13:56:46 GMT",
+                                     "Connection":  "keep-alive",
+                                     "Set-Cookie":  "icanhelp_tenant=ba05b747-2789-4cae-af65-268b635da959; Path=/; Expires=Sat, 09 May 2026 13:56:46 GMT; Max-Age=2592000; HttpOnly; SameSite=lax"
+                                 },
+                     "exception":  null,
+                     "url":  "http://localhost:3000/api/tenants/active",
+                     "method":  "POST"
+                 },
+    "cookie_tenant":  "ba05b747-2789-4cae-af65-268b635da959",
+    "attempts":  [
+                     {
+                         "body":  {
+                                      "tenantId":  "ba05b747-2789-4cae-af65-268b635da959"
+                                  },
+                         "status":  400,
+                         "ok":  false,
+                         "response_text":  "{\"ok\":false,\"error\":{\"code\":\"invalid_tenant_id\",\"message\":\"tenant_id invalido.\"},\"request_id\":\"c5326f63-8d70-4c2f-a3f6-008f8b69062d\"}",
+                         "cookie_tenant":  null
+                     },
+                     {
+                         "body":  {
+                                      "id":  "ba05b747-2789-4cae-af65-268b635da959"
+                                  },
+                         "status":  400,
+                         "ok":  false,
+                         "response_text":  "{\"ok\":false,\"error\":{\"code\":\"invalid_tenant_id\",\"message\":\"tenant_id invalido.\"},\"request_id\":\"032088e1-a29f-49cb-9cea-51a3ac0d8f14\"}",
+                         "cookie_tenant":  null
+                     },
+                     {
+                         "body":  {
+                                      "tenant_id":  "ba05b747-2789-4cae-af65-268b635da959"
+                                  },
+                         "status":  200,
+                         "ok":  true,
+                         "response_text":  "{\"ok\":true,\"request_id\":\"2a85c07a-ed40-4c24-b0ea-284d5fec68e2\",\"tenant\":{\"active_tenant_id\":\"ba05b747-2789-4cae-af65-268b635da959\",\"role\":\"owner\"},\"mode\":\"active_cookie_guarded\"}",
+                         "cookie_tenant":  "ba05b747-2789-4cae-af65-268b635da959"
+                     }
+                 ]
+}
