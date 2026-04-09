@@ -1,0 +1,40 @@
+﻿{
+    "valid":  true,
+    "reason":  "",
+    "sub":  "5f31e6a8-05b8-4336-aa6f-5248c95fb8b7",
+    "email":  "phase4.secondary.20260407100812.97jtcv@example.com",
+    "role":  "authenticated",
+    "exp":  1775757058,
+    "expires_at_utc":  "2026-04-09T17:50:58.0000000Z",
+    "seconds_remaining":  3599,
+    "payload":  {
+                    "iss":  "https://bueqlqtfeacnlhqlwtgo.supabase.co/auth/v1",
+                    "sub":  "5f31e6a8-05b8-4336-aa6f-5248c95fb8b7",
+                    "aud":  "authenticated",
+                    "exp":  1775757058,
+                    "iat":  1775753458,
+                    "email":  "phase4.secondary.20260407100812.97jtcv@example.com",
+                    "phone":  "",
+                    "app_metadata":  {
+                                         "provider":  "email",
+                                         "providers":  [
+                                                           "email"
+                                                       ]
+                                     },
+                    "user_metadata":  {
+                                          "created_at":  "2026-04-07T10:08:17",
+                                          "email_verified":  true,
+                                          "source":  "phase4_admin_fix_secondary_credentials_and_get_jwt"
+                                      },
+                    "role":  "authenticated",
+                    "aal":  "aal1",
+                    "amr":  [
+                                {
+                                    "method":  "password",
+                                    "timestamp":  1775753458
+                                }
+                            ],
+                    "session_id":  "610dc5dc-a454-4031-bde0-b81a2a86ba96",
+                    "is_anonymous":  false
+                }
+}

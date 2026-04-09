@@ -1,0 +1,36 @@
+﻿2936e72 chore(security): freeze resource-level cross-tenant isolation milestone
+ .../PASTE_ME.txt                                   |  14 +
+ .../SUMMARY.json                                   | 536 +++++++++++++
+ .../app_bootstrap.json                             |   7 +
+ .../primary_activation.json                        |  63 ++
+ .../primary_get_after.json                         | 233 ++++++
+ .../primary_get_after_raw.txt                      |   1 +
+ .../primary_tenant_ids.json                        |  13 +
+ .../primary_tenants_raw.txt                        |   1 +
+ .../primary_tenants_response.json                  | 166 ++++
+ .../secondary_activation.json                      |  63 ++
+ .../secondary_cross_activation_to_primary.json     |  36 +
+ .../secondary_get.json                             |  26 +
+ .../secondary_get_raw.txt                          |   1 +
+ .../secondary_tenant_ids.json                      |   1 +
+ .../secondary_tenants_raw.txt                      |   1 +
+ .../secondary_tenants_response.json                |  36 +
+ .../ticket_create_attempts.json                    |  56 ++
+ .../ticket_payload_candidates.json                 |  15 +
+ .../MILESTONE.txt                                  |   9 +
+ .../OPERATIONS_SUMMARY.txt                         |  12 +
+ .../PASTE_ME.txt                                   |   7 +
+ .../SUMMARY.json                                   |  23 +
+ .../refresh_both_jwts_20260409_103145/PASTE_ME.txt |   8 +
+ .../refresh_both_jwts_20260409_103145/SUMMARY.json |  41 +
+ .../primary_email.txt                              |   1 +
+ .../primary_jwt_info.json                          |   9 +
+ .../primary_login_response.json                    |  57 ++
+ .../secondary_email.txt                            |   1 +
+ .../secondary_jwt_info.json                        |   9 +
+ .../secondary_login_response.json                  |  56 ++
+ scripts/77_cross_tenant_ticket_isolation.ps1       | 769 ++++++++++++++++++
+ scripts/81_cross_tenant_ticket_isolation_v2.ps1    | 769 ++++++++++++++++++
+ .../82_freeze_and_promote_resource_isolation.ps1   | 233 ++++++
+ ...ant_ticket_isolation_PRE_V2_20260409_110614.ps1 | 863 +++++++++++++++++++++
+ 34 files changed, 4136 insertions(+)

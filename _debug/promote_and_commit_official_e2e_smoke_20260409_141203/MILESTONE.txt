@@ -1,0 +1,12 @@
+﻿STATUS=PASS
+MILESTONE=OFFICIAL_E2E_SMOKE_PROMOTED
+DATE_UTC=2026-04-09T17:12:03.9256387Z
+SOURCE_87=C:\icanhelp-mvp\scripts\87_e2e_fresh_login_and_resource_isolation.ps1
+CANONICAL_SMOKE=C:\icanhelp-mvp\scripts\e2e-smoke-official.ps1
+PROD_SMOKE_NOW=C:\icanhelp-mvp\scripts\prod-smoke-now.ps1
+LATEST_E2E_ARTIFACT=C:\icanhelp-mvp\_debug\e2e_fresh_login_and_resource_isolation_20260409_135045
+LATEST_FREEZE_ARTIFACT=C:\icanhelp-mvp\_debug\freeze_and_promote_resource_isolation_20260409_110614
+LATEST_ISOLATION_V2_ARTIFACT=C:\icanhelp-mvp\_debug\cross_tenant_ticket_isolation_v2_20260409_105641
+LATEST_COMMIT_MILESTONE_ARTIFACT=C:\icanhelp-mvp\_debug\commit_resource_isolation_direct_git_20260409_113027
+DECISION=script 87 promoted as official E2E smoke
+NEXT_EXPECTATION=use e2e-smoke-official.ps1 or prod-smoke-now.ps1 as the standard smoke

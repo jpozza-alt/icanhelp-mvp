@@ -1,0 +1,6 @@
+﻿What this promotion did:
+- Preserved original 87
+- Promoted 87 to scripts\e2e-smoke-official.ps1
+- Replaced scripts\prod-smoke-now.ps1 with the same proven E2E flow
+- Preserved backups in scripts\quarantine
+- Prepared a clean Git commit for the smoke milestone

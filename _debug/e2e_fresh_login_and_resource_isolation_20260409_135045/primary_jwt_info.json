@@ -1,0 +1,41 @@
+﻿{
+    "valid":  true,
+    "reason":  "",
+    "sub":  "17dcb3c0-196e-4301-9a03-3a58cd36978d",
+    "email":  "jpozza@gmail.com",
+    "role":  "authenticated",
+    "exp":  1775757058,
+    "expires_at_utc":  "2026-04-09T17:50:58.0000000Z",
+    "seconds_remaining":  3599,
+    "payload":  {
+                    "iss":  "https://bueqlqtfeacnlhqlwtgo.supabase.co/auth/v1",
+                    "sub":  "17dcb3c0-196e-4301-9a03-3a58cd36978d",
+                    "aud":  "authenticated",
+                    "exp":  1775757058,
+                    "iat":  1775753458,
+                    "email":  "jpozza@gmail.com",
+                    "phone":  "",
+                    "app_metadata":  {
+                                         "provider":  "email",
+                                         "providers":  [
+                                                           "email"
+                                                       ]
+                                     },
+                    "user_metadata":  {
+                                          "email":  "jpozza@gmail.com",
+                                          "email_verified":  true,
+                                          "phone_verified":  false,
+                                          "sub":  "17dcb3c0-196e-4301-9a03-3a58cd36978d"
+                                      },
+                    "role":  "authenticated",
+                    "aal":  "aal1",
+                    "amr":  [
+                                {
+                                    "method":  "password",
+                                    "timestamp":  1775753458
+                                }
+                            ],
+                    "session_id":  "bef7d7f8-9150-4160-b512-4312217919c2",
+                    "is_anonymous":  false
+                }
+}
