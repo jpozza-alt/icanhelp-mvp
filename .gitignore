@@ -46,3 +46,5 @@ node_modules/
 *.log
 .env.local
 jwt.txt
+scripts/.jwt_last.txt
+scripts/.jwt_secondary_last.txt
