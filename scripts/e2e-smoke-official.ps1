@@ -1,13 +1,5 @@
-﻿$ErrorActionPreference = "Stop"
-
-function Write-Log {
-    param(
-        [string]$Message,
-        [string]$Level = "INFO"
-    )
-    $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Write-Host ("[{0}] [{1}] {2}" -f $ts, $Level, $Message)
-}
+$ErrorActionPreference = "Stop"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 function Ensure-Dir {
     param([string]$Path)
@@ -22,85 +14,82 @@ function Save-Text {
         [string]$Text
     )
     $parent = Split-Path -Parent $Path
-    if (-not [string]::IsNullOrWhiteSpace($parent)) {
+    if ($parent) {
         Ensure-Dir -Path $parent
     }
     [System.IO.File]::WriteAllText($Path, $Text, [System.Text.Encoding]::UTF8)
 }
 
-function Save-Json {
+function Invoke-Http {
     param(
-        [string]$Path,
-        $Object
-    )
-    $json = $Object | ConvertTo-Json -Depth 40
-    Save-Text -Path $Path -Text $json
-}
-
-function Get-FileText {
-    param([string]$Path)
-    if (Test-Path -LiteralPath $Path) {
-        return [System.IO.File]::ReadAllText($Path, [System.Text.Encoding]::UTF8)
-    }
-    return ""
-}
-
-function Read-EnvValue {
-    param(
-        [string[]]$EnvFiles,
-        [string]$Key
+        [string]$Method,
+        [string]$Url,
+        [hashtable]$Headers,
+        [string]$Body = ""
     )
 
-    foreach ($file in $EnvFiles) {
-        if (-not (Test-Path -LiteralPath $file)) {
-            continue
+    try {
+        $params = @{
+            Method          = $Method
+            Uri             = $Url
+            Headers         = $Headers
+            TimeoutSec      = 60
+            ErrorAction     = "Stop"
+            UseBasicParsing = $true
         }
 
-        $lines = Get-Content -LiteralPath $file
-        foreach ($line in $lines) {
-            if ($line -match '^\s*#') { continue }
-            if ($line -match '^\s*$') { continue }
+        if (-not [string]::IsNullOrWhiteSpace($Body)) {
+            $params["Body"] = $Body
+            $params["ContentType"] = "application/json"
+        }
 
-            $pattern = '^\s*' + [regex]::Escape($Key) + '\s*=\s*(.*)\s*$'
-            $m = [regex]::Match($line, $pattern)
-            if ($m.Success) {
-                $value = $m.Groups[1].Value.Trim()
-                if (($value.StartsWith('"') -and $value.EndsWith('"')) -or ($value.StartsWith("'") -and $value.EndsWith("'"))) {
-                    $value = $value.Substring(1, $value.Length - 2)
-                }
-                if (-not [string]::IsNullOrWhiteSpace($value)) {
-                    return $value
+        $resp = Invoke-WebRequest @params
+        return [pscustomobject]@{
+            ok        = $true
+            status    = [int]$resp.StatusCode
+            body      = [string]$resp.Content
+            error     = ""
+            headers   = $resp.Headers
+        }
+    }
+    catch {
+        $status = $null
+        $body = ""
+        $err = $_.Exception.Message
+
+        if ($_.Exception.Response -ne $null) {
+            try {
+                $status = [int]$_.Exception.Response.StatusCode
+            }
+            catch { }
+
+            try {
+                $stream = $_.Exception.Response.GetResponseStream()
+                if ($stream -ne $null) {
+                    $reader = New-Object System.IO.StreamReader($stream)
+                    $body = $reader.ReadToEnd()
+                    $reader.Close()
                 }
             }
+            catch { }
+        }
+
+        return [pscustomobject]@{
+            ok        = $false
+            status    = $status
+            body      = $body
+            error     = $err
+            headers   = @{}
         }
     }
-
-    return $null
 }
 
-function Get-StringFromFileOrPrompt {
-    param(
-        [string]$PreferredPath,
-        [string]$Prompt
-    )
-
-    if (Test-Path -LiteralPath $PreferredPath) {
-        $content = (Get-Content -LiteralPath $PreferredPath -Raw).Trim()
-        if (-not [string]::IsNullOrWhiteSpace($content)) {
-            return $content
-        }
-    }
-
-    return (Read-Host $Prompt).Trim()
-}
-
-function Read-PlainPassword {
+function Read-PlainSecret {
     param([string]$Prompt)
-
-    $secure = Read-Host $Prompt -AsSecureString
+    $secure = Read-Host -Prompt $Prompt -AsSecureString
     $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
     try {
-        return [Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+        return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
     }
     finally {
         if ($bstr -ne [IntPtr]::Zero) {
@@ -109,1014 +98,325 @@ function Read-PlainPassword {
     }
 }
 
-function Decode-Base64UrlToString {
+function Clean-PastedValue {
     param([string]$Value)
 
     if ([string]::IsNullOrWhiteSpace($Value)) {
         return ""
     }
 
-    $padded = $Value.Replace("-", "+").Replace("_", "/")
-    switch ($padded.Length % 4) {
-        2 { $padded += "==" }
-        3 { $padded += "=" }
-        default { }
-    }
+    $v = [string]$Value
+    $v = $v.Trim()
+    $v = $v -replace '\\r', ''
+    $v = $v -replace '\\n', ''
+    $v = $v -replace "`r", ''
+    $v = $v -replace "`n", ''
+    $v = $v.Trim()
 
-    $bytes = [System.Convert]::FromBase64String($padded)
-    return [System.Text.Encoding]::UTF8.GetString($bytes)
-}
-
-function Get-JwtInfo {
-    param([string]$Jwt)
-
-    $result = [ordered]@{
-        valid = $false
-        reason = ""
-        sub = $null
-        email = $null
-        role = $null
-        exp = $null
-        expires_at_utc = $null
-        seconds_remaining = $null
-        payload = $null
-    }
-
-    if ([string]::IsNullOrWhiteSpace($Jwt)) {
-        $result.reason = "empty_token"
-        return [pscustomobject]$result
-    }
-
-    $parts = $Jwt.Trim().Split(".")
-    if ($parts.Count -lt 2) {
-        $result.reason = "not_jwt"
-        return [pscustomobject]$result
-    }
-
-    try {
-        $payloadJson = Decode-Base64UrlToString -Value $parts[1]
-        $payloadObj = $payloadJson | ConvertFrom-Json
-
-        $result.sub = $payloadObj.sub
-        $result.email = $payloadObj.email
-        $result.role = $payloadObj.role
-        $result.payload = $payloadObj
-
-        if ($null -ne $payloadObj.exp) {
-            $expInt = [int64]$payloadObj.exp
-            $epoch = [DateTimeOffset]::FromUnixTimeSeconds($expInt)
-            $result.exp = $expInt
-            $result.expires_at_utc = $epoch.UtcDateTime.ToString("o")
-            $result.seconds_remaining = [math]::Floor(($epoch.UtcDateTime - (Get-Date).ToUniversalTime()).TotalSeconds)
+    if (($v.StartsWith('"') -and $v.EndsWith('"')) -or ($v.StartsWith("'") -and $v.EndsWith("'"))) {
+        if ($v.Length -ge 2) {
+            $v = $v.Substring(1, $v.Length - 2).Trim()
         }
+    }
 
-        $result.valid = $true
-        return [pscustomobject]$result
+    while ($v -match '^[A-Za-z_][A-Za-z0-9_]*=') {
+        $eq = $v.IndexOf("=")
+        if ($eq -lt 0) { break }
+        $v = $v.Substring($eq + 1).Trim()
     }
-    catch {
-        $result.reason = $_.Exception.Message
-        return [pscustomobject]$result
-    }
+
+    return $v
 }
 
-function Invoke-PasswordLogin {
+function Login-SupabasePassword {
     param(
-        [string]$SupabaseUrl,
         [string]$AnonKey,
         [string]$Email,
         [string]$Password
     )
 
-    $url = $SupabaseUrl.TrimEnd("/") + "/auth/v1/token?grant_type=password"
+    $url = "https://bueqlqtfeacnlhqlwtgo.supabase.co/auth/v1/token?grant_type=password"
     $headers = @{
         "apikey" = $AnonKey
         "Accept" = "application/json"
     }
 
-    $bodyObj = @{
+    $body = @{
         email = $Email
         password = $Password
-    }
+    } | ConvertTo-Json -Compress
 
-    $bodyJson = $bodyObj | ConvertTo-Json -Depth 5
-
-    try {
-        $resp = Invoke-WebRequest -Method "POST" -Uri $url -Headers $headers -ContentType "application/json" -Body $bodyJson -UseBasicParsing -ErrorAction Stop
-        $json = $null
-        if (-not [string]::IsNullOrWhiteSpace([string]$resp.Content)) {
-            $json = $resp.Content | ConvertFrom-Json
-        }
-
-        return [pscustomobject]@{
-            ok = $true
-            status = [int]$resp.StatusCode
-            body_text = [string]$resp.Content
-            json = $json
-            exception = $null
-        }
-    }
-    catch {
-        $ex = $_.Exception
-        $status = $null
-        $bodyText = ""
-
-        if ($ex.Response -ne $null) {
-            try {
-                $status = [int]$ex.Response.StatusCode
-            }
-            catch { }
-
-            try {
-                $stream = $ex.Response.GetResponseStream()
-                if ($stream -ne $null) {
-                    $reader = New-Object System.IO.StreamReader($stream)
-                    $bodyText = $reader.ReadToEnd()
-                    $reader.Close()
-                }
-            }
-            catch { }
-        }
-
-        $json = $null
-        if (-not [string]::IsNullOrWhiteSpace($bodyText)) {
-            try {
-                $json = $bodyText | ConvertFrom-Json
-            }
-            catch { }
-        }
-
-        return [pscustomobject]@{
-            ok = $false
-            status = $status
-            body_text = $bodyText
-            json = $json
-            exception = $ex.Message
-        }
-    }
+    return Invoke-Http -Method "POST" -Url $url -Headers $headers -Body $body
 }
 
-function Invoke-Http {
-    param(
-        [string]$Method,
-        [string]$Url,
-        [hashtable]$Headers,
-        [string]$Body,
-        [Microsoft.PowerShell.Commands.WebRequestSession]$Session,
-        [int]$TimeoutSec = 60
-    )
+function Get-TenantIdsByRegex {
+    param([string]$JsonText)
 
-    $responseObj = [ordered]@{
-        ok = $false
-        status = $null
-        body_text = ""
-        json = $null
-        headers = @{}
-        exception = $null
-        url = $Url
-        method = $Method
+    $ids = New-Object System.Collections.Generic.List[string]
+
+    if ([string]::IsNullOrWhiteSpace($JsonText)) {
+        return @()
     }
 
-    try {
-        $params = @{
-            Method          = $Method
-            Uri             = $Url
-            Headers         = $Headers
-            TimeoutSec      = $TimeoutSec
-            UseBasicParsing = $true
-            ErrorAction     = "Stop"
+    $matches = [regex]::Matches($JsonText, '"tenant_id"\s*:\s*"([^"]+)"')
+    foreach ($m in $matches) {
+        $value = $m.Groups[1].Value
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            $ids.Add($value)
         }
-
-        if ($null -ne $Session) {
-            $params.WebSession = $Session
-        }
-
-        if (-not [string]::IsNullOrWhiteSpace($Body)) {
-            $params.Body = $Body
-            $params.ContentType = "application/json"
-        }
-
-        $resp = Invoke-WebRequest @params
-
-        $responseObj.ok = $true
-        $responseObj.status = [int]$resp.StatusCode
-        $responseObj.body_text = [string]$resp.Content
-
-        foreach ($k in $resp.Headers.Keys) {
-            $responseObj.headers[$k] = [string]$resp.Headers[$k]
-        }
-
-        if (-not [string]::IsNullOrWhiteSpace($responseObj.body_text)) {
-            try {
-                $responseObj.json = $responseObj.body_text | ConvertFrom-Json
-            }
-            catch { }
-        }
-
-        return [pscustomobject]$responseObj
     }
-    catch {
-        $ex = $_.Exception
-        $responseObj.exception = $ex.Message
 
-        if ($ex.Response -ne $null) {
-            try {
-                $responseObj.status = [int]$ex.Response.StatusCode
-            }
-            catch { }
-
-            try {
-                $stream = $ex.Response.GetResponseStream()
-                if ($stream -ne $null) {
-                    $reader = New-Object System.IO.StreamReader($stream)
-                    $responseObj.body_text = $reader.ReadToEnd()
-                    $reader.Close()
-                }
-            }
-            catch { }
-
-            if (-not [string]::IsNullOrWhiteSpace($responseObj.body_text)) {
-                try {
-                    $responseObj.json = $responseObj.body_text | ConvertFrom-Json
-                }
-                catch { }
+    if ($ids.Count -eq 0) {
+        $matches = [regex]::Matches($JsonText, '"id"\s*:\s*"([0-9a-fA-F-]{36})"')
+        foreach ($m in $matches) {
+            $value = $m.Groups[1].Value
+            if (-not [string]::IsNullOrWhiteSpace($value)) {
+                $ids.Add($value)
             }
         }
-
-        return [pscustomobject]$responseObj
     }
+
+    return @($ids | Select-Object -Unique)
 }
 
-function Get-AuthHeaders {
+function Auth-Headers {
     param(
         [string]$Jwt,
-        [string]$TenantId
+        [string]$TenantId = ""
     )
 
     $h = @{
         "Authorization" = "Bearer $Jwt"
-        "Accept"        = "application/json"
+        "Accept" = "application/json"
     }
 
     if (-not [string]::IsNullOrWhiteSpace($TenantId)) {
-        $h["x-tenant-id"] = $TenantId
         $h["x-icanhelp-tenant"] = $TenantId
     }
 
     return $h
 }
 
-function New-WebSession {
-    return New-Object Microsoft.PowerShell.Commands.WebRequestSession
-}
-
-function Test-EndpointReachable {
-    param([string]$BaseUrl)
-
-    $probe = Invoke-Http -Method "GET" -Url ($BaseUrl.TrimEnd("/") + "/api/debug/context") -Headers @{} -Body $null -Session $null -TimeoutSec 15
-    if ($null -ne $probe.status) {
-        return $true
-    }
-
-    return $false
-}
-
-function Start-LocalAppIfNeeded {
-    param(
-        [string]$RepoRoot,
-        [string]$BaseUrl,
-        [string]$RunDir
-    )
-
-    $devLog = Join-Path $RunDir "local_app_dev.log"
-
-    $startInfo = [ordered]@{
-        app_reachable_before = $false
-        started_process = $false
-        process_id = $null
-        dev_log = $devLog
-        app_reachable_after = $false
-    }
-
-    if (Test-EndpointReachable -BaseUrl $BaseUrl) {
-        $startInfo.app_reachable_before = $true
-        $startInfo.app_reachable_after = $true
-        return [pscustomobject]$startInfo
-    }
-
-    $npmCmd = Get-Command npm.cmd -ErrorAction SilentlyContinue
-    if ($null -eq $npmCmd) {
-        throw "npm.cmd not found in PATH."
-    }
-
-    Write-Log "Local app not reachable. Starting npm run dev..." "WARN"
-
-    $cmdLine = "/c npm.cmd run dev 1> `"$devLog`" 2>&1"
-    $p = Start-Process -FilePath "cmd.exe" -ArgumentList $cmdLine -WorkingDirectory $RepoRoot -WindowStyle Hidden -PassThru
-
-    $startInfo.started_process = $true
-    $startInfo.process_id = $p.Id
-
-    $deadline = (Get-Date).AddMinutes(3)
-    do {
-        Start-Sleep -Seconds 3
-        if (Test-EndpointReachable -BaseUrl $BaseUrl) {
-            $startInfo.app_reachable_after = $true
-            return [pscustomobject]$startInfo
-        }
-    } while ((Get-Date) -lt $deadline)
-
-    return [pscustomobject]$startInfo
-}
-
-function Extract-TenantIds {
-    param(
-        $Json,
-        [string]$BodyText
-    )
-
-    $ids = New-Object System.Collections.Generic.List[string]
-
-    if ($null -ne $Json) {
-        if ($Json -is [System.Array]) {
-            foreach ($item in $Json) {
-                if ($null -ne $item -and $item.PSObject.Properties.Name -contains "id") {
-                    $val = [string]$item.id
-                    if (-not [string]::IsNullOrWhiteSpace($val)) {
-                        $ids.Add($val)
-                    }
-                }
-            }
-        }
-        else {
-            foreach ($prop in @("tenants", "data", "items", "result")) {
-                if ($Json.PSObject.Properties.Name -contains $prop) {
-                    $val = $Json.$prop
-
-                    if ($val -is [System.Array]) {
-                        foreach ($item in $val) {
-                            if ($null -ne $item -and $item.PSObject.Properties.Name -contains "id") {
-                                $id = [string]$item.id
-                                if (-not [string]::IsNullOrWhiteSpace($id)) {
-                                    $ids.Add($id)
-                                }
-                            }
-                        }
-                    }
-                    elseif ($null -ne $val) {
-                        if ($val.PSObject.Properties.Name -contains "id") {
-                            $id = [string]$val.id
-                            if (-not [string]::IsNullOrWhiteSpace($id)) {
-                                $ids.Add($id)
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (($ids.Count -eq 0) -and ($Json.PSObject.Properties.Name -contains "id")) {
-                $singleId = [string]$Json.id
-                if (-not [string]::IsNullOrWhiteSpace($singleId)) {
-                    $ids.Add($singleId)
-                }
-            }
-        }
-    }
-
-    if (($ids.Count -eq 0) -and (-not [string]::IsNullOrWhiteSpace($BodyText))) {
-        $matches = [regex]::Matches($BodyText, '"id"\s*:\s*"([0-9a-fA-F-]{36})"')
-        foreach ($m in $matches) {
-            $id = $m.Groups[1].Value
-            if (-not [string]::IsNullOrWhiteSpace($id)) {
-                $ids.Add($id)
-            }
-        }
-    }
-
-    $unique = New-Object System.Collections.Generic.List[string]
-    $seen = @{}
-
-    foreach ($id in $ids) {
-        if (-not $seen.ContainsKey($id)) {
-            $seen[$id] = $true
-            $unique.Add($id)
-        }
-    }
-
-    return ,$unique.ToArray()
-}
-
-function Select-PrimaryTenantId {
-    param(
-        [string[]]$PrimaryIds,
-        [string[]]$SecondaryIds
-    )
-
-    $secondarySet = @{}
-    foreach ($id in $SecondaryIds) {
-        if (-not [string]::IsNullOrWhiteSpace($id)) {
-            $secondarySet[$id] = $true
-        }
-    }
-
-    foreach ($id in $PrimaryIds) {
-        if (-not [string]::IsNullOrWhiteSpace($id) -and (-not $secondarySet.ContainsKey($id))) {
-            return $id
-        }
-    }
-
-    if ($PrimaryIds.Count -gt 0) {
-        return [string]$PrimaryIds[0]
-    }
-
-    return $null
-}
-
-function Get-TenantIdFromCookieJar {
-    param(
-        [Microsoft.PowerShell.Commands.WebRequestSession]$Session,
-        [string]$BaseUrl
-    )
-
-    try {
-        $uri = [Uri]$BaseUrl
-        $cookies = $Session.Cookies.GetCookies($uri)
-        foreach ($c in $cookies) {
-            if ($c.Name -eq "icanhelp_tenant") {
-                return [string]$c.Value
-            }
-        }
-    }
-    catch { }
-
-    return $null
-}
-
-function Activate-Tenant {
-    param(
-        [string]$BaseUrl,
-        [string]$Jwt,
-        [string]$TenantId,
-        [Microsoft.PowerShell.Commands.WebRequestSession]$Session
-    )
-
-    $url = $BaseUrl.TrimEnd("/") + "/api/tenants/active"
-
-    $candidates = @(
-        @{ tenantId = $TenantId },
-        @{ id = $TenantId },
-        @{ tenant_id = $TenantId }
-    )
-
-    $attempts = @()
-
-    foreach ($bodyObj in $candidates) {
-        $bodyJson = $bodyObj | ConvertTo-Json -Depth 10
-        $resp = Invoke-Http -Method "POST" -Url $url -Headers (Get-AuthHeaders -Jwt $Jwt -TenantId $null) -Body $bodyJson -Session $Session
-        $cookieTenant = Get-TenantIdFromCookieJar -Session $Session -BaseUrl $BaseUrl
-
-        $attempts += [pscustomobject]@{
-            body = $bodyObj
-            status = $resp.status
-            ok = $resp.ok
-            response_text = $resp.body_text
-            cookie_tenant = $cookieTenant
-        }
-
-        if (($resp.status -ge 200) -and ($resp.status -lt 300) -and ($cookieTenant -eq $TenantId)) {
-            return [pscustomobject]@{
-                success = $true
-                chosen_body = $bodyObj
-                status = $resp.status
-                response = $resp
-                cookie_tenant = $cookieTenant
-                attempts = $attempts
-            }
-        }
-    }
-
-    return [pscustomobject]@{
-        success = $false
-        chosen_body = $null
-        status = $null
-        response = $null
-        cookie_tenant = (Get-TenantIdFromCookieJar -Session $Session -BaseUrl $BaseUrl)
-        attempts = $attempts
-    }
-}
-
-function Discover-TicketPayloadCandidates {
-    param(
-        [string]$RepoRoot,
-        [string]$Marker
-    )
-
-    $paths = @(
-        (Join-Path $RepoRoot "app\api\tickets\route.ts"),
-        (Join-Path $RepoRoot "db\migrations\20260301_create_tickets_with_rls.sql"),
-        (Join-Path $RepoRoot "scripts\67_create_ticket_with_tenant.ps1"),
-        (Join-Path $RepoRoot "scripts\prod-smoke-tickets-now.ps1")
-    )
-
-    $blob = ""
-    foreach ($p in $paths) {
-        $blob += ([Environment]::NewLine + (Get-FileText -Path $p))
-    }
-
-    $hasTitle = $blob -match "\btitle\b"
-    $hasBody = $blob -match "\bbody\b"
-    $hasStatus = $blob -match "\bstatus\b"
-    $hasSubject = $blob -match "\bsubject\b"
-    $hasDescription = $blob -match "\bdescription\b"
-
-    $candidates = New-Object System.Collections.Generic.List[object]
-
-    if ($hasTitle -and $hasBody -and $hasStatus) {
-        $candidates.Add([ordered]@{
-            title  = "cross-tenant-proof-$Marker"
-            body   = "marker=$Marker"
-            status = "draft"
-        })
-    }
-
-    if ($hasTitle -and $hasBody) {
-        $candidates.Add([ordered]@{
-            title = "cross-tenant-proof-$Marker"
-            body  = "marker=$Marker"
-        })
-    }
-
-    if ($hasTitle -and $hasDescription) {
-        $candidates.Add([ordered]@{
-            title       = "cross-tenant-proof-$Marker"
-            description = "marker=$Marker"
-        })
-    }
-
-    if ($hasSubject -and $hasBody) {
-        $candidates.Add([ordered]@{
-            subject = "cross-tenant-proof-$Marker"
-            body    = "marker=$Marker"
-        })
-    }
-
-    if ($hasSubject -and $hasDescription) {
-        $candidates.Add([ordered]@{
-            subject     = "cross-tenant-proof-$Marker"
-            description = "marker=$Marker"
-        })
-    }
-
-    if ($candidates.Count -eq 0) {
-        $candidates.Add([ordered]@{
-            title = "cross-tenant-proof-$Marker"
-            body  = "marker=$Marker"
-        })
-    }
-
-    return ,$candidates.ToArray()
-}
-
-function Try-Create-Ticket {
-    param(
-        [string]$BaseUrl,
-        [string]$Jwt,
-        [string]$TenantId,
-        [Microsoft.PowerShell.Commands.WebRequestSession]$Session,
-        [object[]]$PayloadCandidates
-    )
-
-    $url = $BaseUrl.TrimEnd("/") + "/api/tickets"
-    $attempts = @()
-
-    foreach ($payload in $PayloadCandidates) {
-        $bodyJson = $payload | ConvertTo-Json -Depth 10
-        $resp = Invoke-Http -Method "POST" -Url $url -Headers (Get-AuthHeaders -Jwt $Jwt -TenantId $TenantId) -Body $bodyJson -Session $Session
-
-        $attempts += [pscustomobject]@{
-            payload = $payload
-            status = $resp.status
-            ok = $resp.ok
-            response_text = $resp.body_text
-        }
-
-        if (($resp.status -ge 200) -and ($resp.status -lt 300)) {
-            return [pscustomobject]@{
-                success = $true
-                payload = $payload
-                response = $resp
-                attempts = $attempts
-            }
-        }
-    }
-
-    return [pscustomobject]@{
-        success = $false
-        payload = $null
-        response = $null
-        attempts = $attempts
-    }
-}
-
-function ResponseContainsMarker {
-    param(
-        [string]$Text,
-        [string]$Marker
-    )
-
-    if ([string]::IsNullOrWhiteSpace($Text)) {
-        return $false
-    }
-
-    return ($Text -like ("*" + $Marker + "*"))
-}
-
 $RepoRoot = "C:\icanhelp-mvp"
-$ScriptsDir = Join-Path $RepoRoot "scripts"
-$DebugRoot = Join-Path $RepoRoot "_debug"
-$runStamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$runDir = Join-Path $DebugRoot ("e2e_fresh_login_and_resource_isolation_" + $runStamp)
+$RunDir = Join-Path $RepoRoot ("_debug\e2e_smoke_official_" + (Get-Date -Format "yyyyMMdd_HHmmss"))
+$SummaryJsonPath = Join-Path $RunDir "SUMMARY.json"
+$PasteMePath = Join-Path $RunDir "PASTE_ME.txt"
 
-Ensure-Dir -Path $ScriptsDir
-Ensure-Dir -Path $DebugRoot
-Ensure-Dir -Path $runDir
+Ensure-Dir -Path $RunDir
 
 $summary = [ordered]@{
-    status = "FAIL"
-    started_at = (Get-Date).ToString("o")
-    repo_root = $RepoRoot
-    run_dir = $runDir
-    base_url = $null
-    supabase_url = $null
-    anon_key_present = $false
-    app_bootstrap = $null
-    primary_email = $null
-    secondary_email = $null
-    primary_jwt_info = $null
-    secondary_jwt_info = $null
-    primary_tenant_ids = @()
-    secondary_tenant_ids = @()
-    primary_selected_tenant = $null
-    secondary_selected_tenant = $null
-    primary_activation = $null
-    secondary_activation = $null
-    cross_activation_secondary_to_primary = $null
-    ticket_payload_candidates = $null
-    ticket_create = $null
-    primary_get_after = $null
-    secondary_get = $null
-    marker = $null
-    pass_conditions = [ordered]@{
-        app_reachable = $false
-        supabase_url_resolved = $false
-        anon_key_resolved = $false
-        primary_login_ok = $false
-        secondary_login_ok = $false
-        primary_jwt_fresh = $false
-        secondary_jwt_fresh = $false
-        primary_tenants_found = $false
-        secondary_tenants_found = $false
-        distinct_tenants = $false
-        primary_activation_ok = $false
-        secondary_activation_ok = $false
-        primary_ticket_created = $false
-        primary_can_see_ticket = $false
-        secondary_cross_activation_blocked = $false
-        secondary_cannot_see_primary_ticket = $false
-    }
+    run_dir = $RunDir
+    base_url = "https://icanhelp-mvp.vercel.app"
+    primary_email = ""
+    secondary_email = ""
+    primary_tenant_id = ""
+    secondary_tenant_id = ""
+    created_ticket_id = ""
+    created_ticket_title = ""
+    primary_login_status = $null
+    secondary_login_status = $null
+    primary_tenants_status = $null
+    secondary_tenants_status = $null
+    primary_create_status = $null
+    primary_get_status = $null
+    secondary_own_get_status = $null
+    secondary_cross_get_status = $null
+    secondary_cross_post_status = $null
+    primary_sees_created_ticket = $false
+    secondary_own_list_sees_primary_ticket = $false
+    secondary_cross_get_denied = $false
+    secondary_cross_post_denied = $false
+    overall = "FAIL"
+    fail_reason = ""
 }
 
 try {
-    $baseUrlInput = Read-Host "Base URL [enter for http://localhost:3000]"
-    if ([string]::IsNullOrWhiteSpace($baseUrlInput)) {
-        $BaseUrl = "http://localhost:3000"
-    }
-    else {
-        $BaseUrl = $baseUrlInput.Trim()
-    }
-    $summary.base_url = $BaseUrl
-
-    $appInfo = Start-LocalAppIfNeeded -RepoRoot $RepoRoot -BaseUrl $BaseUrl -RunDir $runDir
-    $summary.app_bootstrap = $appInfo
-    Save-Json -Path (Join-Path $runDir "app_bootstrap.json") -Object $appInfo
-
-    if (-not $appInfo.app_reachable_after) {
-        throw ("App is not reachable at " + $BaseUrl)
-    }
-    $summary.pass_conditions.app_reachable = $true
-
-    $envFiles = @(
-        (Join-Path $RepoRoot ".env.local"),
-        (Join-Path $RepoRoot ".env.production.local")
-    )
-
-    $supabaseUrl = Read-EnvValue -EnvFiles $envFiles -Key "NEXT_PUBLIC_SUPABASE_URL"
-    if ([string]::IsNullOrWhiteSpace($supabaseUrl)) {
-        $supabaseUrl = Read-Host "Paste NEXT_PUBLIC_SUPABASE_URL"
-    }
-
-    $anonKey = Read-EnvValue -EnvFiles $envFiles -Key "NEXT_PUBLIC_SUPABASE_ANON_KEY"
-    if ([string]::IsNullOrWhiteSpace($anonKey)) {
-        $anonKey = Read-Host "Paste NEXT_PUBLIC_SUPABASE_ANON_KEY"
-    }
-
-    $summary.supabase_url = $supabaseUrl
-    $summary.anon_key_present = (-not [string]::IsNullOrWhiteSpace($anonKey))
-
-    if (-not [string]::IsNullOrWhiteSpace($supabaseUrl)) {
-        $summary.pass_conditions.supabase_url_resolved = $true
-    }
-    if (-not [string]::IsNullOrWhiteSpace($anonKey)) {
-        $summary.pass_conditions.anon_key_resolved = $true
-    }
-
-    if (-not $summary.pass_conditions.supabase_url_resolved) {
-        throw "Supabase URL not resolved."
-    }
-    if (-not $summary.pass_conditions.anon_key_resolved) {
-        throw "Supabase anon key not resolved."
-    }
-
-    $primaryEmailPath = Join-Path $ScriptsDir ".primary_email_last.txt"
-    $secondaryEmailPath = Join-Path $ScriptsDir ".secondary_email_last.txt"
-
-    $primaryEmail = Get-StringFromFileOrPrompt -PreferredPath $primaryEmailPath -Prompt "Primary email"
-    $secondaryEmail = Get-StringFromFileOrPrompt -PreferredPath $secondaryEmailPath -Prompt "Secondary email"
+    $anonKey = Clean-PastedValue (Read-PlainSecret "Enter Supabase anon key")
+    $primaryEmail = Clean-PastedValue (Read-Host "Enter primary user email")
+    $primaryPassword = Clean-PastedValue (Read-PlainSecret "Enter primary user password")
+    $secondaryEmail = Clean-PastedValue (Read-Host "Enter secondary user email")
+    $secondaryPassword = Clean-PastedValue (Read-PlainSecret "Enter secondary user password")
 
     $summary.primary_email = $primaryEmail
     $summary.secondary_email = $secondaryEmail
 
-    Save-Text -Path $primaryEmailPath -Text $primaryEmail
-    Save-Text -Path $secondaryEmailPath -Text $secondaryEmail
+    if ([string]::IsNullOrWhiteSpace($anonKey)) { throw "Supabase anon key is required." }
+    if ([string]::IsNullOrWhiteSpace($primaryEmail)) { throw "Primary email is required." }
+    if ([string]::IsNullOrWhiteSpace($primaryPassword)) { throw "Primary password is required." }
+    if ([string]::IsNullOrWhiteSpace($secondaryEmail)) { throw "Secondary email is required." }
+    if ([string]::IsNullOrWhiteSpace($secondaryPassword)) { throw "Secondary password is required." }
 
-    $primaryPassword = Read-PlainPassword -Prompt "Primary password"
-    $secondaryPassword = Read-PlainPassword -Prompt "Secondary password"
+    $primaryLogin = Login-SupabasePassword -AnonKey $anonKey -Email $primaryEmail -Password $primaryPassword
+    $secondaryLogin = Login-SupabasePassword -AnonKey $anonKey -Email $secondaryEmail -Password $secondaryPassword
 
-    Write-Log "Logging in PRIMARY..."
-    $primaryLogin = Invoke-PasswordLogin -SupabaseUrl $supabaseUrl -AnonKey $anonKey -Email $primaryEmail -Password $primaryPassword
-    Save-Json -Path (Join-Path $runDir "primary_login_response.json") -Object $primaryLogin
+    $summary.primary_login_status = $primaryLogin.status
+    $summary.secondary_login_status = $secondaryLogin.status
 
-    if (-not $primaryLogin.ok) {
-        throw ("Primary login failed. Status=" + [string]$primaryLogin.status + " Exception=" + [string]$primaryLogin.exception)
-    }
+    Save-Text -Path (Join-Path $RunDir "primary_login.json") -Text ($primaryLogin | ConvertTo-Json -Depth 20)
+    Save-Text -Path (Join-Path $RunDir "secondary_login.json") -Text ($secondaryLogin | ConvertTo-Json -Depth 20)
 
-    $primaryJwt = [string]$primaryLogin.json.access_token
-    if ([string]::IsNullOrWhiteSpace($primaryJwt)) {
-        throw "Primary access_token missing in login response."
-    }
+    if ($primaryLogin.status -ne 200) { throw ("Primary login failed with status " + $primaryLogin.status) }
+    if ($secondaryLogin.status -ne 200) { throw ("Secondary login failed with status " + $secondaryLogin.status) }
 
-    Save-Text -Path (Join-Path $ScriptsDir ".jwt_last.txt") -Text $primaryJwt
-    $summary.pass_conditions.primary_login_ok = $true
+    $primaryJwt = ""
+    $secondaryJwt = ""
 
-    $primaryJwtInfo = Get-JwtInfo -Jwt $primaryJwt
-    $summary.primary_jwt_info = $primaryJwtInfo
-    Save-Json -Path (Join-Path $runDir "primary_jwt_info.json") -Object $primaryJwtInfo
-    Save-Text -Path (Join-Path $ScriptsDir ".primary_user_id_last.txt") -Text ([string]$primaryJwtInfo.sub)
+    $primaryTokenMatch = [regex]::Match($primaryLogin.body, '"access_token"\s*:\s*"([^"]+)"')
+    if ($primaryTokenMatch.Success) { $primaryJwt = $primaryTokenMatch.Groups[1].Value }
 
-    if ($primaryJwtInfo.valid -and ($primaryJwtInfo.seconds_remaining -gt 300)) {
-        $summary.pass_conditions.primary_jwt_fresh = $true
-    }
-    else {
-        throw "Primary JWT is not fresh enough."
-    }
+    $secondaryTokenMatch = [regex]::Match($secondaryLogin.body, '"access_token"\s*:\s*"([^"]+)"')
+    if ($secondaryTokenMatch.Success) { $secondaryJwt = $secondaryTokenMatch.Groups[1].Value }
 
-    Write-Log "Logging in SECONDARY..."
-    $secondaryLogin = Invoke-PasswordLogin -SupabaseUrl $supabaseUrl -AnonKey $anonKey -Email $secondaryEmail -Password $secondaryPassword
-    Save-Json -Path (Join-Path $runDir "secondary_login_response.json") -Object $secondaryLogin
+    if ([string]::IsNullOrWhiteSpace($primaryJwt)) { throw "Primary access_token not found." }
+    if ([string]::IsNullOrWhiteSpace($secondaryJwt)) { throw "Secondary access_token not found." }
 
-    if (-not $secondaryLogin.ok) {
-        throw ("Secondary login failed. Status=" + [string]$secondaryLogin.status + " Exception=" + [string]$secondaryLogin.exception)
-    }
+    $primaryTenants = Invoke-Http -Method "GET" -Url ($summary.base_url + "/api/tenants") -Headers (Auth-Headers -Jwt $primaryJwt)
+    $secondaryTenants = Invoke-Http -Method "GET" -Url ($summary.base_url + "/api/tenants") -Headers (Auth-Headers -Jwt $secondaryJwt)
 
-    $secondaryJwt = [string]$secondaryLogin.json.access_token
-    if ([string]::IsNullOrWhiteSpace($secondaryJwt)) {
-        throw "Secondary access_token missing in login response."
-    }
+    $summary.primary_tenants_status = $primaryTenants.status
+    $summary.secondary_tenants_status = $secondaryTenants.status
 
-    Save-Text -Path (Join-Path $ScriptsDir ".jwt_secondary_last.txt") -Text $secondaryJwt
-    $summary.pass_conditions.secondary_login_ok = $true
+    Save-Text -Path (Join-Path $RunDir "primary_tenants_raw.txt") -Text $primaryTenants.body
+    Save-Text -Path (Join-Path $RunDir "secondary_tenants_raw.txt") -Text $secondaryTenants.body
 
-    $secondaryJwtInfo = Get-JwtInfo -Jwt $secondaryJwt
-    $summary.secondary_jwt_info = $secondaryJwtInfo
-    Save-Json -Path (Join-Path $runDir "secondary_jwt_info.json") -Object $secondaryJwtInfo
-    Save-Text -Path (Join-Path $ScriptsDir ".secondary_user_id_last.txt") -Text ([string]$secondaryJwtInfo.sub)
+    if ($primaryTenants.status -ne 200) { throw ("Primary /api/tenants failed with status " + $primaryTenants.status) }
+    if ($secondaryTenants.status -ne 200) { throw ("Secondary /api/tenants failed with status " + $secondaryTenants.status) }
 
-    if ($secondaryJwtInfo.valid -and ($secondaryJwtInfo.seconds_remaining -gt 300)) {
-        $summary.pass_conditions.secondary_jwt_fresh = $true
-    }
-    else {
-        throw "Secondary JWT is not fresh enough."
-    }
+    $primaryIds = @(Get-TenantIdsByRegex -JsonText $primaryTenants.body)
+    $secondaryIds = @(Get-TenantIdsByRegex -JsonText $secondaryTenants.body)
 
-    Write-Log "Listing tenants for PRIMARY..."
-    $primaryTenantsResp = Invoke-Http -Method "GET" -Url ($BaseUrl.TrimEnd("/") + "/api/tenants") -Headers (Get-AuthHeaders -Jwt $primaryJwt -TenantId $null) -Body $null -Session $null
-    Save-Json -Path (Join-Path $runDir "primary_tenants_response.json") -Object $primaryTenantsResp
-    Save-Text -Path (Join-Path $runDir "primary_tenants_raw.txt") -Text $primaryTenantsResp.body_text
+    if ($primaryIds.Count -lt 1) { throw "Primary tenant list is empty." }
+    if ($secondaryIds.Count -lt 1) { throw "Secondary tenant list is empty." }
 
-    Write-Log "Listing tenants for SECONDARY..."
-    $secondaryTenantsResp = Invoke-Http -Method "GET" -Url ($BaseUrl.TrimEnd("/") + "/api/tenants") -Headers (Get-AuthHeaders -Jwt $secondaryJwt -TenantId $null) -Body $null -Session $null
-    Save-Json -Path (Join-Path $runDir "secondary_tenants_response.json") -Object $secondaryTenantsResp
-    Save-Text -Path (Join-Path $runDir "secondary_tenants_raw.txt") -Text $secondaryTenantsResp.body_text
+    $summary.secondary_tenant_id = [string]$secondaryIds[0]
 
-    if (($primaryTenantsResp.status -lt 200) -or ($primaryTenantsResp.status -ge 300)) {
-        throw ("Primary /api/tenants failed with status " + [string]$primaryTenantsResp.status)
-    }
-
-    if (($secondaryTenantsResp.status -lt 200) -or ($secondaryTenantsResp.status -ge 300)) {
-        throw ("Secondary /api/tenants failed with status " + [string]$secondaryTenantsResp.status)
-    }
-
-    $primaryTenantIds = Extract-TenantIds -Json $primaryTenantsResp.json -BodyText $primaryTenantsResp.body_text
-    $secondaryTenantIds = Extract-TenantIds -Json $secondaryTenantsResp.json -BodyText $secondaryTenantsResp.body_text
-
-    $summary.primary_tenant_ids = $primaryTenantIds
-    $summary.secondary_tenant_ids = $secondaryTenantIds
-
-    Save-Json -Path (Join-Path $runDir "primary_tenant_ids.json") -Object $primaryTenantIds
-    Save-Json -Path (Join-Path $runDir "secondary_tenant_ids.json") -Object $secondaryTenantIds
-
-    if (@($primaryTenantIds).Count -gt 0) {
-        $summary.pass_conditions.primary_tenants_found = $true
-    }
-    if (@($secondaryTenantIds).Count -gt 0) {
-        $summary.pass_conditions.secondary_tenants_found = $true
-    }
-
-    if (-not $summary.pass_conditions.primary_tenants_found) {
-        throw "Primary tenant list is empty after extraction."
-    }
-
-    if (-not $summary.pass_conditions.secondary_tenants_found) {
-        throw "Secondary tenant list is empty after extraction."
-    }
-
-    $primaryTenantId = Select-PrimaryTenantId -PrimaryIds $primaryTenantIds -SecondaryIds $secondaryTenantIds
-    $secondaryTenantId = [string]$secondaryTenantIds[0]
-
-    if ([string]::IsNullOrWhiteSpace($primaryTenantId)) {
-        throw "Primary selected tenant is empty."
-    }
-
-    if ([string]::IsNullOrWhiteSpace($secondaryTenantId)) {
-        throw "Secondary selected tenant is empty."
-    }
-
-    $summary.primary_selected_tenant = $primaryTenantId
-    $summary.secondary_selected_tenant = $secondaryTenantId
-
-    if ($primaryTenantId -ne $secondaryTenantId) {
-        $summary.pass_conditions.distinct_tenants = $true
-    }
-    else {
-        throw "Primary and secondary selected tenants are the same."
-    }
-
-    $primarySession = New-WebSession
-    $secondarySession = New-WebSession
-
-    Write-Log ("Activating PRIMARY tenant " + $primaryTenantId + " ...")
-    $primaryActivation = Activate-Tenant -BaseUrl $BaseUrl -Jwt $primaryJwt -TenantId $primaryTenantId -Session $primarySession
-    $summary.primary_activation = $primaryActivation
-    Save-Json -Path (Join-Path $runDir "primary_activation.json") -Object $primaryActivation
-
-    if (-not $primaryActivation.success) {
-        throw "Primary tenant activation failed."
-    }
-    $summary.pass_conditions.primary_activation_ok = $true
-
-    Write-Log ("Activating SECONDARY tenant " + $secondaryTenantId + " ...")
-    $secondaryActivation = Activate-Tenant -BaseUrl $BaseUrl -Jwt $secondaryJwt -TenantId $secondaryTenantId -Session $secondarySession
-    $summary.secondary_activation = $secondaryActivation
-    Save-Json -Path (Join-Path $runDir "secondary_activation.json") -Object $secondaryActivation
-
-    if (-not $secondaryActivation.success) {
-        throw "Secondary tenant activation failed."
-    }
-    $summary.pass_conditions.secondary_activation_ok = $true
-
-    $marker = [guid]::NewGuid().ToString("N")
-    $summary.marker = $marker
-
-    $payloadCandidates = Discover-TicketPayloadCandidates -RepoRoot $RepoRoot -Marker $marker
-    $summary.ticket_payload_candidates = $payloadCandidates
-    Save-Json -Path (Join-Path $runDir "ticket_payload_candidates.json") -Object $payloadCandidates
-
-    Write-Log "Creating ticket in PRIMARY tenant..."
-    $ticketCreate = Try-Create-Ticket -BaseUrl $BaseUrl -Jwt $primaryJwt -TenantId $primaryTenantId -Session $primarySession -PayloadCandidates $payloadCandidates
-    $summary.ticket_create = $ticketCreate
-    Save-Json -Path (Join-Path $runDir "ticket_create_attempts.json") -Object $ticketCreate
-
-    if (-not $ticketCreate.success) {
-        throw "Ticket creation failed for all payload candidates."
-    }
-    $summary.pass_conditions.primary_ticket_created = $true
-
-    Write-Log "Listing tickets in PRIMARY tenant..."
-    $primaryGetAfter = Invoke-Http -Method "GET" -Url ($BaseUrl.TrimEnd("/") + "/api/tickets") -Headers (Get-AuthHeaders -Jwt $primaryJwt -TenantId $primaryTenantId) -Body $null -Session $primarySession
-    $summary.primary_get_after = $primaryGetAfter
-    Save-Json -Path (Join-Path $runDir "primary_get_after.json") -Object $primaryGetAfter
-    Save-Text -Path (Join-Path $runDir "primary_get_after_raw.txt") -Text $primaryGetAfter.body_text
-
-    if (($primaryGetAfter.status -ge 200) -and ($primaryGetAfter.status -lt 300) -and (ResponseContainsMarker -Text $primaryGetAfter.body_text -Marker $marker)) {
-        $summary.pass_conditions.primary_can_see_ticket = $true
-    }
-    else {
-        throw "Primary could not verify created ticket marker."
-    }
-
-    Write-Log "Attempting forbidden cross-tenant activation: SECONDARY -> PRIMARY..."
-    $crossActivation = Activate-Tenant -BaseUrl $BaseUrl -Jwt $secondaryJwt -TenantId $primaryTenantId -Session $secondarySession
-    $summary.cross_activation_secondary_to_primary = $crossActivation
-    Save-Json -Path (Join-Path $runDir "secondary_cross_activation_to_primary.json") -Object $crossActivation
-
-    $secondaryCookieAfterCross = Get-TenantIdFromCookieJar -Session $secondarySession -BaseUrl $BaseUrl
-
-    if (($crossActivation.success -eq $false) -and ($secondaryCookieAfterCross -ne $primaryTenantId)) {
-        $summary.pass_conditions.secondary_cross_activation_blocked = $true
-    }
-
-    if (($crossActivation.success -eq $true) -and ($secondaryCookieAfterCross -ne $primaryTenantId)) {
-        $summary.pass_conditions.secondary_cross_activation_blocked = $true
-    }
-
-    if (-not $summary.pass_conditions.secondary_cross_activation_blocked) {
-        throw "Secondary cross-tenant activation was not blocked."
-    }
-
-    Write-Log "Listing tickets in SECONDARY tenant..."
-    $secondaryGet = Invoke-Http -Method "GET" -Url ($BaseUrl.TrimEnd("/") + "/api/tickets") -Headers (Get-AuthHeaders -Jwt $secondaryJwt -TenantId $secondaryTenantId) -Body $null -Session $secondarySession
-    $summary.secondary_get = $secondaryGet
-    Save-Json -Path (Join-Path $runDir "secondary_get.json") -Object $secondaryGet
-    Save-Text -Path (Join-Path $runDir "secondary_get_raw.txt") -Text $secondaryGet.body_text
-
-    if (($secondaryGet.status -ge 200) -and ($secondaryGet.status -lt 300) -and (-not (ResponseContainsMarker -Text $secondaryGet.body_text -Marker $marker))) {
-        $summary.pass_conditions.secondary_cannot_see_primary_ticket = $true
-    }
-    else {
-        throw "Secondary could see the primary ticket marker."
-    }
-
-    $allPass = $true
-    foreach ($k in $summary.pass_conditions.Keys) {
-        if (-not $summary.pass_conditions[$k]) {
-            $allPass = $false
+    foreach ($id in $primaryIds) {
+        if ([string]$id -ne $summary.secondary_tenant_id) {
+            $summary.primary_tenant_id = [string]$id
+            break
         }
     }
 
-    if ($allPass) {
-        $summary.status = "PASS"
-        Write-Log "PASS" "PASS"
+    if ([string]::IsNullOrWhiteSpace($summary.primary_tenant_id)) {
+        throw "Could not resolve a primary tenant different from secondary."
     }
-    else {
-        $summary.status = "FAIL"
-        Write-Log "FAIL" "FAIL"
+
+    $summary.created_ticket_title = "Golden path final " + (Get-Date -Format "yyyyMMdd_HHmmss")
+
+    $createBody = @{
+        title = $summary.created_ticket_title
+        description = "golden path official"
+    } | ConvertTo-Json -Compress
+
+    $primaryCreate = Invoke-Http -Method "POST" -Url ($summary.base_url + "/api/tickets") -Headers (Auth-Headers -Jwt $primaryJwt -TenantId $summary.primary_tenant_id) -Body $createBody
+    $summary.primary_create_status = $primaryCreate.status
+    Save-Text -Path (Join-Path $RunDir "primary_create_ticket.json") -Text ($primaryCreate | ConvertTo-Json -Depth 20)
+
+    if ($primaryCreate.status -ne 201) {
+        throw ("Primary POST /api/tickets failed with status " + $primaryCreate.status)
     }
+
+    $ticketIdMatch = [regex]::Match($primaryCreate.body, '"id"\s*:\s*"([0-9a-fA-F-]{36})"')
+    if ($ticketIdMatch.Success) {
+        $summary.created_ticket_id = $ticketIdMatch.Groups[1].Value
+    }
+
+    Start-Sleep -Seconds 2
+
+    $primaryGet = Invoke-Http -Method "GET" -Url ($summary.base_url + "/api/tickets") -Headers (Auth-Headers -Jwt $primaryJwt -TenantId $summary.primary_tenant_id)
+    $summary.primary_get_status = $primaryGet.status
+    Save-Text -Path (Join-Path $RunDir "primary_get_after.json") -Text ($primaryGet | ConvertTo-Json -Depth 20)
+
+    if ($primaryGet.status -ne 200) {
+        throw ("Primary GET /api/tickets failed with status " + $primaryGet.status)
+    }
+
+    if ($primaryGet.body.Contains($summary.created_ticket_title)) {
+        $summary.primary_sees_created_ticket = $true
+    } else {
+        throw "Primary ticket list did not contain the created ticket."
+    }
+
+    $secondaryOwnGet = Invoke-Http -Method "GET" -Url ($summary.base_url + "/api/tickets") -Headers (Auth-Headers -Jwt $secondaryJwt -TenantId $summary.secondary_tenant_id)
+    $summary.secondary_own_get_status = $secondaryOwnGet.status
+    Save-Text -Path (Join-Path $RunDir "secondary_own_get.json") -Text ($secondaryOwnGet | ConvertTo-Json -Depth 20)
+
+    if ($secondaryOwnGet.status -ne 200) {
+        throw ("Secondary own GET /api/tickets failed with status " + $secondaryOwnGet.status)
+    }
+
+    if ($secondaryOwnGet.body.Contains($summary.created_ticket_title)) {
+        $summary.secondary_own_list_sees_primary_ticket = $true
+        throw "Secondary own tenant list leaked the primary ticket."
+    }
+
+    $secondaryCrossGet = Invoke-Http -Method "GET" -Url ($summary.base_url + "/api/tickets") -Headers (Auth-Headers -Jwt $secondaryJwt -TenantId $summary.primary_tenant_id)
+    $summary.secondary_cross_get_status = $secondaryCrossGet.status
+    $summary.secondary_cross_get_denied = ($secondaryCrossGet.status -eq 403)
+    Save-Text -Path (Join-Path $RunDir "secondary_cross_get_primary_tenant.json") -Text ($secondaryCrossGet | ConvertTo-Json -Depth 20)
+
+    if (-not $summary.secondary_cross_get_denied) {
+        throw ("Secondary cross GET expected 403 but got " + $secondaryCrossGet.status)
+    }
+
+    $secondaryCrossPostBody = @{
+        title = "Should not create"
+        description = "cross tenant write denied"
+    } | ConvertTo-Json -Compress
+
+    $secondaryCrossPost = Invoke-Http -Method "POST" -Url ($summary.base_url + "/api/tickets") -Headers (Auth-Headers -Jwt $secondaryJwt -TenantId $summary.primary_tenant_id) -Body $secondaryCrossPostBody
+    $summary.secondary_cross_post_status = $secondaryCrossPost.status
+    $summary.secondary_cross_post_denied = ($secondaryCrossPost.status -eq 403)
+    Save-Text -Path (Join-Path $RunDir "secondary_cross_post_primary_tenant.json") -Text ($secondaryCrossPost | ConvertTo-Json -Depth 20)
+
+    if (-not $summary.secondary_cross_post_denied) {
+        throw ("Secondary cross POST expected 403 but got " + $secondaryCrossPost.status)
+    }
+
+    $summary.overall = "PASS"
+    $summary.fail_reason = ""
 }
 catch {
-    $err = $_.Exception.Message
-    $summary.status = "FAIL"
-    $summary.error = $err
-    Save-Text -Path (Join-Path $runDir "ERROR.txt") -Text $err
-    Write-Log $err "ERROR"
+    $summary.overall = "FAIL"
+    $summary.fail_reason = $_.Exception.Message
+    Write-Host ("[ERROR] " + $_.Exception.Message)
 }
-finally {
-    $summary.finished_at = (Get-Date).ToString("o")
-    Save-Json -Path (Join-Path $runDir "SUMMARY.json") -Object $summary
 
-    $report = @()
-    $report += ("STATUS=" + $summary.status)
-    $report += ("RUN_DIR=" + $runDir)
-    $report += ("PRIMARY_EMAIL=" + [string]$summary.primary_email)
-    $report += ("SECONDARY_EMAIL=" + [string]$summary.secondary_email)
-    $report += ("PRIMARY_SELECTED_TENANT=" + [string]$summary.primary_selected_tenant)
-    $report += ("SECONDARY_SELECTED_TENANT=" + [string]$summary.secondary_selected_tenant)
-    foreach ($k in $summary.pass_conditions.Keys) {
-        $report += ($k.ToUpper() + "=" + [string]$summary.pass_conditions[$k])
-    }
+$summaryJson = $summary | ConvertTo-Json -Depth 20
+Save-Text -Path $SummaryJsonPath -Text $summaryJson
 
-    Save-Text -Path (Join-Path $runDir "PASTE_ME.txt") -Text ($report -join [Environment]::NewLine)
+$paste = @()
+$paste += ("OVERALL=" + $summary.overall)
+$paste += ("FAIL_REASON=" + $summary.fail_reason)
+$paste += ("RUN_DIR=" + $summary.run_dir)
+$paste += ("BASE_URL=" + $summary.base_url)
+$paste += ("PRIMARY_TENANT_ID=" + $summary.primary_tenant_id)
+$paste += ("SECONDARY_TENANT_ID=" + $summary.secondary_tenant_id)
+$paste += ("CREATED_TICKET_ID=" + $summary.created_ticket_id)
+$paste += ("CREATED_TICKET_TITLE=" + $summary.created_ticket_title)
+$paste += ("PRIMARY_LOGIN_STATUS=" + $summary.primary_login_status)
+$paste += ("SECONDARY_LOGIN_STATUS=" + $summary.secondary_login_status)
+$paste += ("PRIMARY_TENANTS_STATUS=" + $summary.primary_tenants_status)
+$paste += ("SECONDARY_TENANTS_STATUS=" + $summary.secondary_tenants_status)
+$paste += ("PRIMARY_CREATE_STATUS=" + $summary.primary_create_status)
+$paste += ("PRIMARY_GET_STATUS=" + $summary.primary_get_status)
+$paste += ("SECONDARY_OWN_GET_STATUS=" + $summary.secondary_own_get_status)
+$paste += ("SECONDARY_CROSS_GET_STATUS=" + $summary.secondary_cross_get_status)
+$paste += ("SECONDARY_CROSS_POST_STATUS=" + $summary.secondary_cross_post_status)
+$paste += ("PRIMARY_SEES_CREATED_TICKET=" + $summary.primary_sees_created_ticket)
+$paste += ("SECONDARY_OWN_LIST_SEES_PRIMARY_TICKET=" + $summary.secondary_own_list_sees_primary_ticket)
+$paste += ("SECONDARY_CROSS_GET_DENIED=" + $summary.secondary_cross_get_denied)
+$paste += ("SECONDARY_CROSS_POST_DENIED=" + $summary.secondary_cross_post_denied)
 
-    Write-Host ""
-    Write-Host "Artifacts:"
-    Write-Host ("- " + (Join-Path $runDir "SUMMARY.json"))
-    Write-Host ("- " + (Join-Path $runDir "PASTE_ME.txt"))
-    Write-Host ("- " + (Join-Path $runDir "primary_login_response.json"))
-    Write-Host ("- " + (Join-Path $runDir "secondary_login_response.json"))
-    Write-Host ("- " + (Join-Path $runDir "primary_tenants_raw.txt"))
-    Write-Host ("- " + (Join-Path $runDir "secondary_tenants_raw.txt"))
-    Write-Host ("- " + (Join-Path $runDir "primary_activation.json"))
-    Write-Host ("- " + (Join-Path $runDir "secondary_activation.json"))
-    Write-Host ("- " + (Join-Path $runDir "secondary_cross_activation_to_primary.json"))
-    Write-Host ("- " + (Join-Path $runDir "ticket_create_attempts.json"))
-    Write-Host ("- " + (Join-Path $runDir "primary_get_after.json"))
-    Write-Host ("- " + (Join-Path $runDir "secondary_get.json"))
-    Write-Host ""
+Save-Text -Path $PasteMePath -Text ($paste -join [Environment]::NewLine)
 
-    if ($summary.status -eq "PASS") {
-        Write-Host "PASS"
-    }
-    else {
-        Write-Host "FAIL"
-    }
+Write-Host ""
+Write-Host $summary.overall
+Write-Host ("SUMMARY_JSON=" + $SummaryJsonPath)
+Write-Host ("PASTE_ME=" + $PasteMePath)
+Write-Host ""
+Write-Host "Artifacts:"
+Write-Host ("- " + $SummaryJsonPath)
+Write-Host ("- " + $PasteMePath)
 
-    Read-Host "Press ENTER to finish"
-}
+Read-Host "Cole aqui o PASS ou FAIL final e o PASTE_ME.txt. Pressione Enter para continuar"
