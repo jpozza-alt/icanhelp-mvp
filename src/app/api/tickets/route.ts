@@ -45,7 +45,7 @@ function serverError(rid: string) {
 }
 
 function getEnv(rid: string) {
-  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
   const supabaseAnon =
     process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -85,7 +85,7 @@ async function getCtx(req: Request): Promise<Ctx | NextResponse> {
   const supabase = supa(rid, jwt);
   if (!supabase) return serverError(rid);
 
-  const { data: authData, error: authErr } = await supabase.auth.getUser(jwt);
+  const { data: authData, error: authErr } = await supabase.auth.getUser();
   if (authErr || !authData?.user?.id) {
     console.error("[tickets]", rid, "AUTH_GETUSER_FAILED", authErr);
     return unauthorized(rid, "Sessão inválida. Faça login novamente.");
