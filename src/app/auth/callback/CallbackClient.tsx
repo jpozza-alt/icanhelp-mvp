@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
@@ -9,12 +10,28 @@ const supabase = createClient(
 );
 
 function getHashParams() {
-  if (typeof window === "undefined") return {};
-  const hash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
-  const params = new URLSearchParams(hash);
+  if (typeof window === "undefined") {
+    return {
+      access_token: null as string | null,
+      refresh_token: null as string | null,
+      error: null as string | null,
+      error_code: null as string | null,
+      error_description: null as string | null,
+    };
+  }
+
+  const rawHash = window.location.hash.startsWith("#")
+    ? window.location.hash.slice(1)
+    : window.location.hash;
+
+  const params = new URLSearchParams(rawHash);
+
   return {
-    access_token: params.get("access_token") || undefined,
-    refresh_token: params.get("refresh_token") || undefined,
+    access_token: params.get("access_token"),
+    refresh_token: params.get("refresh_token"),
+    error: params.get("error"),
+    error_code: params.get("error_code"),
+    error_description: params.get("error_description"),
   };
 }
 
@@ -25,25 +42,39 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     (async () => {
       try {
-        // 1) Fluxo hash (#access_token)
-        const { access_token, refresh_token } = getHashParams();
-        if (access_token && refresh_token) {
-          const { error } = await supabase.auth.setSession({ access_token, refresh_token });
-          if (error) throw error;
+        const hashParams = getHashParams();
+
+        if (hashParams.access_token && hashParams.refresh_token) {
+          const { error } = await supabase.auth.setSession({
+            access_token: hashParams.access_token,
+            refresh_token: hashParams.refresh_token,
+          });
+
+          if (error) {
+            throw error;
+          }
+
           router.replace("/dashboard");
           return;
         }
 
-        // 2) Fluxo com ?code= (alguns provedores)
         const code = search.get("code");
         if (code) {
           const { error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
+
+          if (error) {
+            throw error;
+          }
+
           router.replace("/dashboard");
           return;
         }
 
-        // Sem nada válido -> volta ao login
+        if (hashParams.error || hashParams.error_code || hashParams.error_description) {
+          router.replace("/login?err=callback_error");
+          return;
+        }
+
         router.replace("/login?err=callback_missing");
       } catch {
         router.replace("/login?err=callback_fail");
@@ -52,9 +83,11 @@ export default function AuthCallbackPage() {
   }, [router, search]);
 
   return (
-    <main className="min-h-screen flex items-center justify-center text-gray-100">
-      Autenticando...
+    <main className="min-h-screen bg-gray-950 text-gray-100 flex items-center justify-center p-6">
+      <div className="w-full max-w-md rounded-2xl border border-gray-800 bg-gray-900 p-6 text-center shadow-2xl">
+        <h1 className="mb-3 text-2xl font-bold">Autenticando</h1>
+        <p className="text-sm text-gray-300">Aguarde enquanto finalizamos seu acesso.</p>
+      </div>
     </main>
   );
 }
-
