@@ -55,7 +55,7 @@ function LoginPageContent() {
         throw signInError;
       }
 
-      setSuccess("Link de acesso enviado. Abra o email e clique no link imediatamente.");
+      setSuccess("Link de acesso enviado. Abra o email e clique no link neste mesmo navegador.");
     } catch (err: any) {
       setError(err?.message || "Falha ao enviar o link de acesso.");
     } finally {
@@ -64,87 +64,99 @@ function LoginPageContent() {
   }
 
   return (
-    <main className="min-h-screen bg-[#07111f] px-6 py-10 text-[#f5f7fa]">
-      <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl items-center justify-center">
-        <div className="grid w-full gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-          <section className="rounded-3xl border border-[#22324c] bg-[#0d1a2e] p-8 shadow-2xl shadow-black/30">
-            <div className="mb-8">
-              <div className="text-xs font-semibold uppercase tracking-[0.35em] text-[#c9a45c]">
-                icanHelp
+    <main className="min-h-screen bg-[#F7F8FA] text-[#22313F]">
+      <div className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-6 py-10">
+        <div className="grid w-full gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+          <section className="rounded-3xl border border-[#D9E0E7] bg-white p-8 shadow-sm">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+              icanHelp
+            </div>
+
+            <h1 className="mt-4 text-4xl font-semibold leading-tight text-[#22313F]">
+              Entrada simples, clara e institucional.
+            </h1>
+
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-[#5B6B79]">
+              Esta tela segue a mesma linguagem visual do modulo NR1. O objetivo e
+              deixar a entrada no sistema mais coerente com a jornada guiada: menos
+              aparencia de sistema frio, mais clareza sobre o proximo passo.
+            </p>
+
+            <div className="mt-8 grid gap-4 md:grid-cols-3">
+              <div className="rounded-2xl border border-[#E6ECF1] bg-[#FAFBFC] p-4">
+                <div className="text-xs uppercase tracking-[0.24em] text-[#5E7A96]">
+                  Clareza
+                </div>
+                <div className="mt-2 text-sm leading-6 text-[#22313F]">
+                  A pessoa entende rapido o que fazer para entrar.
+                </div>
               </div>
-              <h1 className="mt-4 text-4xl font-bold leading-tight text-white">
-                Atendimento institucional com mais clareza, trilha e confianca.
-              </h1>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-[#d8e0ea]">
-                Entre com magic link para acessar o painel. O foco aqui e velocidade,
-                consistencia visual e leitura confortavel em tela escura.
+
+              <div className="rounded-2xl border border-[#E6ECF1] bg-[#FAFBFC] p-4">
+                <div className="text-xs uppercase tracking-[0.24em] text-[#5E7A96]">
+                  Seguranca
+                </div>
+                <div className="mt-2 text-sm leading-6 text-[#22313F]">
+                  O acesso segue por link enviado ao email informado.
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-[#E6ECF1] bg-[#FAFBFC] p-4">
+                <div className="text-xs uppercase tracking-[0.24em] text-[#5E7A96]">
+                  Continuidade
+                </div>
+                <div className="mt-2 text-sm leading-6 text-[#22313F]">
+                  A experiencia visual agora conversa com o restante do modulo.
+                </div>
+              </div>
+            </div>
+
+            <section className="mt-8 rounded-2xl border border-[#D9E0E7] bg-[#EEF4F8] p-5">
+              <div className="text-xs uppercase tracking-[0.24em] text-[#5E7A96]">
+                O que acontece depois do login
+              </div>
+              <p className="mt-3 text-sm leading-7 text-[#5B6B79]">
+                Depois do acesso, o usuario entra no ambiente do icanHelp e pode seguir
+                para a jornada NR1, incluindo o diagnostico inicial que agora salva draft
+                real no backend.
               </p>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-2xl border border-[#22324c] bg-[#091426] p-4">
-                <div className="text-xs uppercase tracking-[0.25em] text-[#c9a45c]">
-                  Seguro
-                </div>
-                <div className="mt-2 text-sm text-[#d8e0ea]">
-                  Fluxo tenant-scoped com trilha e consistencia.
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-[#22324c] bg-[#091426] p-4">
-                <div className="text-xs uppercase tracking-[0.25em] text-[#c9a45c]">
-                  Escuro
-                </div>
-                <div className="mt-2 text-sm text-[#d8e0ea]">
-                  Contraste forte com menos cansaco visual.
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-[#22324c] bg-[#091426] p-4">
-                <div className="text-xs uppercase tracking-[0.25em] text-[#c9a45c]">
-                  Auditavel
-                </div>
-                <div className="mt-2 text-sm text-[#d8e0ea]">
-                  Fundamento, versao e trilha em primeiro plano.
-                </div>
-              </div>
-            </div>
+            </section>
           </section>
 
-          <section className="rounded-3xl border border-[#2a3d5e] bg-[#10203a] p-8 shadow-2xl shadow-black/30">
-            <div className="mb-6">
-              <div className="text-xs font-semibold uppercase tracking-[0.35em] text-[#c9a45c]">
-                Acesso
-              </div>
-              <h2 className="mt-3 text-2xl font-bold text-white">
-                Entrar no icanHelp
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-[#d8e0ea]">
-                Informe seu email e receba um link de acesso para este navegador.
-              </p>
+          <section className="rounded-3xl border border-[#D9E0E7] bg-white p-8 shadow-sm">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+              Acesso
             </div>
 
-            {callbackError && (
-              <div className="mb-4 rounded-xl border border-[#6b3f1f] bg-[#3c2412] px-4 py-3 text-sm text-[#f2d6a2]">
+            <h2 className="mt-3 text-2xl font-semibold text-[#22313F]">
+              Entrar no icanHelp
+            </h2>
+
+            <p className="mt-3 text-sm leading-7 text-[#5B6B79]">
+              Informe seu email para receber um link de acesso seguro.
+            </p>
+
+            {callbackError ? (
+              <div className="mt-6 rounded-2xl border border-[#E7D5B0] bg-[#FFF8E8] px-4 py-4 text-sm leading-7 text-[#7A6228]">
                 {callbackError}
               </div>
-            )}
+            ) : null}
 
-            {error && (
-              <div className="mb-4 rounded-xl border border-[#6b2830] bg-[#3a151a] px-4 py-3 text-sm text-[#f3c4cb]">
+            {error ? (
+              <div className="mt-4 rounded-2xl border border-[#E5C6C8] bg-[#FFF5F5] px-4 py-4 text-sm leading-7 text-[#7D3B43]">
                 {error}
               </div>
-            )}
+            ) : null}
 
-            {success && (
-              <div className="mb-4 rounded-xl border border-[#3f5f2c] bg-[#1f3216] px-4 py-3 text-sm text-[#d0f0bf]">
+            {success ? (
+              <div className="mt-4 rounded-2xl border border-[#CFE0D4] bg-[#F4FBF6] px-4 py-4 text-sm leading-7 text-[#42634A]">
                 {success}
               </div>
-            )}
+            ) : null}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
               <div>
-                <label className="mb-2 block text-sm font-medium text-[#f5f7fa]">
+                <label className="mb-2 block text-sm font-medium text-[#22313F]">
                   Email
                 </label>
                 <input
@@ -153,21 +165,21 @@ function LoginPageContent() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="voce@orgao.gov.br"
-                  className="w-full rounded-xl border border-[#314667] bg-[#091426] px-4 py-3 text-sm text-white outline-none placeholder:text-[#8ea0bb] focus:border-[#c9a45c]"
+                  className="w-full rounded-xl border border-[#D9E0E7] bg-white px-4 py-3 text-sm text-[#22313F] outline-none transition placeholder:text-[#7A8A98] focus:border-[#5E7A96]"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={sending}
-                className="w-full rounded-xl border border-[#c9a45c] bg-[#c9a45c] px-4 py-3 text-sm font-semibold text-[#07111f] hover:bg-[#d9b97e] disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full rounded-xl bg-[#5E7A96] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#516C86] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {sending ? "Enviando..." : "Enviar link de acesso"}
               </button>
             </form>
 
-            <div className="mt-6 rounded-2xl border border-[#22324c] bg-[#091426] p-4 text-sm leading-6 text-[#c7d2df]">
-              Dica: abra o email e clique no link logo depois do envio, no mesmo navegador.
+            <div className="mt-6 rounded-2xl border border-[#E6ECF1] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
+              Dica: abra o email e clique no link no mesmo navegador em que voce pediu o acesso.
             </div>
           </section>
         </div>
