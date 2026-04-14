@@ -363,6 +363,24 @@ export async function POST(req: NextRequest) {
       reviewer_comment: cleanText(body.reviewer_comment),
     }
 
+    const nowIso = new Date().toISOString()
+    const sessionPromotionPayload = reviewedAt
+      ? {
+          current_stage: "review",
+          overall_status: "review_pending",
+          progress_percent: 100,
+          completed_at: reviewedAt,
+          reopened_at: null,
+          last_saved_at: nowIso,
+        }
+      : {
+          current_stage: "review",
+          overall_status: "in_progress",
+          progress_percent: 90,
+          completed_at: null,
+          last_saved_at: nowIso,
+        }
+
     if (existingRows.length === 0) {
       const insertResult = await userClient
         .from("nr1_diagnosis_review")
@@ -389,6 +407,25 @@ export async function POST(req: NextRequest) {
 
       const row = rows[0]
 
+      const sessionUpdateResult = await userClient
+        .from("nr1_diagnosis_sessions")
+        .update(sessionPromotionPayload)
+        .eq("id", sessionCheck.row.id)
+        .select("*")
+
+      if (sessionUpdateResult.error) {
+        return json(500, {
+          ok: false,
+          error: "nr1_diagnosis_session_promote_after_review_failed",
+          message: sessionUpdateResult.error.message,
+        })
+      }
+
+      const refreshedSessionRow =
+        Array.isArray(sessionUpdateResult.data) && sessionUpdateResult.data.length > 0
+          ? sessionUpdateResult.data[0]
+          : sessionCheck.row
+
       return json(201, {
         ok: true,
         upserted: "created",
@@ -397,12 +434,12 @@ export async function POST(req: NextRequest) {
         diagnosisSessionId,
         membershipRole: scope.role,
         session: {
-          id: sessionCheck.row.id,
-          department_id: sessionCheck.row.department_id,
-          activity_id: sessionCheck.row.activity_id,
-          current_stage: sessionCheck.row.current_stage,
-          overall_status: sessionCheck.row.overall_status,
-          progress_percent: sessionCheck.row.progress_percent,
+          id: refreshedSessionRow.id,
+          department_id: refreshedSessionRow.department_id,
+          activity_id: refreshedSessionRow.activity_id,
+          current_stage: refreshedSessionRow.current_stage,
+          overall_status: refreshedSessionRow.overall_status,
+          progress_percent: refreshedSessionRow.progress_percent,
         },
         item: {
           id: row.id,
@@ -456,6 +493,25 @@ export async function POST(req: NextRequest) {
 
     const row = rows[0]
 
+    const sessionUpdateResult = await userClient
+      .from("nr1_diagnosis_sessions")
+      .update(sessionPromotionPayload)
+      .eq("id", sessionCheck.row.id)
+      .select("*")
+
+    if (sessionUpdateResult.error) {
+      return json(500, {
+        ok: false,
+        error: "nr1_diagnosis_session_promote_after_review_failed",
+        message: sessionUpdateResult.error.message,
+      })
+    }
+
+    const refreshedSessionRow =
+      Array.isArray(sessionUpdateResult.data) && sessionUpdateResult.data.length > 0
+        ? sessionUpdateResult.data[0]
+        : sessionCheck.row
+
     return json(200, {
       ok: true,
       upserted: "updated",
@@ -464,12 +520,12 @@ export async function POST(req: NextRequest) {
       diagnosisSessionId,
       membershipRole: scope.role,
       session: {
-        id: sessionCheck.row.id,
-        department_id: sessionCheck.row.department_id,
-        activity_id: sessionCheck.row.activity_id,
-        current_stage: sessionCheck.row.current_stage,
-        overall_status: sessionCheck.row.overall_status,
-        progress_percent: sessionCheck.row.progress_percent,
+        id: refreshedSessionRow.id,
+        department_id: refreshedSessionRow.department_id,
+        activity_id: refreshedSessionRow.activity_id,
+        current_stage: refreshedSessionRow.current_stage,
+        overall_status: refreshedSessionRow.overall_status,
+        progress_percent: refreshedSessionRow.progress_percent,
       },
       item: {
         id: row.id,
