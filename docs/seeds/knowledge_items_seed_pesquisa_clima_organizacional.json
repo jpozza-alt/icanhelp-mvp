@@ -1,0 +1,52 @@
+[
+  {
+    "status": "draft",
+    "foundation_reference": "Pasini - Pesquisa de Clima Organizacional",
+    "category": "climate_research",
+    "body": "Objetivo:\nEstabelecer um entendimento comum sobre a finalidade da pesquisa de clima organizacional como instrumento de leitura do ambiente de trabalho, da lideranca e dos processos internos.\n\nAplicacao:\nA pesquisa deve ser usada para identificar percepcoes, pontos fortes, pontos de tensao e oportunidades de melhoria na organizacao do trabalho.\n\nLimites:\nA pesquisa nao deve ser tratada como diagnostico clinico individual, prontuario de saude mental ou ferramenta de exposicao pessoal do trabalhador.\n\nResultado esperado:\nGerar um retrato confiavel do ambiente interno para orientar acoes organizacionais, priorizacao e plano de melhoria.",
+    "domain": "organizational",
+    "foundation_type": "metodologico",
+    "summary": "Define o que a pesquisa de clima pretende medir, para quem se aplica e o que nao deve ser confundido com avaliacao clinica individual.",
+    "title": "Pesquisa de Clima Organizacional - objetivo e alcance"
+  },
+  {
+    "status": "draft",
+    "foundation_reference": "Pasini - Estruturacao de diagnosticos organizacionais",
+    "category": "climate_research",
+    "body": "Passos minimos:\n1. Definir objetivo da rodada.\n2. Definir publico e setores abrangidos.\n3. Definir cronograma.\n4. Definir responsaveis pela conducao.\n5. Definir forma de coleta.\n6. Definir como sera feita a devolutiva.\n\nChecklist de preparo:\n- objetivo claro\n- publico definido\n- mensagens de abertura prontas\n- prazo de resposta definido\n- responsavel por consolidacao definido\n- compromisso de devolutiva assumido\n\nRisco a evitar:\nAplicar pesquisa sem plano de leitura e sem plano de acao posterior.",
+    "domain": "organizational",
+    "foundation_type": "metodologico",
+    "summary": "Organiza escopo, publico, cronograma, responsabilidades e forma de coleta antes da aplicacao.",
+    "title": "Pesquisa de Clima Organizacional - planejamento da aplicacao"
+  },
+  {
+    "status": "draft",
+    "foundation_reference": "Pasini - Engajamento e comunicacao interna",
+    "category": "climate_research",
+    "body": "Mensagem central:\nA equipe precisa entender para que serve a pesquisa, como os dados serao usados e quais garantias de confidencialidade existem.\n\nBoas praticas:\n- comunicar o objetivo antes da aplicacao\n- explicar o que sera feito com os resultados\n- evitar linguagem punitiva\n- reforcar que o foco e melhoria organizacional\n- garantir confidencialidade e tratamento consolidado das respostas\n- divulgar prazo, canal e proximo passo\n\nErro comum:\nAbrir pesquisa sem explicar finalidade, sem garantir confianca e sem retorno posterior.",
+    "domain": "organizational",
+    "foundation_type": "metodologico",
+    "summary": "Orienta a comunicacao com trabalhadores para aumentar adesao e confianca no processo.",
+    "title": "Pesquisa de Clima Organizacional - comunicacao, adesao e confianca"
+  },
+  {
+    "status": "draft",
+    "foundation_reference": "Pasini - Analise e leitura de clima",
+    "category": "climate_research",
+    "body": "Leitura recomendada:\n- consolidar os achados por tema\n- separar pontos fortes e pontos criticos\n- identificar recorrencia por area ou lideranca\n- cruzar percepcoes com fatos organizacionais observaveis\n- evitar conclusoes precipitadas baseadas em um unico comentario\n\nPriorizacao:\n1. temas com maior recorrencia\n2. temas com maior impacto no ambiente de trabalho\n3. temas com possibilidade real de acao\n4. temas que exigem resposta imediata da gestao\n\nSaida minima:\n- lista priorizada de achados\n- justificativa da prioridade\n- proposta de encaminhamento",
+    "domain": "organizational",
+    "foundation_type": "metodologico",
+    "summary": "Define como consolidar resultados, separar temas recorrentes e priorizar intervencoes.",
+    "title": "Pesquisa de Clima Organizacional - leitura dos resultados e priorizacao"
+  },
+  {
+    "status": "draft",
+    "foundation_reference": "Pasini - Devolutiva e plano de melhoria",
+    "category": "climate_research",
+    "body": "Regra de ouro:\nPesquisa sem devolutiva e sem plano de acao enfraquece a confianca da equipe.\n\nPlano minimo:\n- problema priorizado\n- acao definida\n- responsavel\n- prazo\n- indicador simples de acompanhamento\n- data da devolutiva para a equipe\n\nDevolutiva recomendada:\n1. apresentar visao consolidada\n2. mostrar o que foi ouvido\n3. dizer o que sera feito\n4. dizer o que nao sera feito agora\n5. informar quando havera nova revisao\n\nResultado esperado:\nFechar o ciclo entre escuta, resposta institucional e melhoria continua.",
+    "domain": "organizational",
+    "foundation_type": "metodologico",
+    "summary": "Transforma o resultado da pesquisa em resposta organizacional concreta com devolutiva e acompanhamento.",
+    "title": "Pesquisa de Clima Organizacional - plano de acao e devolutiva"
+  }
+]

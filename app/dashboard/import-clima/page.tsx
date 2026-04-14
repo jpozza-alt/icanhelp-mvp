@@ -255,25 +255,39 @@ export default function ImportClimaPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-950 text-gray-100">
-      <div className="mx-auto max-w-5xl px-6 py-10">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">Importar seed - clima organizacional</h1>
-          <p className="mt-2 text-sm text-gray-300">
-            Esta pagina importa os 5 knowledge-items de pesquisa de clima usando a sessao ativa do navegador.
-          </p>
+    <main className="min-h-screen bg-[#07111f] px-6 py-10 text-[#f5f7fa]">
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.32em] text-[#c9a45c]">
+              icanHelp
+            </div>
+            <h1 className="mt-3 text-3xl font-bold text-white">
+              Importar seed - clima organizacional
+            </h1>
+            <p className="mt-2 text-sm leading-6 text-[#d8e0ea]">
+              Importacao pela sessao ativa do navegador com visual escuro e leitura mais limpa.
+            </p>
+          </div>
+
+          <button
+            onClick={() => router.push("/dashboard")}
+            className="rounded-xl border border-[#c9a45c] bg-[#10203a] px-4 py-3 text-sm font-semibold text-white hover:bg-[#173055]"
+          >
+            Voltar ao dashboard
+          </button>
         </div>
 
-        <div className="mb-6 rounded-xl border border-gray-800 bg-gray-900 p-4">
+        <div className="mb-6 rounded-3xl border border-[#22324c] bg-[#0d1a2e] p-5">
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-400">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.25em] text-[#c9a45c]">
                 Tenant alvo
               </label>
               <select
                 value={tenantId}
                 onChange={(e) => setTenantId(e.target.value)}
-                className="w-full rounded-md border border-gray-700 bg-gray-950 px-3 py-2 text-sm"
+                className="w-full rounded-xl border border-[#304664] bg-[#091426] px-4 py-3 text-sm text-white outline-none"
               >
                 {tenants.map((tenant) => (
                   <option key={tenant.id} value={tenant.id}>
@@ -287,7 +301,7 @@ export default function ImportClimaPage() {
               <button
                 onClick={handleImport}
                 disabled={loading || running || !tenantId}
-                className="w-full rounded-md bg-emerald-600 px-4 py-2 font-semibold hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full rounded-xl border border-[#c9a45c] bg-[#c9a45c] px-4 py-3 text-sm font-semibold text-[#07111f] hover:bg-[#d8b678] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {running ? "Importando..." : "Importar 5 itens de clima"}
               </button>
@@ -296,68 +310,79 @@ export default function ImportClimaPage() {
         </div>
 
         {error && (
-          <div className="mb-4 rounded-md border border-red-900 bg-red-950 px-4 py-3 text-sm text-red-200">
+          <div className="mb-4 rounded-2xl border border-[#6b2830] bg-[#3a151a] px-4 py-3 text-sm text-[#f3c4cb]">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="mb-4 rounded-md border border-green-900 bg-green-950 px-4 py-3 text-sm text-green-200">
+          <div className="mb-4 rounded-2xl border border-[#355628] bg-[#1f3216] px-4 py-3 text-sm text-[#d0f0bf]">
             {success}
           </div>
         )}
 
-        <div className="mb-4 grid gap-4 md:grid-cols-3">
-          <div className="rounded-xl border border-gray-800 bg-gray-900 p-4">
-            <div className="text-xs uppercase tracking-wide text-gray-400">Itens previstos</div>
-            <div className="mt-2 text-2xl font-bold">{CLIMA_SEED.length}</div>
+        <div className="mb-6 grid gap-4 md:grid-cols-3">
+          <div className="rounded-3xl border border-[#22324c] bg-[#0d1a2e] p-5">
+            <div className="text-xs font-semibold uppercase tracking-[0.25em] text-[#c9a45c]">
+              Itens previstos
+            </div>
+            <div className="mt-3 text-3xl font-bold text-white">{CLIMA_SEED.length}</div>
           </div>
 
-          <div className="rounded-xl border border-gray-800 bg-gray-900 p-4">
-            <div className="text-xs uppercase tracking-wide text-gray-400">Pass</div>
-            <div className="mt-2 text-2xl font-bold text-green-300">{passCount}</div>
+          <div className="rounded-3xl border border-[#22324c] bg-[#0d1a2e] p-5">
+            <div className="text-xs font-semibold uppercase tracking-[0.25em] text-[#c9a45c]">
+              Pass
+            </div>
+            <div className="mt-3 text-3xl font-bold text-[#dff2cd]">{passCount}</div>
           </div>
 
-          <div className="rounded-xl border border-gray-800 bg-gray-900 p-4">
-            <div className="text-xs uppercase tracking-wide text-gray-400">Fail</div>
-            <div className="mt-2 text-2xl font-bold text-red-300">{failCount}</div>
+          <div className="rounded-3xl border border-[#22324c] bg-[#0d1a2e] p-5">
+            <div className="text-xs font-semibold uppercase tracking-[0.25em] text-[#c9a45c]">
+              Fail
+            </div>
+            <div className="mt-3 text-3xl font-bold text-[#f5c8cf]">{failCount}</div>
           </div>
         </div>
 
-        <section className="rounded-xl border border-gray-800 bg-gray-900 p-5">
-          <h2 className="mb-4 text-xl font-semibold">Resultados</h2>
+        <section className="rounded-3xl border border-[#22324c] bg-[#0d1a2e] p-6">
+          <div className="mb-5">
+            <div className="text-xs font-semibold uppercase tracking-[0.3em] text-[#c9a45c]">
+              Resultado
+            </div>
+            <h2 className="mt-2 text-2xl font-bold text-white">Execucao da importacao</h2>
+          </div>
 
           {results.length === 0 ? (
-            <div className="rounded-md border border-gray-800 bg-gray-950 px-4 py-4 text-sm text-gray-400">
+            <div className="rounded-2xl border border-[#22324c] bg-[#091426] px-4 py-4 text-sm text-[#b8c4d5]">
               Nenhuma importacao executada ainda.
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {results.map((item) => (
                 <article
                   key={item.index}
-                  className="rounded-lg border border-gray-800 bg-gray-950 px-4 py-4"
+                  className="rounded-2xl border border-[#22324c] bg-[#091426] px-4 py-4"
                 >
-                  <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <span className="rounded bg-gray-800 px-2 py-1 text-xs text-gray-200">
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-[#1b2740] px-3 py-1 text-xs font-medium text-[#d8e0ea]">
                       item {item.index}
                     </span>
                     <span
                       className={
                         item.status === "PASS"
-                          ? "rounded bg-green-950 px-2 py-1 text-xs text-green-200"
-                          : "rounded bg-red-950 px-2 py-1 text-xs text-red-200"
+                          ? "rounded-full bg-[#1b3f2a] px-3 py-1 text-xs font-medium text-[#cceecf]"
+                          : "rounded-full bg-[#4b1a1f] px-3 py-1 text-xs font-medium text-[#f5c8cf]"
                       }
                     >
                       {item.status}
                     </span>
-                    <span className="rounded bg-slate-800 px-2 py-1 text-xs text-slate-200">
+                    <span className="rounded-full bg-[#3b2d15] px-3 py-1 text-xs font-medium text-[#f2ddb5]">
                       status_code: {item.status_code ?? "-"}
                     </span>
                   </div>
 
-                  <h3 className="text-base font-semibold">{item.title}</h3>
-                  <p className="mt-2 text-sm text-gray-300">{item.message}</p>
+                  <h3 className="text-base font-semibold text-white">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-[#d8e0ea]">{item.message}</p>
                 </article>
               ))}
             </div>

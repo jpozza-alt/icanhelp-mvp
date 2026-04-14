@@ -83,10 +83,15 @@ export default function AuthCallbackPage() {
   }, [router, search]);
 
   return (
-    <main className="min-h-screen bg-gray-950 text-gray-100 flex items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-2xl border border-gray-800 bg-gray-900 p-6 text-center shadow-2xl">
-        <h1 className="mb-3 text-2xl font-bold">Autenticando</h1>
-        <p className="text-sm text-gray-300">Aguarde enquanto finalizamos seu acesso.</p>
+    <main className="flex min-h-screen items-center justify-center bg-[#07111f] p-6 text-[#f5f7fa]">
+      <div className="w-full max-w-md rounded-3xl border border-[#22324c] bg-[#0d1a2e] p-8 text-center shadow-2xl shadow-black/30">
+        <div className="text-xs font-semibold uppercase tracking-[0.32em] text-[#c9a45c]">
+          icanHelp
+        </div>
+        <h1 className="mt-4 text-2xl font-bold text-white">Autenticando</h1>
+        <p className="mt-3 text-sm leading-6 text-[#d8e0ea]">
+          Aguarde enquanto finalizamos seu acesso com conforto visual em tema escuro.
+        </p>
       </div>
     </main>
   );

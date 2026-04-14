@@ -1,4 +1,5 @@
-﻿"use client";
+"use client";
+
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
@@ -9,15 +10,31 @@ const supabase = createClient(
 
 export function TopBar() {
   const router = useRouter();
-  async function sair(){
+
+  async function handleSignOut() {
     await supabase.auth.signOut();
     router.replace("/login");
   }
+
   return (
-    <div className="fixed top-0 left-0 right-0 flex items-center justify-end gap-3 px-4 py-3 bg-gray-900/60 backdrop-blur">
-      <button onClick={sair} className="px-3 py-1.5 rounded-md bg-red-600 hover:bg-red-700 text-white text-sm font-semibold">
-        Sair
-      </button>
-    </div>
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-[#22324c] bg-[#091426]/90 backdrop-blur">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.32em] text-[#c9a45c]">
+            icanHelp
+          </div>
+          <div className="mt-1 text-sm text-[#d8e0ea]">
+            Plataforma institucional
+          </div>
+        </div>
+
+        <button
+          onClick={handleSignOut}
+          className="rounded-md border border-[#c9a45c] bg-[#10203a] px-4 py-2 text-sm font-semibold text-[#f5f7fa] hover:bg-[#173055]"
+        >
+          Sair
+        </button>
+      </div>
+    </header>
   );
 }

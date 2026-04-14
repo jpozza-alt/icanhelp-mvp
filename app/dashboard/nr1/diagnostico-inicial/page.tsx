@@ -36,6 +36,15 @@ type SaveMeta = {
   requestId: string | null;
 };
 
+type Nr1AssessmentItem = {
+  id?: string;
+  establishment_name?: string | null;
+  process_description?: string | null;
+  environment_description?: string | null;
+  workers_count_estimate?: number | null;
+  status?: string | null;
+};
+
 const initialForm: FormState = {
   companyName: "",
   companySize: "",
@@ -133,6 +142,99 @@ function toHumanAnswer(value: string) {
     default:
       return "Nao informado";
   }
+}
+
+function parseHumanAnswer(value: string) {
+  const normalized = String(value || "").trim().toLowerCase();
+
+  switch (normalized) {
+    case "sim":
+      return "yes";
+    case "nao":
+      return "no";
+    case "em parte":
+      return "partially";
+    case "ainda nao sei":
+      return "unknown";
+    default:
+      return "";
+  }
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function extractBetween(text: string, startLabel: string, endLabel?: string) {
+  if (!text) return "";
+
+  const startEscaped = escapeRegExp(startLabel);
+  if (endLabel) {
+    const endEscaped = escapeRegExp(endLabel);
+    const regex = new RegExp(startEscaped + "\\s*:\\s*([\\s\\S]*?)\\s*" + endEscaped + "\\s*:", "i");
+    const match = text.match(regex);
+    if (!match || !match[1]) return "";
+    return match[1].trim().replace(/\.$/, "");
+  }
+
+  const regex = new RegExp(startEscaped + "\\s*:\\s*([\\s\\S]*?)\\s*$", "i");
+  const match = text.match(regex);
+  if (!match || !match[1]) return "";
+  return match[1].trim().replace(/\.$/, "");
+}
+
+function extractEnvironmentAnswer(text: string, label: string) {
+  if (!text) return "";
+
+  const regex = new RegExp(escapeRegExp(label) + "\\s*:\\s*(Sim|Nao|Em parte|Ainda nao sei|Nao informado)", "i");
+  const match = text.match(regex);
+
+  return parseHumanAnswer(match?.[1] || "");
+}
+
+function normalizeLoadedValue(value: string) {
+  const normalized = String(value || "").trim();
+  if (!normalized) return "";
+  if (normalized.toLowerCase() === "nao informado") return "";
+  return normalized;
+}
+
+function mapAssessmentToForm(item: Nr1AssessmentItem): FormState {
+  const processDescription = String(item?.process_description || "");
+  const environmentDescription = String(item?.environment_description || "");
+
+  const companySize = normalizeLoadedValue(
+    extractBetween(processDescription, "Porte", "Trabalhadores")
+  );
+
+  const workersFromNumber =
+    item?.workers_count_estimate !== null &&
+    item?.workers_count_estimate !== undefined &&
+    String(item.workers_count_estimate).trim()
+      ? String(item.workers_count_estimate)
+      : "";
+
+  const workersFromText = normalizeLoadedValue(
+    extractBetween(processDescription, "Trabalhadores", "Setores informados")
+  );
+
+  const sectors = normalizeLoadedValue(
+    extractBetween(processDescription, "Setores informados")
+  );
+
+  return {
+    companyName: String(item?.establishment_name || "").trim(),
+    companySize,
+    workerCount: workersFromNumber || workersFromText,
+    sectors,
+    publicService: extractEnvironmentAnswer(environmentDescription, "Atendimento ao publico"),
+    goalsPressure: extractEnvironmentAnswer(environmentDescription, "Metas e cobranca"),
+    repetitiveWork: extractEnvironmentAnswer(environmentDescription, "Trabalho repetitivo"),
+    seatedWork: extractEnvironmentAnswer(environmentDescription, "Trabalho sentado"),
+    machineHeightNoiseHeatChemical: extractEnvironmentAnswer(environmentDescription, "Exposicoes operacionais"),
+    outsourcedWorkers: extractEnvironmentAnswer(environmentDescription, "Terceirizados"),
+    remoteHybrid: extractEnvironmentAnswer(environmentDescription, "Trabalho remoto ou hibrido"),
+  };
 }
 
 function deriveRiskCategory(form: FormState) {
@@ -336,9 +438,12 @@ export default function Nr1DiagnosticoInicialPage() {
   const [tenantId, setTenantId] = useState("");
   const [tenants, setTenants] = useState<TenantOption[]>([]);
   const [loadingSession, setLoadingSession] = useState(true);
+  const [loadingDraft, setLoadingDraft] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [info, setInfo] = useState("");
+  const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [saveMeta, setSaveMeta] = useState<SaveMeta>({ itemId: null, requestId: null });
 
   function updateField<K extends keyof FormState>(field: K, value: FormState[K]) {
@@ -405,6 +510,7 @@ export default function Nr1DiagnosticoInicialPage() {
       setLoadingSession(true);
       setError("");
       setSuccess("");
+      setInfo("");
 
       try {
         const { data, error: sessionError } = await supabase.auth.getSession();
@@ -455,10 +561,93 @@ export default function Nr1DiagnosticoInicialPage() {
     })();
   }, [router]);
 
+  useEffect(() => {
+    if (!jwt || !tenantId) {
+      return;
+    }
+
+    (async () => {
+      setLoadingDraft(true);
+      setError("");
+      setSuccess("");
+      setInfo("");
+
+      try {
+        const listResponse = await fetch("/api/nr1-assessments?status=draft&limit=1", {
+          method: "GET",
+          headers: {
+            Authorization: "Bearer " + jwt,
+            "x-icanhelp-tenant": tenantId,
+          },
+          cache: "no-store",
+        });
+
+        const listPayload = await readJsonSafe(listResponse);
+
+        if (!listResponse.ok) {
+          const message =
+            listPayload?.message ||
+            listPayload?.error ||
+            "Falha ao buscar drafts de NR1.";
+          throw new Error(String(message));
+        }
+
+        const firstItem = Array.isArray(listPayload?.items) && listPayload.items.length > 0
+          ? listPayload.items[0]
+          : null;
+
+        if (!firstItem?.id) {
+          setActiveItemId(null);
+          setSaveMeta({ itemId: null, requestId: null });
+          setInfo("Nenhum draft anterior encontrado para este tenant.");
+          return;
+        }
+
+        const detailResponse = await fetch("/api/nr1-assessments/" + firstItem.id, {
+          method: "GET",
+          headers: {
+            Authorization: "Bearer " + jwt,
+            "x-icanhelp-tenant": tenantId,
+          },
+          cache: "no-store",
+        });
+
+        const detailPayload = await readJsonSafe(detailResponse);
+
+        if (!detailResponse.ok) {
+          const message =
+            detailPayload?.message ||
+            detailPayload?.error ||
+            "Falha ao carregar o draft existente.";
+          throw new Error(String(message));
+        }
+
+        const item = (detailPayload?.item || {}) as Nr1AssessmentItem;
+        const restoredForm = mapAssessmentToForm(item);
+
+        setForm(restoredForm);
+        setActiveItemId(item?.id ? String(item.id) : null);
+        setSaveMeta({
+          itemId: item?.id ? String(item.id) : null,
+          requestId: detailPayload?.request_id ? String(detailPayload.request_id) : null,
+        });
+        setInfo("Ultimo draft salvo foi carregado automaticamente.");
+      } catch (e: any) {
+        setError(e?.message || "Falha ao carregar o draft salvo.");
+      } finally {
+        setLoadingDraft(false);
+      }
+    })();
+  }, [jwt, tenantId]);
+
   async function handleSaveDraft() {
     setError("");
     setSuccess("");
-    setSaveMeta({ itemId: null, requestId: null });
+    setInfo("");
+    setSaveMeta((old) => ({
+      itemId: old.itemId,
+      requestId: null,
+    }));
 
     if (!jwt) {
       setError("Sessao indisponivel. Recarregue a pagina ou faca login novamente.");
@@ -495,8 +684,13 @@ export default function Nr1DiagnosticoInicialPage() {
     setSaving(true);
 
     try {
-      const response = await fetch("/api/nr1-assessments", {
-        method: "POST",
+      const isUpdate = Boolean(activeItemId);
+      const url = isUpdate
+        ? "/api/nr1-assessments/" + activeItemId
+        : "/api/nr1-assessments";
+
+      const response = await fetch(url, {
+        method: isUpdate ? "PATCH" : "POST",
         headers: {
           Authorization: "Bearer " + jwt,
           "x-icanhelp-tenant": tenantId,
@@ -517,17 +711,23 @@ export default function Nr1DiagnosticoInicialPage() {
 
       const itemId = responsePayload?.item?.id
         ? String(responsePayload.item.id)
-        : null;
+        : activeItemId;
+
       const requestId = responsePayload?.request_id
         ? String(responsePayload.request_id)
         : null;
 
+      setActiveItemId(itemId || null);
       setSaveMeta({
-        itemId,
+        itemId: itemId || null,
         requestId,
       });
 
-      setSuccess("Diagnostico inicial salvo no backend como rascunho.");
+      setSuccess(
+        isUpdate
+          ? "Draft atualizado no backend com sucesso."
+          : "Diagnostico inicial salvo no backend como draft."
+      );
     } catch (e: any) {
       setError(e?.message || "Falha ao salvar o diagnostico inicial.");
     } finally {
@@ -539,7 +739,7 @@ export default function Nr1DiagnosticoInicialPage() {
     <AppShell
       active="nr1"
       title="Diagnostico inicial da empresa"
-      description="Primeiro passo da jornada. Agora esta tela usa a sessao real do navegador, identifica o tenant e salva um draft no backend de NR-1."
+      description="Primeiro passo da jornada. Agora esta tela salva draft real e recarrega automaticamente o ultimo registro salvo do tenant."
     >
       <div className="space-y-6">
         <section className={sectionClassName}>
@@ -550,7 +750,7 @@ export default function Nr1DiagnosticoInicialPage() {
             Transforma uma conversa inicial em um draft real do diagnostico.
           </h2>
           <p className="mt-4 max-w-3xl text-sm leading-7 text-[#5B6B79]">
-            Em vez de ficar apenas no rascunho visual, esta etapa agora salva um registro inicial no backend para preparar o detalhamento posterior por setor, atividade e risco.
+            Em vez de ficar apenas no rascunho visual, esta etapa salva um registro inicial no backend para preparar o detalhamento posterior por setor, atividade e risco.
           </p>
         </section>
 
@@ -598,6 +798,10 @@ export default function Nr1DiagnosticoInicialPage() {
                     <div>
                       <span className="font-semibold text-[#22313F]">Tenants:</span>{" "}
                       {tenants.length}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-[#22313F]">Draft atual:</span>{" "}
+                      {activeItemId || "nenhum"}
                     </div>
                   </div>
                 </div>
@@ -783,10 +987,10 @@ export default function Nr1DiagnosticoInicialPage() {
               <div className="mt-4 flex flex-wrap gap-3">
                 <button
                   type="submit"
-                  disabled={loadingSession || saving || !tenantId || !jwt}
+                  disabled={loadingSession || loadingDraft || saving || !tenantId || !jwt}
                   className="rounded-xl bg-[#5E7A96] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#516C86] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {saving ? "Salvando..." : "Salvar draft no backend"}
+                  {saving ? "Salvando..." : activeItemId ? "Atualizar draft no backend" : "Salvar draft no backend"}
                 </button>
 
                 <Link
@@ -828,6 +1032,15 @@ export default function Nr1DiagnosticoInicialPage() {
               </section>
             ) : null}
 
+            {info ? (
+              <section className="rounded-3xl border border-[#D9E0E7] bg-[#EEF4F8] p-6 shadow-sm">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+                  leitura do backend
+                </div>
+                <p className="mt-3 text-sm leading-7 text-[#5B6B79]">{info}</p>
+              </section>
+            ) : null}
+
             <section className={sectionClassName}>
               <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
                 progresso desta etapa
@@ -847,9 +1060,16 @@ export default function Nr1DiagnosticoInicialPage() {
                 </div>
               </div>
 
-              <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
-                {nextSignal}
-              </p>
+              <div className="mt-4 space-y-2 text-sm leading-7 text-[#5B6B79]">
+                <p>{nextSignal}</p>
+                <p>
+                  {loadingDraft
+                    ? "Verificando se existe draft salvo para este tenant..."
+                    : activeItemId
+                    ? "Draft carregado. Se voce salvar de novo, o sistema atualiza esse mesmo registro."
+                    : "Nenhum draft salvo carregado ainda."}
+                </p>
+              </div>
             </section>
 
             <section className={sectionClassName}>
