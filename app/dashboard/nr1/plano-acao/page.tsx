@@ -322,7 +322,7 @@ export default function Nr1PlanoAcaoPage() {
     setSuccess("");
 
     try {
-      const assessmentsResponse = await fetch("/api/nr1-assessments?status=draft&limit=50", {
+      const assessmentsResponse = await fetch("/api/nr1/risks?establishmentId=" + encodeURIComponent(currentEstablishmentId), {
         method: "GET",
         headers: {
           Authorization: "Bearer " + currentJwt,
