@@ -1,254 +1,318 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
 import AppShell from "@/components/AppShell";
 
-type EvidenceFormState = {
-  relatedAction: string;
-  updateType: string;
-  reviewStatus: string;
-  nextReviewDate: string;
-  notes: string;
-};
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-type EvidenceItem = EvidenceFormState & {
+type TenantOption = {
   id: string;
+  name: string;
+  slug?: string | null;
 };
 
-const initialForm: EvidenceFormState = {
-  relatedAction: "",
-  updateType: "",
-  reviewStatus: "pendente",
-  nextReviewDate: "",
-  notes: "",
+type Nr1AssessmentItem = {
+  id?: string;
+  establishment_name?: string | null;
+  process_description?: string | null;
+  environment_description?: string | null;
+  workers_count_estimate?: number | null;
+  status?: string | null;
 };
 
 const sectionClassName = "rounded-3xl border border-[#D9E0E7] bg-white p-6 shadow-sm";
-const inputClassName =
-  "w-full rounded-xl border border-[#D9E0E7] bg-white px-4 py-3 text-sm text-[#22313F] outline-none transition placeholder:text-[#7A8A98] focus:border-[#5E7A96]";
 const selectClassName =
   "w-full rounded-xl border border-[#D9E0E7] bg-white px-4 py-3 text-sm text-[#22313F] outline-none transition focus:border-[#5E7A96]";
 
-function getReviewBadgeClass(status: string) {
-  switch (status) {
-    case "concluido":
-      return "border-[#CFE2D4] bg-[#EEF7F0] text-[#4D7A58]";
-    case "em revisao":
-      return "border-[#D9E0E7] bg-[#F4F7FA] text-[#486273]";
-    case "pendente":
+function parseTenants(payload: any): TenantOption[] {
+  const raw =
+    (Array.isArray(payload) && payload) ||
+    (Array.isArray(payload?.tenants) && payload.tenants) ||
+    (Array.isArray(payload?.items) && payload.items) ||
+    (Array.isArray(payload?.data) && payload.data) ||
+    [];
+
+  return raw
+    .map((item: any) => ({
+      id: String(item?.id ?? item?.tenant_id ?? "").trim(),
+      name: String(item?.name ?? item?.tenant_name ?? item?.slug ?? "Tenant").trim(),
+      slug: item?.slug ? String(item.slug) : null,
+    }))
+    .filter((item: TenantOption) => item.id);
+}
+
+async function readJsonSafe(response: Response) {
+  const text = await response.text();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { raw: text };
+  }
+}
+
+function shorten(value: string | null | undefined, maxLength: number) {
+  const text = String(value || "").trim();
+  if (!text) return "Nao informado";
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength - 3).trimEnd() + "...";
+}
+
+function statusBadgeClass(status: string | null | undefined) {
+  const normalized = String(status || "").trim().toLowerCase();
+
+  switch (normalized) {
+    case "draft":
       return "border-[#E8D9BE] bg-[#FBF6EB] text-[#8A6732]";
+    case "review_pending":
+      return "border-[#D9E0E7] bg-[#F4F7FA] text-[#486273]";
+    case "completed":
+      return "border-[#CFE2D4] bg-[#EEF7F0] text-[#4D7A58]";
     default:
       return "border-[#E3C7CB] bg-[#F9F1F2] text-[#8A4F58]";
   }
 }
 
 export default function Nr1EvidenciasAcompanhamentoPage() {
-  const [form, setForm] = useState<EvidenceFormState>(initialForm);
-  const [items, setItems] = useState<EvidenceItem[]>([]);
+  const router = useRouter();
 
-  function updateField<K extends keyof EvidenceFormState>(field: K, value: EvidenceFormState[K]) {
-    setForm((old) => ({
-      ...old,
-      [field]: value,
-    }));
-  }
+  const [jwt, setJwt] = useState("");
+  const [tenantId, setTenantId] = useState("");
+  const [tenants, setTenants] = useState<TenantOption[]>([]);
+  const [items, setItems] = useState<Nr1AssessmentItem[]>([]);
+  const [loadingSession, setLoadingSession] = useState(true);
+  const [loadingItems, setLoadingItems] = useState(false);
+  const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
 
-  function resetForm() {
-    setForm(initialForm);
-  }
+  useEffect(() => {
+    (async () => {
+      setLoadingSession(true);
+      setError("");
+      setInfo("");
 
-  function handleAddEvidence() {
-    if (
-      !form.relatedAction.trim() ||
-      !form.updateType ||
-      !form.reviewStatus ||
-      !form.nextReviewDate ||
-      !form.notes.trim()
-    ) {
+      try {
+        const { data, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          throw sessionError;
+        }
+
+        const accessToken = data.session?.access_token;
+        if (!accessToken) {
+          router.replace("/login");
+          return;
+        }
+
+        setJwt(accessToken);
+
+        const tenantsResponse = await fetch("/api/tenants", {
+          method: "GET",
+          headers: {
+            Authorization: "Bearer " + accessToken,
+          },
+          cache: "no-store",
+        });
+
+        const tenantsPayload = await readJsonSafe(tenantsResponse);
+
+        if (!tenantsResponse.ok) {
+          const message =
+            tenantsPayload?.message ||
+            tenantsPayload?.error ||
+            "Falha ao carregar tenants.";
+          throw new Error(String(message));
+        }
+
+        const parsedTenants = parseTenants(tenantsPayload);
+        setTenants(parsedTenants);
+
+        if (parsedTenants.length === 0) {
+          throw new Error("Nenhum tenant disponivel para este usuario.");
+        }
+
+        setTenantId(parsedTenants[0].id);
+      } catch (e: any) {
+        setError(e?.message || "Falha ao preparar a tela.");
+      } finally {
+        setLoadingSession(false);
+      }
+    })();
+  }, [router]);
+
+  useEffect(() => {
+    if (!jwt || !tenantId) {
       return;
     }
 
-    const nextItem: EvidenceItem = {
-      ...form,
-      id: crypto.randomUUID(),
-    };
+    (async () => {
+      setLoadingItems(true);
+      setError("");
+      setInfo("");
 
-    setItems((old) => [...old, nextItem]);
-    resetForm();
-  }
+      try {
+        const response = await fetch("/api/nr1-assessments?status=draft&limit=20", {
+          method: "GET",
+          headers: {
+            Authorization: "Bearer " + jwt,
+            "x-icanhelp-tenant": tenantId,
+          },
+          cache: "no-store",
+        });
 
-  function handleRemoveEvidence(id: string) {
-    setItems((old) => old.filter((item) => item.id !== id));
-  }
+        const payload = await readJsonSafe(response);
 
-  const pendingCount = useMemo(
-    () => items.filter((item) => item.reviewStatus === "pendente").length,
-    [items]
-  );
+        if (!response.ok) {
+          const message =
+            payload?.message ||
+            payload?.error ||
+            "Falha ao carregar registros de acompanhamento.";
+          throw new Error(String(message));
+        }
 
-  const completedCount = useMemo(
-    () => items.filter((item) => item.reviewStatus === "concluido").length,
-    [items]
-  );
+        const parsedItems = Array.isArray(payload?.items) ? payload.items : [];
+        setItems(parsedItems);
 
-  const overdueReviewCount = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+        if (parsedItems.length === 0) {
+          setInfo("Nenhum registro draft encontrado para este tenant.");
+        } else {
+          setInfo("Tela conectada ao backend real. Registros do tenant carregados com sucesso.");
+        }
+      } catch (e: any) {
+        setError(e?.message || "Falha ao carregar registros.");
+      } finally {
+        setLoadingItems(false);
+      }
+    })();
+  }, [jwt, tenantId]);
 
-    return items.filter((item) => {
-      if (item.reviewStatus === "concluido") return false;
-      const reviewDate = new Date(item.nextReviewDate + "T00:00:00");
-      return reviewDate < today;
-    }).length;
+  const totalCount = useMemo(() => items.length, [items]);
+
+  const draftCount = useMemo(() => {
+    return items.filter((item) => String(item?.status || "").trim().toLowerCase() === "draft").length;
   }, [items]);
 
-  const nextSignal = useMemo(() => {
-    if (items.length === 0) {
-      return "Cadastre pelo menos um registro para abrir trilha de evidencias e acompanhamento.";
-    }
+  const namedCount = useMemo(() => {
+    return items.filter((item) => String(item?.establishment_name || "").trim().length > 0).length;
+  }, [items]);
 
-    if (overdueReviewCount > 0) {
-      return "Ha revisao vencida. A plataforma ja tem material para destacar pendencias de acompanhamento.";
-    }
-
-    if (pendingCount > 0) {
-      return "Existem registros pendentes. A jornada pode mostrar continuidade e necessidade de retorno.";
-    }
-
-    return "Trilha inicial de evidencias pronta para sustentar revisao e historico.";
-  }, [items.length, overdueReviewCount, pendingCount]);
+  const workersKnownCount = useMemo(() => {
+    return items.filter((item) => {
+      const value = item?.workers_count_estimate;
+      return value !== null && value !== undefined && Number(value) > 0;
+    }).length;
+  }, [items]);
 
   return (
     <AppShell
       active="nr1"
       title="Evidencias e acompanhamento"
-      description="Quinta etapa da jornada. Aqui o sistema registra trilha, revisoes, observacoes e pendencias para fechar o ciclo de acompanhamento."
+      description="Etapa conectada ao backend. Esta versao remove o mock local e passa a ler registros reais do tenant."
     >
       <div className="space-y-6">
         <section className={sectionClassName}>
           <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
-            o que esta tela faz
+            o que mudou
           </div>
           <h2 className="mt-3 text-2xl font-semibold text-[#22313F]">
-            Mostra que a empresa nao apenas planejou, mas acompanhou.
+            A tela saiu do modo local e passou a ler dados reais.
           </h2>
           <p className="mt-4 max-w-3xl text-sm leading-7 text-[#5B6B79]">
-            A tela registra marcos de revisao, observacoes de execucao e proximas verificacoes. Isso fecha a sensacao de trilha, metodo e continuidade do trabalho.
+            Esta etapa agora usa sessao, tenant e consulta backend para mostrar registros reais ja salvos no fluxo NR1.
           </p>
         </section>
+
+        {error ? (
+          <section className="rounded-3xl border border-[#E5C6C8] bg-[#FFF5F5] p-6 shadow-sm">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#A8505A]">
+              erro
+            </div>
+            <p className="mt-3 text-sm leading-7 text-[#7D3B43]">{error}</p>
+          </section>
+        ) : null}
+
+        {info ? (
+          <section className="rounded-3xl border border-[#D9E0E7] bg-[#EEF4F8] p-6 shadow-sm">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+              leitura do backend
+            </div>
+            <p className="mt-3 text-sm leading-7 text-[#5B6B79]">{info}</p>
+          </section>
+        ) : null}
 
         <section className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
           <div className="space-y-6">
             <section className={sectionClassName}>
               <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
-                registrar evidencia
+                sessao e tenant
               </div>
 
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <div className="md:col-span-2">
-                  <label className="mb-2 block text-sm font-medium text-[#22313F]">
-                    Acao relacionada
-                  </label>
-                  <input
-                    value={form.relatedAction}
-                    onChange={(e) => updateField("relatedAction", e.target.value)}
-                    className={inputClassName}
-                    placeholder="Ex.: redistribuicao de demandas do atendimento"
-                  />
+              {loadingSession ? (
+                <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
+                  Carregando sessao do navegador e tenants disponiveis...
+                </p>
+              ) : (
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-[#22313F]">
+                      Tenant alvo
+                    </label>
+                    <select
+                      value={tenantId}
+                      onChange={(e) => setTenantId(e.target.value)}
+                      className={selectClassName}
+                    >
+                      {tenants.map((tenant) => (
+                        <option key={tenant.id} value={tenant.id}>
+                          {tenant.name} ({tenant.id})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="rounded-2xl border border-[#E6ECF1] bg-[#FAFBFC] px-4 py-4 text-sm leading-7 text-[#5B6B79]">
+                    <div>
+                      <span className="font-semibold text-[#22313F]">Sessao:</span>{" "}
+                      {jwt ? "ativa" : "indisponivel"}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-[#22313F]">Tenants:</span>{" "}
+                      {tenants.length}
+                    </div>
+                    <div>
+                      <span className="font-semibold text-[#22313F]">Carregando itens:</span>{" "}
+                      {loadingItems ? "sim" : "nao"}
+                    </div>
+                  </div>
                 </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-[#22313F]">
-                    Tipo de atualizacao
-                  </label>
-                  <select
-                    value={form.updateType}
-                    onChange={(e) => updateField("updateType", e.target.value)}
-                    className={selectClassName}
-                  >
-                    <option value="">Selecione</option>
-                    <option value="revisao">revisao</option>
-                    <option value="checagem">checagem</option>
-                    <option value="retorno da gestao">retorno da gestao</option>
-                    <option value="ajuste de prazo">ajuste de prazo</option>
-                    <option value="validacao final">validacao final</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-[#22313F]">
-                    Status da revisao
-                  </label>
-                  <select
-                    value={form.reviewStatus}
-                    onChange={(e) => updateField("reviewStatus", e.target.value)}
-                    className={selectClassName}
-                  >
-                    <option value="pendente">pendente</option>
-                    <option value="em revisao">em revisao</option>
-                    <option value="concluido">concluido</option>
-                    <option value="bloqueado">bloqueado</option>
-                  </select>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="mb-2 block text-sm font-medium text-[#22313F]">
-                    Proxima data de revisao
-                  </label>
-                  <input
-                    type="date"
-                    value={form.nextReviewDate}
-                    onChange={(e) => updateField("nextReviewDate", e.target.value)}
-                    className={inputClassName}
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="mb-2 block text-sm font-medium text-[#22313F]">
-                    Observacoes
-                  </label>
-                  <textarea
-                    value={form.notes}
-                    onChange={(e) => updateField("notes", e.target.value)}
-                    className="min-h-[120px] w-full rounded-xl border border-[#D9E0E7] bg-white px-4 py-3 text-sm text-[#22313F] outline-none transition placeholder:text-[#7A8A98] focus:border-[#5E7A96]"
-                    placeholder="Ex.: responsavel confirmou mudanca, equipe percebeu melhora parcial, revisar novamente em 10 dias"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={handleAddEvidence}
-                  className="rounded-xl bg-[#5E7A96] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#516C86]"
-                >
-                  Adicionar registro
-                </button>
-
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="rounded-xl border border-[#D9E0E7] bg-[#FAFBFC] px-5 py-3 text-sm font-semibold text-[#22313F]"
-                >
-                  Limpar campos
-                </button>
-              </div>
+              )}
             </section>
 
             <section className={sectionClassName}>
               <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
-                historico registrado
+                registros reais do tenant
               </div>
 
-              {items.length === 0 ? (
+              {loadingItems ? (
                 <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
-                  Nenhum registro de acompanhamento ainda.
+                  Buscando registros em /api/nr1-assessments...
+                </p>
+              ) : items.length === 0 ? (
+                <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
+                  Nenhum registro draft encontrado para este tenant.
                 </p>
               ) : (
                 <div className="mt-4 space-y-4">
                   {items.map((item, index) => (
                     <article
-                      key={item.id}
+                      key={String(item?.id || index)}
                       className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-5"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -257,31 +321,41 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
                             registro {index + 1}
                           </div>
                           <h3 className="mt-2 text-lg font-semibold text-[#22313F]">
-                            {item.relatedAction}
+                            {item?.establishment_name || "Diagnostico inicial"}
                           </h3>
                           <p className="mt-2 text-sm leading-7 text-[#5B6B79]">
-                            {item.notes}
+                            {shorten(item?.process_description, 220)}
                           </p>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveEvidence(item.id)}
-                          className="rounded-xl border border-[#E3C7CB] bg-[#F9F1F2] px-4 py-2 text-sm font-semibold text-[#8A4F58]"
+                        <div
+                          className={
+                            "rounded-full border px-3 py-2 text-xs font-semibold " +
+                            statusBadgeClass(item?.status)
+                          }
                         >
-                          Remover
-                        </button>
+                          status: {item?.status || "desconhecido"}
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        <div className="rounded-xl border border-[#D9E0E7] bg-white p-4 text-sm leading-7 text-[#5B6B79]">
+                          <div className="font-semibold text-[#22313F]">processo</div>
+                          <div className="mt-2">{shorten(item?.process_description, 280)}</div>
+                        </div>
+
+                        <div className="rounded-xl border border-[#D9E0E7] bg-white p-4 text-sm leading-7 text-[#5B6B79]">
+                          <div className="font-semibold text-[#22313F]">ambiente</div>
+                          <div className="mt-2">{shorten(item?.environment_description, 280)}</div>
+                        </div>
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-3">
                         <div className="rounded-full border border-[#D9E0E7] bg-white px-3 py-2 text-xs font-semibold text-[#22313F]">
-                          Tipo: {item.updateType}
-                        </div>
-                        <div className={"rounded-full border px-3 py-2 text-xs font-semibold " + getReviewBadgeClass(item.reviewStatus)}>
-                          Revisao: {item.reviewStatus}
+                          item_id: {item?.id || "-"}
                         </div>
                         <div className="rounded-full border border-[#D9E0E7] bg-white px-3 py-2 text-xs font-semibold text-[#22313F]">
-                          Proxima revisao: {item.nextReviewDate}
+                          trabalhadores: {item?.workers_count_estimate ?? "-"}
                         </div>
                       </div>
                     </article>
@@ -303,76 +377,69 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
                     registros
                   </div>
                   <div className="mt-2 text-2xl font-semibold text-[#22313F]">
-                    {items.length}
+                    {totalCount}
                   </div>
                 </div>
 
                 <div className="rounded-2xl border border-[#E6ECF1] bg-[#FAFBFC] p-4">
                   <div className="text-xs uppercase tracking-[0.22em] text-[#5E7A96]">
-                    pendentes
+                    drafts
                   </div>
                   <div className="mt-2 text-2xl font-semibold text-[#22313F]">
-                    {pendingCount}
+                    {draftCount}
                   </div>
                 </div>
 
                 <div className="rounded-2xl border border-[#E6ECF1] bg-[#FAFBFC] p-4">
                   <div className="text-xs uppercase tracking-[0.22em] text-[#5E7A96]">
-                    concluidos
+                    com estabelecimento
                   </div>
-                  <div className="mt-2 text-2xl font-semibold text-[#22313F]">
-                    {completedCount}
+<div className="mt-2 text-2xl font-semibold text-[#22313F]">
+                    {namedCount}
                   </div>
                 </div>
 
                 <div className="rounded-2xl border border-[#E6ECF1] bg-[#FAFBFC] p-4">
                   <div className="text-xs uppercase tracking-[0.22em] text-[#5E7A96]">
-                    revisoes vencidas
+                    com trabalhadores
                   </div>
                   <div className="mt-2 text-2xl font-semibold text-[#22313F]">
-                    {overdueReviewCount}
+                    {workersKnownCount}
                   </div>
                 </div>
               </div>
 
               <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
-                {nextSignal}
+                Esta versao ja mostra dados reais do tenant e elimina a falsa sensacao de tela pronta baseada apenas em estado local.
               </p>
             </section>
 
             <section className={sectionClassName}>
               <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
-                o que isso prova
+                proximas acoes
               </div>
 
               <div className="mt-4 space-y-3 text-sm leading-7 text-[#5B6B79]">
-                <div>- houve resposta institucional</div>
-                <div>- existe revisao programada</div>
-                <div>- ha historico de acompanhamento</div>
-                <div>- a empresa consegue mostrar evolucao e pendencias</div>
-              </div>
-            </section>
-
-            <section className="rounded-3xl border border-[#D9E0E7] bg-[#EEF4F8] p-6 shadow-sm">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
-                etapa fechada
+                <div>- confirmar se os registros exibidos batem com o tenant seeded</div>
+                <div>- fechar o contrato backend canonico da etapa de evidencias</div>
+                <div>- trocar esta leitura provisoria por evidencias e anexos reais quando o contrato estiver fechado</div>
               </div>
 
-              <div className="mt-4 rounded-2xl border border-[#D9E0E7] bg-white p-4">
-                <div className="text-sm font-semibold text-[#22313F]">
-                  Jornada principal montada
-                </div>
-                <p className="mt-2 text-sm leading-7 text-[#5B6B79]">
-                  Com esta tela, o fluxo principal do modulo NR-1 ja cobre entrada, diagnostico, setores, riscos, plano de acao e acompanhamento.
-                </p>
-              </div>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link
+                  href="/dashboard/nr1/diagnostico-inicial"
+                  className="rounded-xl border border-[#D9E0E7] bg-[#FAFBFC] px-5 py-3 text-sm font-semibold text-[#22313F]"
+                >
+                  Abrir diagnostico inicial
+                </Link>
 
-              <button
-                type="button"
-                className="mt-4 rounded-xl bg-[#C8D5E2] px-5 py-3 text-sm font-semibold text-white"
-              >
-                Revisar jornada completa
-              </button>
+                <Link
+                  href="/dashboard/nr1/plano-acao"
+                  className="rounded-xl bg-[#5E7A96] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#516C86]"
+                >
+                  Seguir para plano de acao
+                </Link>
+              </div>
             </section>
           </div>
         </section>
