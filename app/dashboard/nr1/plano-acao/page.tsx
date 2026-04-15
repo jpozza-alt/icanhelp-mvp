@@ -502,6 +502,14 @@ export default function Nr1PlanoAcaoPage() {
   async function handleAddAction() {
     setError("");
     setSuccess("");
+    setInfo("");
+    setError(
+      "Cadastro temporariamente bloqueado: o backend de action-plans exige nr1_risks.id, mas esta tela ainda carrega opcoes vindas de nr1_assessments. A proxima frente precisa materializar ou expor nr1_risks reais antes de liberar a gravacao."
+    );
+    setInfo(
+      "Leitura mantida. Gravacao bloqueada para evitar erro 500 e inconsistencia entre assessment.id e nr1_risks.id."
+    );
+    return;
 
     if (!jwt) {
       setError("Sessao indisponivel. Recarregue a pagina ou faca login novamente.");
@@ -598,7 +606,7 @@ export default function Nr1PlanoAcaoPage() {
     }
 
     if (items.length === 0) {
-      return "Ha riscos reais, mas nenhuma acao formal cadastrada. A proxima resposta da gestao precisa nascer aqui.";
+      return "Ha riscos exibidos na tela, mas o cadastro esta bloqueado ate existir fonte real de nr1_risks para o backend de action-plans.";
     }
 
     if (overdueOpenCount > 0) {
@@ -870,10 +878,10 @@ export default function Nr1PlanoAcaoPage() {
                 <button
                   type="button"
                   onClick={() => void handleAddAction()}
-                  disabled={saving || !selectedEstablishmentId}
+                  disabled={true}
                   className="rounded-xl bg-[#5E7A96] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#516C86] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {saving ? "Salvando..." : "Adicionar acao"}
+                  {"Cadastro bloqueado"}
                 </button>
 
                 <button
@@ -993,7 +1001,7 @@ export default function Nr1PlanoAcaoPage() {
             )}
 
             <div className="mt-6 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
-              Esta versao liga o plano de acao ao backend real de action-plans. O acompanhamento detalhado por followup fica para a proxima frente.
+              Esta versao permanece ligada ao backend real para leitura. A gravacao foi bloqueada temporariamente porque action-plans exige nr1_risks.id, enquanto a tela ainda carrega opcoes vindas de nr1_assessments.
             </div>
           </section>
         </div>
@@ -1028,3 +1036,4 @@ export default function Nr1PlanoAcaoPage() {
     </AppShell>
   );
 }
+
