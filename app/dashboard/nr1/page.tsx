@@ -4,8 +4,10 @@ import AppShell from "@/components/AppShell";
 const steps = [
   "Entender a empresa e o contexto de trabalho",
   "Mapear setores, atividades e exposicoes",
-  "Identificar riscos e definir prioridades",
-  "Montar plano de acao e trilha de acompanhamento",
+  "Classificar riscos e priorizar o que exige resposta",
+  "Montar plano de acao e blindar a execucao",
+  "Consolidar evidencias reais por estabelecimento",
+  "Acompanhar action-plans com trilha propria de followups",
 ];
 
 const outputCards = [
@@ -106,3 +108,4 @@ export default function Nr1HomePage() {
     </AppShell>
   );
 }
+

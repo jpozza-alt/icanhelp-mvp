@@ -553,7 +553,7 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
           )}
 
           <div className="mt-6 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
-            Esta versao foi ligada ao backend real de evidence-items. O detalhamento por action-followups fica para a proxima frente.
+            Esta versao foi ligada ao backend real de evidence-items. O detalhamento por action-followups agora segue para a tela propria de trilha de acompanhamento.
           </div>
         </section>
 
@@ -575,6 +575,13 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
               >
                 Voltar para plano de acao
               </Link>
+
+              <Link
+                href="/dashboard/nr1/trilha-acompanhamento"
+                className="rounded-xl bg-[#5E7A96] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#516C86]"
+              >
+                Avancar para trilha
+              </Link>
             </div>
           </div>
         </section>
@@ -582,3 +589,4 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
     </AppShell>
   );
 }
+
