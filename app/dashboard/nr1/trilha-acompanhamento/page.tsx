@@ -1,0 +1,706 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
+import AppShell from "@/components/AppShell";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+type TenantOption = {
+  id: string;
+  name: string;
+  slug?: string | null;
+};
+
+type EstablishmentItem = {
+  id: string;
+  name: string;
+  city?: string | null;
+  state?: string | null;
+  status?: string | null;
+};
+
+type ActionPlanItem = {
+  id: string;
+  title?: string | null;
+  status?: string | null;
+  priority?: string | null;
+  due_date?: string | null;
+  risk_id?: string | null;
+};
+
+type FollowupItem = {
+  id: string;
+  action_plan_id?: string | null;
+  followup_date?: string | null;
+  corrective_adjustment_needed?: boolean | null;
+  execution_check?: string | null;
+  inspection_result?: string | null;
+  environmental_monitoring_result?: string | null;
+  effectiveness_result?: string | null;
+  continuity_check?: string | null;
+  worker_participation_note?: string | null;
+  notes?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+const supabaseSectionClass =
+  "rounded-3xl border border-[#D9E0E7] bg-white p-6 shadow-[0_18px_50px_rgba(34,49,63,0.08)]";
+const selectClassName =
+  "mt-2 w-full rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] px-4 py-3 text-sm text-[#22313F] outline-none transition focus:border-[#5E7A96]";
+
+async function readJsonSafe(response: Response) {
+  const text = await response.text();
+
+  if (!text.trim()) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { raw: text };
+  }
+}
+
+function parseTenants(payload: any): TenantOption[] {
+  const raw = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload) ? payload : [];
+
+  return raw
+    .map((item: any) => ({
+      id: String(item?.id ?? "").trim(),
+      name: String(item?.name ?? item?.slug ?? "Tenant").trim(),
+      slug: item?.slug ? String(item.slug) : null,
+    }))
+    .filter((item: TenantOption) => item.id);
+}
+
+function parseEstablishments(payload: any): EstablishmentItem[] {
+  const raw = Array.isArray(payload?.items) ? payload.items : [];
+
+  return raw
+    .map((item: any) => ({
+      id: String(item?.id ?? "").trim(),
+      name: String(item?.name ?? "Estabelecimento").trim(),
+      city: item?.city ? String(item.city) : null,
+      state: item?.state ? String(item.state) : null,
+      status: item?.status ? String(item.status) : null,
+    }))
+    .filter((item: EstablishmentItem) => item.id);
+}
+
+function parseActionPlans(payload: any): ActionPlanItem[] {
+  const raw = Array.isArray(payload?.items) ? payload.items : [];
+
+  return raw
+    .map((item: any) => ({
+      id: String(item?.id ?? "").trim(),
+      title: item?.title ? String(item.title) : null,
+      status: item?.status ? String(item.status) : null,
+      priority: item?.priority ? String(item.priority) : null,
+      due_date: item?.due_date ? String(item.due_date) : null,
+      risk_id: item?.risk_id ? String(item.risk_id) : null,
+    }))
+    .filter((item: ActionPlanItem) => item.id);
+}
+
+function parseFollowups(payload: any): FollowupItem[] {
+  const raw = Array.isArray(payload?.items) ? payload.items : [];
+
+  return raw
+    .map((item: any) => ({
+      id: String(item?.id ?? "").trim(),
+      action_plan_id: item?.action_plan_id ? String(item.action_plan_id) : null,
+      followup_date: item?.followup_date ? String(item.followup_date) : null,
+      corrective_adjustment_needed:
+        typeof item?.corrective_adjustment_needed === "boolean"
+          ? item.corrective_adjustment_needed
+          : null,
+      execution_check: item?.execution_check ? String(item.execution_check) : null,
+      inspection_result: item?.inspection_result ? String(item.inspection_result) : null,
+      environmental_monitoring_result: item?.environmental_monitoring_result
+        ? String(item.environmental_monitoring_result)
+        : null,
+      effectiveness_result: item?.effectiveness_result ? String(item.effectiveness_result) : null,
+      continuity_check: item?.continuity_check ? String(item.continuity_check) : null,
+      worker_participation_note: item?.worker_participation_note
+        ? String(item.worker_participation_note)
+        : null,
+      notes: item?.notes ? String(item.notes) : null,
+      created_at: item?.created_at ? String(item.created_at) : null,
+      updated_at: item?.updated_at ? String(item.updated_at) : null,
+    }))
+    .filter((item: FollowupItem) => item.id);
+}
+
+function formatStatusLabel(value: string | null | undefined) {
+  switch (String(value || "").trim().toLowerCase()) {
+    case "open":
+      return "em aberto";
+    case "in_progress":
+      return "em andamento";
+    case "completed":
+      return "concluido";
+    case "overdue":
+      return "vencido";
+    default:
+      return String(value || "sem status").trim() || "sem status";
+  }
+}
+
+function formatPriorityLabel(value: string | null | undefined) {
+  switch (String(value || "").trim().toLowerCase()) {
+    case "very_high":
+      return "muito alta";
+    case "high":
+      return "alta";
+    case "medium":
+      return "media";
+    case "low":
+      return "baixa";
+    default:
+      return String(value || "sem prioridade").trim() || "sem prioridade";
+  }
+}
+
+function getStatusBadgeClass(value: string | null | undefined) {
+  switch (String(value || "").trim().toLowerCase()) {
+    case "completed":
+      return "border-[#D6E5D7] bg-[#F3F8F4] text-[#4E7355]";
+    case "in_progress":
+      return "border-[#D6E3EE] bg-[#F2F7FB] text-[#45647F]";
+    case "open":
+      return "border-[#E9D4C4] bg-[#FBF5EF] text-[#8C5A33]";
+    case "overdue":
+      return "border-[#E8C8CC] bg-[#F9F1F2] text-[#8A4F58]";
+    default:
+      return "border-[#D9E0E7] bg-[#FAFBFC] text-[#5B6B79]";
+  }
+}
+
+export default function Nr1TrilhaAcompanhamentoPage() {
+  const router = useRouter();
+
+  const [jwt, setJwt] = useState("");
+  const [tenantId, setTenantId] = useState("");
+  const [tenants, setTenants] = useState<TenantOption[]>([]);
+  const [establishments, setEstablishments] = useState<EstablishmentItem[]>([]);
+  const [selectedEstablishmentId, setSelectedEstablishmentId] = useState("");
+  const [actionPlans, setActionPlans] = useState<ActionPlanItem[]>([]);
+  const [selectedActionPlanId, setSelectedActionPlanId] = useState("");
+  const [followups, setFollowups] = useState<FollowupItem[]>([]);
+  const [loadingSession, setLoadingSession] = useState(true);
+  const [loadingEstablishments, setLoadingEstablishments] = useState(false);
+  const [loadingActionPlans, setLoadingActionPlans] = useState(false);
+  const [loadingFollowups, setLoadingFollowups] = useState(false);
+  const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
+
+  const selectedEstablishment = useMemo(() => {
+    return establishments.find((item) => item.id === selectedEstablishmentId) || null;
+  }, [establishments, selectedEstablishmentId]);
+
+  const selectedActionPlan = useMemo(() => {
+    return actionPlans.find((item) => item.id === selectedActionPlanId) || null;
+  }, [actionPlans, selectedActionPlanId]);
+
+  const adjustmentCount = useMemo(() => {
+    return followups.filter((item) => item.corrective_adjustment_needed === true).length;
+  }, [followups]);
+
+  useEffect(() => {
+    (async () => {
+      setLoadingSession(true);
+      setError("");
+      setInfo("");
+
+      try {
+        const { data, error: sessionError } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          throw sessionError;
+        }
+
+        const accessToken = data.session?.access_token;
+        if (!accessToken) {
+          router.replace("/login");
+          return;
+        }
+
+        setJwt(accessToken);
+
+        const tenantsResponse = await fetch("/api/tenants", {
+          method: "GET",
+          headers: {
+            Authorization: "Bearer " + accessToken,
+          },
+          cache: "no-store",
+        });
+
+        const tenantsPayload = await readJsonSafe(tenantsResponse);
+
+        if (!tenantsResponse.ok) {
+          const message =
+            tenantsPayload?.message ||
+            tenantsPayload?.error ||
+            "Falha ao carregar tenants.";
+          throw new Error(String(message));
+        }
+
+        const parsedTenants = parseTenants(tenantsPayload);
+        setTenants(parsedTenants);
+
+        if (parsedTenants.length === 0) {
+          throw new Error("Nenhum tenant encontrado para esta sessao.");
+        }
+
+        setTenantId(parsedTenants[0].id);
+      } catch (e: any) {
+        setError(e?.message || "Falha ao carregar sessao.");
+      } finally {
+        setLoadingSession(false);
+      }
+    })();
+  }, [router]);
+
+  useEffect(() => {
+    if (!jwt || !tenantId) {
+      return;
+    }
+
+    (async () => {
+      setLoadingEstablishments(true);
+      setError("");
+      setInfo("");
+
+      try {
+        const response = await fetch("/api/nr1/establishments", {
+          method: "GET",
+          headers: {
+            Authorization: "Bearer " + jwt,
+            "x-icanhelp-tenant": tenantId,
+          },
+          cache: "no-store",
+        });
+
+        const payload = await readJsonSafe(response);
+
+        if (!response.ok) {
+          const message =
+            payload?.message ||
+            payload?.error ||
+            "Falha ao carregar estabelecimentos.";
+          throw new Error(String(message));
+        }
+
+        const parsedEstablishments = parseEstablishments(payload);
+        setEstablishments(parsedEstablishments);
+
+        if (parsedEstablishments.length === 0) {
+          setSelectedEstablishmentId("");
+          setInfo("Nenhum estabelecimento encontrado para este tenant.");
+          return;
+        }
+
+        setSelectedEstablishmentId(parsedEstablishments[0].id);
+      } catch (e: any) {
+        setError(e?.message || "Falha ao carregar estabelecimentos.");
+      } finally {
+        setLoadingEstablishments(false);
+      }
+    })();
+  }, [jwt, tenantId]);
+
+  useEffect(() => {
+    if (!jwt || !tenantId || !selectedEstablishmentId) {
+      setActionPlans([]);
+      setSelectedActionPlanId("");
+      setFollowups([]);
+      return;
+    }
+
+    (async () => {
+      setLoadingActionPlans(true);
+      setLoadingFollowups(true);
+      setError("");
+      setInfo("");
+
+      try {
+        const response = await fetch(
+          "/api/nr1/action-plans?establishmentId=" + encodeURIComponent(selectedEstablishmentId),
+          {
+            method: "GET",
+            headers: {
+              Authorization: "Bearer " + jwt,
+              "x-icanhelp-tenant": tenantId,
+            },
+            cache: "no-store",
+          }
+        );
+
+        const payload = await readJsonSafe(response);
+
+        if (!response.ok) {
+          const message =
+            payload?.message ||
+            payload?.error ||
+            "Falha ao carregar action-plans.";
+          throw new Error(String(message));
+        }
+
+        const parsedItems = parseActionPlans(payload);
+        setActionPlans(parsedItems);
+        setFollowups([]);
+
+        if (parsedItems.length === 0) {
+          setSelectedActionPlanId("");
+          setInfo("Nenhum action-plan encontrado para este estabelecimento.");
+          return;
+        }
+
+        setSelectedActionPlanId(parsedItems[0].id);
+        setInfo("Tela ligada ao backend real de action-followups por action-plan.");
+      } catch (e: any) {
+        setActionPlans([]);
+        setSelectedActionPlanId("");
+        setFollowups([]);
+        setError(e?.message || "Falha ao carregar action-plans.");
+      } finally {
+        setLoadingActionPlans(false);
+        setLoadingFollowups(false);
+      }
+    })();
+  }, [jwt, tenantId, selectedEstablishmentId]);
+
+  useEffect(() => {
+    if (!jwt || !tenantId || !selectedEstablishmentId || !selectedActionPlanId) {
+      setFollowups([]);
+      return;
+    }
+
+    (async () => {
+      setLoadingFollowups(true);
+      setError("");
+
+      try {
+        const response = await fetch(
+          "/api/nr1/action-followups?establishmentId=" +
+            encodeURIComponent(selectedEstablishmentId) +
+            "&actionPlanId=" +
+            encodeURIComponent(selectedActionPlanId),
+          {
+            method: "GET",
+            headers: {
+              Authorization: "Bearer " + jwt,
+              "x-icanhelp-tenant": tenantId,
+            },
+            cache: "no-store",
+          }
+        );
+
+        const payload = await readJsonSafe(response);
+
+        if (!response.ok) {
+          const message =
+            payload?.message ||
+            payload?.error ||
+            "Falha ao carregar followups.";
+          throw new Error(String(message));
+        }
+
+        const parsedItems = parseFollowups(payload);
+        setFollowups(parsedItems);
+      } catch (e: any) {
+        setFollowups([]);
+        setError(e?.message || "Falha ao carregar followups.");
+      } finally {
+        setLoadingFollowups(false);
+      }
+    })();
+  }, [jwt, tenantId, selectedEstablishmentId, selectedActionPlanId]);
+
+  return (
+    <AppShell
+      active="nr1"
+      title="Trilha de acompanhamento"
+      description="Sexta etapa da jornada. Agora a tela le action-followups reais por action-plan."
+    >
+      <div className="space-y-6">
+        <section className={supabaseSectionClass}>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+            o que esta tela faz
+          </div>
+          <h2 className="mt-3 text-2xl font-semibold text-[#22313F]">
+            Mostra o historico de acompanhamento de cada action-plan.
+          </h2>
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-[#5B6B79]">
+            Esta etapa consome o backend real de action-followups. Ela organiza o acompanhamento por
+            estabelecimento e por action-plan, sem gravacao nesta fase.
+          </p>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
+                action-plans
+              </div>
+              <div className="mt-2 text-2xl font-semibold text-[#22313F]">{actionPlans.length}</div>
+            </div>
+
+            <div className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
+                followups
+              </div>
+              <div className="mt-2 text-2xl font-semibold text-[#22313F]">{followups.length}</div>
+            </div>
+
+            <div className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
+                ajustes necessarios
+              </div>
+              <div className="mt-2 text-2xl font-semibold text-[#22313F]">{adjustmentCount}</div>
+            </div>
+          </div>
+
+          {loadingSession ? (
+            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">Carregando sessao...</p>
+          ) : null}
+
+          {error ? (
+            <div className="mt-4 rounded-2xl border border-[#E8C8CC] bg-[#F9F1F2] px-4 py-3 text-sm text-[#8A4F58]">
+              {error}
+            </div>
+          ) : null}
+
+          {info ? (
+            <div className="mt-4 rounded-2xl border border-[#D6E3EE] bg-[#F2F7FB] px-4 py-3 text-sm text-[#45647F]">
+              {info}
+            </div>
+          ) : null}
+        </section>
+
+        <section className={supabaseSectionClass}>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">Tenant ativo</label>
+              <div className="mt-2 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] px-4 py-3 text-sm text-[#5B6B79]">
+                {tenantId
+                  ? (tenants.find((item) => item.id === tenantId)?.name || tenantId) + " (" + tenantId + ")"
+                  : "Nao carregado"}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">Estabelecimento</label>
+              <select
+                value={selectedEstablishmentId}
+                onChange={(e) => setSelectedEstablishmentId(e.target.value)}
+                className={selectClassName}
+                disabled={loadingEstablishments || establishments.length === 0}
+              >
+                {establishments.length === 0 ? (
+                  <option value="">Nenhum estabelecimento</option>
+                ) : (
+                  establishments.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} ({item.id})
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">Action-plan</label>
+              <select
+                value={selectedActionPlanId}
+                onChange={(e) => setSelectedActionPlanId(e.target.value)}
+                className={selectClassName}
+                disabled={loadingActionPlans || actionPlans.length === 0}
+              >
+                {actionPlans.length === 0 ? (
+                  <option value="">Nenhum action-plan</option>
+                ) : (
+                  actionPlans.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {(item.title || "Action-plan sem titulo") + " (" + item.id + ")"}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+          </div>
+
+          {selectedEstablishment ? (
+            <div className="mt-4 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
+              <div>
+                <span className="font-semibold text-[#22313F]">Estabelecimento:</span> {selectedEstablishment.name}
+              </div>
+              <div>
+                <span className="font-semibold text-[#22313F]">Cidade/UF:</span>{" "}
+                {[selectedEstablishment.city, selectedEstablishment.state].filter(Boolean).join(" / ") || "Nao informado"}
+              </div>
+              <div>
+                <span className="font-semibold text-[#22313F]">Status:</span> {selectedEstablishment.status || "Nao informado"}
+              </div>
+            </div>
+          ) : null}
+
+          {selectedActionPlan ? (
+            <div className="mt-4 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
+              <div>
+                <span className="font-semibold text-[#22313F]">Titulo:</span> {selectedActionPlan.title || "Nao informado"}
+              </div>
+              <div>
+                <span className="font-semibold text-[#22313F]">Status:</span> {formatStatusLabel(selectedActionPlan.status)}
+              </div>
+              <div>
+                <span className="font-semibold text-[#22313F]">Prioridade:</span> {formatPriorityLabel(selectedActionPlan.priority)}
+              </div>
+              <div>
+                <span className="font-semibold text-[#22313F]">Prazo:</span> {selectedActionPlan.due_date || "Nao informado"}
+              </div>
+            </div>
+          ) : null}
+        </section>
+
+        <section className={supabaseSectionClass}>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+            followups reais
+          </div>
+          <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
+            Lista carregada do backend de action-followups por action-plan.
+          </h3>
+
+          {loadingActionPlans || loadingFollowups ? (
+            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
+              Buscando registros em /api/nr1/action-followups...
+            </p>
+          ) : followups.length === 0 ? (
+            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
+              Nenhum followup encontrado para o action-plan selecionado.
+            </p>
+          ) : (
+            <div className="mt-4 space-y-4">
+              {followups.map((item, index) => (
+                <article
+                  key={item.id}
+                  className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-5"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#5E7A96]">
+                        followup {index + 1}
+                      </div>
+                      <h3 className="mt-2 text-lg font-semibold text-[#22313F]">
+                        Data de acompanhamento: {item.followup_date || "Nao informada"}
+                      </h3>
+                      <p className="mt-2 text-sm leading-7 text-[#5B6B79]">
+                        {item.notes || "Sem observacoes complementares."}
+                      </p>
+                    </div>
+
+                    <div className="rounded-full border px-3 py-2 text-xs font-semibold border-[#D9E0E7] bg-white text-[#5B6B79]">
+                      Ajuste necessario: {item.corrective_adjustment_needed ? "sim" : "nao"}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
+                        execucao
+                      </div>
+                      <div className="mt-2 text-sm leading-7 text-[#22313F]">
+                        {item.execution_check || "Nao informado"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
+                        inspecao
+                      </div>
+                      <div className="mt-2 text-sm leading-7 text-[#22313F]">
+                        {item.inspection_result || "Nao informado"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
+                        efetividade
+                      </div>
+                      <div className="mt-2 text-sm leading-7 text-[#22313F]">
+                        {item.effectiveness_result || "Nao informado"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
+                        continuidade
+                      </div>
+                      <div className="mt-2 text-sm leading-7 text-[#22313F]">
+                        {item.continuity_check || "Nao informado"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
+                        monitoramento ambiental
+                      </div>
+                      <div className="mt-2 text-sm leading-7 text-[#22313F]">
+                        {item.environmental_monitoring_result || "Nao informado"}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
+                        participacao dos trabalhadores
+                      </div>
+                      <div className="mt-2 text-sm leading-7 text-[#22313F]">
+                        {item.worker_participation_note || "Nao informado"}
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-6 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
+            Esta versao le action-followups reais. A gravacao de followup fica para a proxima frente.
+          </div>
+        </section>
+
+        <section className={supabaseSectionClass}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+                navegacao da jornada
+              </div>
+              <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
+                O acompanhamento agora tem tela propria.
+              </h3>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/dashboard/nr1/evidencias-acompanhamento"
+                className="rounded-xl border border-[#D9E0E7] bg-[#FAFBFC] px-5 py-3 text-sm font-semibold text-[#22313F]"
+              >
+                Voltar para evidencias
+              </Link>
+            </div>
+          </div>
+        </section>
+      </div>
+    </AppShell>
+  );
+}
