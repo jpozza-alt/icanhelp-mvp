@@ -13,6 +13,8 @@ const supabase = createClient(
 const sectionClassName = "rounded-3xl border border-[#D9E0E7] bg-white p-6 shadow-sm";
 const inputClassName =
   "mt-2 w-full rounded-2xl border border-[#D9E0E7] bg-white px-4 py-3 text-sm text-[#22313F] outline-none transition focus:border-[#9AB0C3]";
+const textAreaClassName =
+  "mt-2 min-h-[110px] w-full rounded-2xl border border-[#D9E0E7] bg-white px-4 py-3 text-sm text-[#22313F] outline-none transition focus:border-[#9AB0C3]";
 
 type TenantOption = {
   id: string;
@@ -52,6 +54,46 @@ type TrainingRecordItem = {
   updated_at: string | null;
 };
 
+type HealthFormState = {
+  has_pcmso: string;
+  pcmso_valid_until: string;
+  technical_responsible: string;
+  accident_disease_indicators: string;
+  work_related_leave_indicators: string;
+  notes: string;
+};
+
+type TrainingFormState = {
+  training_name: string;
+  target_audience: string;
+  status: string;
+  periodicity: string;
+  last_date: string;
+  next_due_date: string;
+  responsible_name: string;
+  notes: string;
+};
+
+const initialHealthForm: HealthFormState = {
+  has_pcmso: "",
+  pcmso_valid_until: "",
+  technical_responsible: "",
+  accident_disease_indicators: "",
+  work_related_leave_indicators: "",
+  notes: "",
+};
+
+const initialTrainingForm: TrainingFormState = {
+  training_name: "",
+  target_audience: "",
+  status: "due_soon",
+  periodicity: "annual",
+  last_date: "",
+  next_due_date: "",
+  responsible_name: "",
+  notes: "",
+};
+
 async function readJsonSafe(response: Response) {
   const text = await response.text();
   if (!text) return null;
@@ -61,6 +103,11 @@ async function readJsonSafe(response: Response) {
   } catch {
     return { raw: text };
   }
+}
+
+function toNullableText(value: string) {
+  const trimmed = String(value || "").trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 function parseTenants(payload: any): TenantOption[] {
@@ -211,8 +258,14 @@ export default function Nr1SaudeTreinamentosPage() {
   const [loadingSession, setLoadingSession] = useState(true);
   const [loadingEstablishments, setLoadingEstablishments] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
+  const [savingHealth, setSavingHealth] = useState(false);
+  const [savingTraining, setSavingTraining] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [healthSaveMessage, setHealthSaveMessage] = useState("");
+  const [trainingSaveMessage, setTrainingSaveMessage] = useState("");
+  const [healthForm, setHealthForm] = useState<HealthFormState>(initialHealthForm);
+  const [trainingForm, setTrainingForm] = useState<TrainingFormState>(initialTrainingForm);
 
   const selectedEstablishment = useMemo(() => {
     return establishments.find((item) => item.id === selectedEstablishmentId) || null;
@@ -225,6 +278,78 @@ export default function Nr1SaudeTreinamentosPage() {
   const dueSoonCount = useMemo(() => {
     return trainingItems.filter((item) => String(item.status || "").trim().toLowerCase() === "due_soon").length;
   }, [trainingItems]);
+
+  async function refreshData(currentJwt: string, currentTenantId: string, currentEstablishmentId: string) {
+    setLoadingData(true);
+    setError("");
+    setInfo("");
+
+    try {
+      const healthUrl =
+        "/api/nr1/occupational-health-refs?establishmentId=" + encodeURIComponent(currentEstablishmentId);
+
+      const trainingUrl =
+        "/api/nr1/training-records?establishmentId=" + encodeURIComponent(currentEstablishmentId);
+
+      const [healthResponse, trainingResponse] = await Promise.all([
+        fetch(healthUrl, {
+          method: "GET",
+          headers: {
+            Authorization: "Bearer " + currentJwt,
+            "x-icanhelp-tenant": currentTenantId,
+          },
+          cache: "no-store",
+        }),
+        fetch(trainingUrl, {
+          method: "GET",
+          headers: {
+            Authorization: "Bearer " + currentJwt,
+            "x-icanhelp-tenant": currentTenantId,
+          },
+          cache: "no-store",
+        }),
+      ]);
+
+      const [healthPayload, trainingPayload] = await Promise.all([
+        readJsonSafe(healthResponse),
+        readJsonSafe(trainingResponse),
+      ]);
+
+      if (!healthResponse.ok) {
+        const message =
+          healthPayload?.message ||
+          healthPayload?.error ||
+          "Falha ao carregar referencias de saude ocupacional.";
+        throw new Error(String(message));
+      }
+
+      if (!trainingResponse.ok) {
+        const message =
+          trainingPayload?.message ||
+          trainingPayload?.error ||
+          "Falha ao carregar treinamentos.";
+        throw new Error(String(message));
+      }
+
+      const parsedHealth = parseOccupationalHealthLatest(healthPayload);
+      const parsedTraining = parseTrainingItems(trainingPayload);
+
+      setHealthRef(parsedHealth);
+      setTrainingItems(parsedTraining);
+
+      if (!parsedHealth && parsedTraining.length === 0) {
+        setInfo("Nenhum registro de saude ocupacional ou treinamento encontrado para este estabelecimento.");
+      } else {
+        setInfo("Tela ligada aos backends reais de saude ocupacional e treinamentos por estabelecimento.");
+      }
+    } catch (e: any) {
+      setHealthRef(null);
+      setTrainingItems([]);
+      setError(e?.message || "Falha ao carregar saude e treinamentos.");
+    } finally {
+      setLoadingData(false);
+    }
+  }
 
   useEffect(() => {
     (async () => {
@@ -294,6 +419,8 @@ export default function Nr1SaudeTreinamentosPage() {
       setSelectedEstablishmentId("");
       setHealthRef(null);
       setTrainingItems([]);
+      setHealthSaveMessage("");
+      setTrainingSaveMessage("");
 
       try {
         const response = await fetch("/api/nr1/establishments", {
@@ -339,78 +466,142 @@ export default function Nr1SaudeTreinamentosPage() {
       return;
     }
 
-    (async () => {
-      setLoadingData(true);
-      setError("");
-      setInfo("");
-
-      try {
-        const healthUrl =
-          "/api/nr1/occupational-health-refs?establishmentId=" + encodeURIComponent(selectedEstablishmentId);
-
-        const trainingUrl =
-          "/api/nr1/training-records?establishmentId=" + encodeURIComponent(selectedEstablishmentId);
-
-        const [healthResponse, trainingResponse] = await Promise.all([
-          fetch(healthUrl, {
-            method: "GET",
-            headers: {
-              Authorization: "Bearer " + jwt,
-              "x-icanhelp-tenant": tenantId,
-            },
-            cache: "no-store",
-          }),
-          fetch(trainingUrl, {
-            method: "GET",
-            headers: {
-              Authorization: "Bearer " + jwt,
-              "x-icanhelp-tenant": tenantId,
-            },
-            cache: "no-store",
-          }),
-        ]);
-
-        const [healthPayload, trainingPayload] = await Promise.all([
-          readJsonSafe(healthResponse),
-          readJsonSafe(trainingResponse),
-        ]);
-
-        if (!healthResponse.ok) {
-          const message =
-            healthPayload?.message ||
-            healthPayload?.error ||
-            "Falha ao carregar referencias de saude ocupacional.";
-          throw new Error(String(message));
-        }
-
-        if (!trainingResponse.ok) {
-          const message =
-            trainingPayload?.message ||
-            trainingPayload?.error ||
-            "Falha ao carregar treinamentos.";
-          throw new Error(String(message));
-        }
-
-        const parsedHealth = parseOccupationalHealthLatest(healthPayload);
-        const parsedTraining = parseTrainingItems(trainingPayload);
-
-        setHealthRef(parsedHealth);
-        setTrainingItems(parsedTraining);
-
-        if (!parsedHealth && parsedTraining.length === 0) {
-          setInfo("Nenhum registro de saude ocupacional ou treinamento encontrado para este estabelecimento.");
-        } else {
-          setInfo("Tela ligada aos backends reais de saude ocupacional e treinamentos por estabelecimento.");
-        }
-      } catch (e: any) {
-        setHealthRef(null);
-        setTrainingItems([]);
-        setError(e?.message || "Falha ao carregar saude e treinamentos.");
-      } finally {
-        setLoadingData(false);
-      }
-    })();
+    void refreshData(jwt, tenantId, selectedEstablishmentId);
   }, [jwt, tenantId, selectedEstablishmentId]);
+
+  async function handleSaveHealth() {
+    setError("");
+    setInfo("");
+    setHealthSaveMessage("");
+    setTrainingSaveMessage("");
+
+    if (!jwt || !tenantId) {
+      setError("Sessao ou tenant indisponivel.");
+      return;
+    }
+
+    if (!selectedEstablishmentId) {
+      setError("Estabelecimento nao selecionado.");
+      return;
+    }
+
+    setSavingHealth(true);
+
+    try {
+      const payload = {
+        establishment_id: selectedEstablishmentId,
+        has_pcmso:
+          healthForm.has_pcmso === ""
+            ? null
+            : healthForm.has_pcmso === "true",
+        pcmso_valid_until: toNullableText(healthForm.pcmso_valid_until),
+        technical_responsible: toNullableText(healthForm.technical_responsible),
+        accident_disease_indicators: toNullableText(healthForm.accident_disease_indicators),
+        work_related_leave_indicators: toNullableText(healthForm.work_related_leave_indicators),
+        notes: toNullableText(healthForm.notes),
+      };
+
+      const response = await fetch(
+        "/api/nr1/occupational-health-refs?tenantId=" + encodeURIComponent(tenantId),
+        {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + jwt,
+            "x-icanhelp-tenant": tenantId,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const responsePayload = await readJsonSafe(response);
+
+      if (!response.ok) {
+        const message =
+          responsePayload?.message ||
+          responsePayload?.error ||
+          "Falha ao salvar saude ocupacional.";
+        throw new Error(String(message));
+      }
+
+      setHealthSaveMessage("Referencia de saude ocupacional salva com sucesso.");
+      await refreshData(jwt, tenantId, selectedEstablishmentId);
+    } catch (e: any) {
+      setError(e?.message || "Falha ao salvar saude ocupacional.");
+    } finally {
+      setSavingHealth(false);
+    }
+  }
+
+  async function handleSaveTraining() {
+    setError("");
+    setInfo("");
+    setHealthSaveMessage("");
+    setTrainingSaveMessage("");
+
+    if (!jwt || !tenantId) {
+      setError("Sessao ou tenant indisponivel.");
+      return;
+    }
+
+    if (!selectedEstablishmentId) {
+      setError("Estabelecimento nao selecionado.");
+      return;
+    }
+
+    if (!trainingForm.training_name.trim()) {
+      setError("Informe o nome do treinamento.");
+      return;
+    }
+
+    setSavingTraining(true);
+
+    try {
+      const payload = {
+        establishment_id: selectedEstablishmentId,
+        training_name: trainingForm.training_name.trim(),
+        target_audience: toNullableText(trainingForm.target_audience),
+        status: toNullableText(trainingForm.status),
+        periodicity: toNullableText(trainingForm.periodicity),
+        last_date: toNullableText(trainingForm.last_date),
+        next_due_date: toNullableText(trainingForm.next_due_date),
+        responsible_name: toNullableText(trainingForm.responsible_name),
+        certificate_file_url: null,
+        notes: toNullableText(trainingForm.notes),
+      };
+
+      const response = await fetch(
+        "/api/nr1/training-records?tenantId=" + encodeURIComponent(tenantId),
+        {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + jwt,
+            "x-icanhelp-tenant": tenantId,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const responsePayload = await readJsonSafe(response);
+
+      if (!response.ok) {
+        const message =
+          responsePayload?.message ||
+          responsePayload?.error ||
+          "Falha ao salvar treinamento.";
+        throw new Error(String(message));
+      }
+
+      setTrainingSaveMessage("Treinamento salvo com sucesso.");
+      setTrainingForm(initialTrainingForm);
+      await refreshData(jwt, tenantId, selectedEstablishmentId);
+    } catch (e: any) {
+      setError(e?.message || "Falha ao salvar treinamento.");
+    } finally {
+      setSavingTraining(false);
+    }
+  }
 
   return (
     <AppShell
@@ -694,6 +885,213 @@ export default function Nr1SaudeTreinamentosPage() {
                 ))}
               </div>
             )}
+          </section>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-2">
+          <section className={sectionClassName}>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+              gravacao controlada
+            </div>
+            <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
+              Novo registro de saude ocupacional
+            </h3>
+            <p className="mt-3 text-sm leading-7 text-[#5B6B79]">
+              Salva uma nova referencia para o estabelecimento selecionado. Isso cria um novo snapshot e a leitura acima passa
+              a mostrar o registro mais recente.
+            </p>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="text-sm font-semibold text-[#22313F]">PCMSO</label>
+                <select
+                  value={healthForm.has_pcmso}
+                  onChange={(e) => setHealthForm((old) => ({ ...old, has_pcmso: e.target.value }))}
+                  className={inputClassName}
+                >
+                  <option value="">Nao informar</option>
+                  <option value="true">Sim</option>
+                  <option value="false">Nao</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-[#22313F]">Validade do PCMSO</label>
+                <input
+                  type="date"
+                  value={healthForm.pcmso_valid_until}
+                  onChange={(e) => setHealthForm((old) => ({ ...old, pcmso_valid_until: e.target.value }))}
+                  className={inputClassName}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-sm font-semibold text-[#22313F]">Responsavel tecnico</label>
+                <input
+                  type="text"
+                  value={healthForm.technical_responsible}
+                  onChange={(e) => setHealthForm((old) => ({ ...old, technical_responsible: e.target.value }))}
+                  className={inputClassName}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-sm font-semibold text-[#22313F]">Indicadores de acidentes e doencas</label>
+                <textarea
+                  value={healthForm.accident_disease_indicators}
+                  onChange={(e) => setHealthForm((old) => ({ ...old, accident_disease_indicators: e.target.value }))}
+                  className={textAreaClassName}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-sm font-semibold text-[#22313F]">Indicadores de afastamento relacionado ao trabalho</label>
+                <textarea
+                  value={healthForm.work_related_leave_indicators}
+                  onChange={(e) => setHealthForm((old) => ({ ...old, work_related_leave_indicators: e.target.value }))}
+                  className={textAreaClassName}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-sm font-semibold text-[#22313F]">Observacoes</label>
+                <textarea
+                  value={healthForm.notes}
+                  onChange={(e) => setHealthForm((old) => ({ ...old, notes: e.target.value }))}
+                  className={textAreaClassName}
+                />
+              </div>
+            </div>
+
+            {healthSaveMessage ? (
+              <div className="mt-4 rounded-2xl border border-[#D6E7D9] bg-[#F2F8F3] px-4 py-3 text-sm text-[#446B4D]">
+                {healthSaveMessage}
+              </div>
+            ) : null}
+
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => void handleSaveHealth()}
+                disabled={savingHealth || !jwt || !tenantId || !selectedEstablishmentId}
+                className="rounded-2xl bg-[#22313F] px-4 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {savingHealth ? "Salvando..." : "Salvar saude ocupacional"}
+              </button>
+            </div>
+          </section>
+
+          <section className={sectionClassName}>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+              gravacao controlada
+            </div>
+            <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
+              Novo treinamento
+            </h3>
+            <p className="mt-3 text-sm leading-7 text-[#5B6B79]">
+              Salva um novo treinamento para o estabelecimento selecionado usando o contrato real de training-records.
+            </p>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <label className="text-sm font-semibold text-[#22313F]">Nome do treinamento</label>
+                <input
+                  type="text"
+                  value={trainingForm.training_name}
+                  onChange={(e) => setTrainingForm((old) => ({ ...old, training_name: e.target.value }))}
+                  className={inputClassName}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-[#22313F]">Publico-alvo</label>
+                <input
+                  type="text"
+                  value={trainingForm.target_audience}
+                  onChange={(e) => setTrainingForm((old) => ({ ...old, target_audience: e.target.value }))}
+                  className={inputClassName}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-[#22313F]">Responsavel</label>
+                <input
+                  type="text"
+                  value={trainingForm.responsible_name}
+                  onChange={(e) => setTrainingForm((old) => ({ ...old, responsible_name: e.target.value }))}
+                  className={inputClassName}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-[#22313F]">Status</label>
+                <select
+                  value={trainingForm.status}
+                  onChange={(e) => setTrainingForm((old) => ({ ...old, status: e.target.value }))}
+                  className={inputClassName}
+                >
+                  <option value="up_to_date">up_to_date</option>
+                  <option value="due_soon">due_soon</option>
+                  <option value="overdue">overdue</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-[#22313F]">Periodicidade</label>
+                <input
+                  type="text"
+                  value={trainingForm.periodicity}
+                  onChange={(e) => setTrainingForm((old) => ({ ...old, periodicity: e.target.value }))}
+                  className={inputClassName}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-[#22313F]">Ultima data</label>
+                <input
+                  type="date"
+                  value={trainingForm.last_date}
+                  onChange={(e) => setTrainingForm((old) => ({ ...old, last_date: e.target.value }))}
+                  className={inputClassName}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-[#22313F]">Proximo vencimento</label>
+                <input
+                  type="date"
+                  value={trainingForm.next_due_date}
+                  onChange={(e) => setTrainingForm((old) => ({ ...old, next_due_date: e.target.value }))}
+                  className={inputClassName}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-sm font-semibold text-[#22313F]">Observacoes</label>
+                <textarea
+                  value={trainingForm.notes}
+                  onChange={(e) => setTrainingForm((old) => ({ ...old, notes: e.target.value }))}
+                  className={textAreaClassName}
+                />
+              </div>
+            </div>
+
+            {trainingSaveMessage ? (
+              <div className="mt-4 rounded-2xl border border-[#D6E7D9] bg-[#F2F8F3] px-4 py-3 text-sm text-[#446B4D]">
+                {trainingSaveMessage}
+              </div>
+            ) : null}
+
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => void handleSaveTraining()}
+                disabled={savingTraining || !jwt || !tenantId || !selectedEstablishmentId}
+                className="rounded-2xl bg-[#22313F] px-4 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {savingTraining ? "Salvando..." : "Salvar treinamento"}
+              </button>
+            </div>
           </section>
         </section>
       </div>
