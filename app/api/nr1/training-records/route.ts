@@ -25,6 +25,9 @@ type CreateTrainingRecordBody = {
   notes?: string | null
 }
 
+const ALLOWED_STATUS = ["up_to_date", "due_soon", "overdue"] as const
+type AllowedTrainingStatus = (typeof ALLOWED_STATUS)[number]
+
 function json(status: number, payload: Record<string, unknown>) {
   return NextResponse.json(payload, { status })
 }
@@ -44,6 +47,14 @@ function cleanText(value: unknown): string | null {
   if (typeof value !== "string") return null
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : null
+}
+
+function cleanStatus(value: unknown): AllowedTrainingStatus | null {
+  const text = cleanText(value)
+  if (!text) return null
+  return ALLOWED_STATUS.includes(text as AllowedTrainingStatus)
+    ? (text as AllowedTrainingStatus)
+    : null
 }
 
 export async function GET(req: NextRequest) {
@@ -159,6 +170,17 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    const rawStatus = cleanText(body.status)
+    const status = cleanStatus(body.status)
+    if (rawStatus && !status) {
+      return json(400, {
+        ok: false,
+        error: "invalid_status",
+        message: "status must be one of: up_to_date, due_soon, overdue",
+        allowed: ALLOWED_STATUS,
+      })
+    }
+
     const scope = await resolveNr1Scope({
       req,
       tenantId,
@@ -189,7 +211,7 @@ export async function POST(req: NextRequest) {
       establishment_id: establishmentId,
       training_name: trainingName,
       target_audience: cleanText(body.target_audience),
-      status: cleanText(body.status),
+      status,
       periodicity: cleanText(body.periodicity),
       last_date: cleanText(body.last_date),
       next_due_date: cleanText(body.next_due_date),
