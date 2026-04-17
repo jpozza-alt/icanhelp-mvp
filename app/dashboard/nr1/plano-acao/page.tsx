@@ -145,13 +145,43 @@ function parseAssessments(payload: any): AssessmentItem[] {
   return raw
     .map((item: any) => ({
       id: String(item?.id ?? "").trim(),
-      establishment_name: item?.establishment_name ? String(item.establishment_name) : null,
-      sector_name: item?.sector_name ? String(item.sector_name) : null,
-      activity_name: item?.activity_name ? String(item.activity_name) : null,
+      establishment_name: item?.establishment_name
+        ? String(item.establishment_name)
+        : item?.establishment_id
+          ? String(item.establishment_id)
+          : null,
+      sector_name: item?.sector_name
+        ? String(item.sector_name)
+        : item?.department_id
+          ? String(item.department_id)
+          : null,
+      activity_name: item?.activity_name
+        ? String(item.activity_name)
+        : item?.activity_id
+          ? String(item.activity_id)
+          : null,
       risk_category: item?.risk_category ? String(item.risk_category) : null,
-      hazard_title: item?.hazard_title ? String(item.hazard_title) : null,
-      risk_level: item?.risk_level ? String(item.risk_level) : null,
-      risk_priority: item?.risk_priority ? String(item.risk_priority) : null,
+      hazard_title: item?.hazard_title
+        ? String(item.hazard_title)
+        : item?.title
+          ? String(item.title)
+          : item?.hazard_description
+            ? String(item.hazard_description)
+            : null,
+      risk_level: item?.risk_level
+        ? String(item.risk_level)
+        : item?.classification
+          ? String(item.classification)
+          : null,
+      risk_priority: item?.risk_priority
+        ? String(item.risk_priority)
+        : item?.priority
+          ? String(item.priority)
+          : item?.classification
+            ? String(item.classification)
+            : item?.risk_level
+              ? String(item.risk_level)
+              : null,
       status: item?.status ? String(item.status) : null,
       updated_at: item?.updated_at ? String(item.updated_at) : null,
     }))
@@ -340,9 +370,7 @@ export default function Nr1PlanoAcaoPage() {
         throw new Error(String(message));
       }
 
-      const parsedAssessments = parseAssessments(assessmentsPayload).filter(
-        (item) => String(item.establishment_name || "").trim() === currentEstablishmentName
-      );
+      const parsedAssessments = parseAssessments(assessmentsPayload);
       setRisks(parsedAssessments);
 
       const plansResponse = await fetch(
@@ -503,13 +531,6 @@ export default function Nr1PlanoAcaoPage() {
     setError("");
     setSuccess("");
     setInfo("");
-    setError(
-      "Cadastro temporariamente bloqueado: o backend de action-plans exige nr1_risks.id, mas esta tela ainda carrega opcoes vindas de nr1_assessments. A proxima frente precisa materializar ou expor nr1_risks reais antes de liberar a gravacao."
-    );
-    setInfo(
-      "Leitura mantida. Gravacao bloqueada para evitar erro 500 e inconsistencia entre assessment.id e nr1_risks.id."
-    );
-    return;
 
     if (!jwt) {
       setError("Sessao indisponivel. Recarregue a pagina ou faca login novamente.");
@@ -606,7 +627,7 @@ export default function Nr1PlanoAcaoPage() {
     }
 
     if (items.length === 0) {
-      return "Ha riscos exibidos na tela, mas o cadastro esta bloqueado ate existir fonte real de nr1_risks para o backend de action-plans.";
+      return "Ha riscos reais carregados. Preencha o formulario para gravar a primeira acao formal.";
     }
 
     if (overdueOpenCount > 0) {
@@ -878,10 +899,10 @@ export default function Nr1PlanoAcaoPage() {
                 <button
                   type="button"
                   onClick={() => void handleAddAction()}
-                  disabled={true}
+                  disabled={saving || !jwt || !tenantId || !selectedEstablishmentId || !form.selectedRiskId || !form.title.trim() || form.title.trim().length < 3}
                   className="rounded-xl bg-[#5E7A96] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#516C86] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {"Cadastro bloqueado"}
+                  {saving ? "Salvando..." : "Salvar acao"}
                 </button>
 
                 <button
@@ -1001,7 +1022,7 @@ export default function Nr1PlanoAcaoPage() {
             )}
 
             <div className="mt-6 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
-              Esta versao permanece ligada ao backend real para leitura. A gravacao foi bloqueada temporariamente porque action-plans exige nr1_risks.id, enquanto a tela ainda carrega opcoes vindas de nr1_assessments.
+              Esta versao esta ligada ao backend real para leitura e gravacao por estabelecimento.
             </div>
           </section>
         </div>
@@ -1036,4 +1057,5 @@ export default function Nr1PlanoAcaoPage() {
     </AppShell>
   );
 }
+
 
