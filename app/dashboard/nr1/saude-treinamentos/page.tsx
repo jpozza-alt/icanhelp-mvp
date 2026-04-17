@@ -366,9 +366,46 @@ export default function SaudeTreinamentosPage() {
         setTenantId(effectiveTenantId);
       }
 
+      if (!effectiveEstablishmentId) {
+        try {
+          const establishmentsPayload = await fetchJson(
+            `/api/nr1/establishments?tenantId=${encodeURIComponent(effectiveTenantId)}`
+          );
+
+          const establishments = extractRecords(establishmentsPayload, [
+            "establishments",
+            "items",
+            "data",
+          ]);
+
+          if (establishments.length > 0) {
+            effectiveEstablishmentId = readString(establishments[0], [
+              "id",
+              "establishmentId",
+              "establishment_id",
+            ]);
+          }
+        } catch {
+        }
+      }
+
+      if (!effectiveEstablishmentId) {
+        throw new Error(
+          "Nao foi possivel resolver establishmentId automaticamente. Cadastre ao menos um estabelecimento no tenant ativo ou preencha manualmente no topo da tela."
+        );
+      }
+
+      if (effectiveEstablishmentId !== establishmentId) {
+        setEstablishmentId(effectiveEstablishmentId);
+      }
+
       const [healthPayload, trainingPayload] = await Promise.all([
-        fetchJson(`/api/nr1/occupational-health-refs?tenantId=${encodeURIComponent(effectiveTenantId)}`),
-        fetchJson(`/api/nr1/training-records?tenantId=${encodeURIComponent(effectiveTenantId)}`),
+        fetchJson(
+          `/api/nr1/occupational-health-refs?tenantId=${encodeURIComponent(effectiveTenantId)}&establishmentId=${encodeURIComponent(effectiveEstablishmentId)}`
+        ),
+        fetchJson(
+          `/api/nr1/training-records?tenantId=${encodeURIComponent(effectiveTenantId)}&establishmentId=${encodeURIComponent(effectiveEstablishmentId)}`
+        ),
       ]);
 
       const healthItems = extractRecords(healthPayload, [
@@ -1315,3 +1352,4 @@ export default function SaudeTreinamentosPage() {
     </main>
   );
 }
+
