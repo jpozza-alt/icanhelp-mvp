@@ -12,11 +12,12 @@ const supabase = createClient(
 function getHashParams() {
   if (typeof window === "undefined") {
     return {
-      access_token: null as string | null,
-      refresh_token: null as string | null,
-      error: null as string | null,
-      error_code: null as string | null,
-      error_description: null as string | null,
+      access_token: null,
+      refresh_token: null,
+      error: null,
+      error_code: null,
+      error_description: null,
+      type: null,
     };
   }
 
@@ -32,6 +33,7 @@ function getHashParams() {
     error: params.get("error"),
     error_code: params.get("error_code"),
     error_description: params.get("error_description"),
+    type: params.get("type"),
   };
 }
 
@@ -43,6 +45,7 @@ export default function AuthCallbackPage() {
     (async () => {
       try {
         const hashParams = getHashParams();
+        const flowType = hashParams.type || search.get("type") || "";
 
         if (hashParams.access_token && hashParams.refresh_token) {
           const { error } = await supabase.auth.setSession({
@@ -52,6 +55,11 @@ export default function AuthCallbackPage() {
 
           if (error) {
             throw error;
+          }
+
+          if (flowType === "recovery") {
+            router.replace("/auth/reset-password");
+            return;
           }
 
           router.replace("/dashboard");
@@ -64,6 +72,11 @@ export default function AuthCallbackPage() {
 
           if (error) {
             throw error;
+          }
+
+          if (flowType === "recovery") {
+            router.replace("/auth/reset-password");
+            return;
           }
 
           router.replace("/dashboard");

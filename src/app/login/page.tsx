@@ -1,13 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, Suspense, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabase/client";
 
 function getErrorLabel(value: string | null) {
   switch (value) {
@@ -23,10 +19,13 @@ function getErrorLabel(value: string | null) {
 }
 
 function LoginPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   const [email, setEmail] = useState("");
-  const [sending, setSending] = useState(false);
+  const [password, setPassword] = useState("");
+  const [loadingPassword, setLoadingPassword] = useState(false);
+  const [loadingMagic, setLoadingMagic] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -34,10 +33,33 @@ function LoginPageContent() {
     return getErrorLabel(searchParams.get("err"));
   }, [searchParams]);
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handlePasswordLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    setSending(true);
+    setLoadingPassword(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (signInError) {
+        throw signInError;
+      }
+
+      router.replace("/dashboard");
+    } catch (err: any) {
+      setError(err?.message || "Falha ao entrar com email e senha.");
+    } finally {
+      setLoadingPassword(false);
+    }
+  }
+
+  async function handleMagicLink() {
+    setLoadingMagic(true);
     setError("");
     setSuccess("");
 
@@ -55,11 +77,11 @@ function LoginPageContent() {
         throw signInError;
       }
 
-      setSuccess("Link de acesso enviado. Abra o email e clique no link neste mesmo navegador.");
+      setSuccess("Link de acesso enviado. Use esta opcao apenas como alternativa.");
     } catch (err: any) {
       setError(err?.message || "Falha ao enviar o link de acesso.");
     } finally {
-      setSending(false);
+      setLoadingMagic(false);
     }
   }
 
@@ -73,40 +95,40 @@ function LoginPageContent() {
             </div>
 
             <h1 className="mt-4 text-4xl font-semibold leading-tight text-[#22313F]">
-              Entrada simples, clara e institucional.
+              Acesso estavel para uso diario.
             </h1>
 
             <p className="mt-4 max-w-2xl text-sm leading-7 text-[#5B6B79]">
-              Esta tela segue a mesma linguagem visual do modulo NR1. O objetivo e
-              deixar a entrada no sistema mais coerente com a jornada guiada: menos
-              aparencia de sistema frio, mais clareza sobre o proximo passo.
+              O acesso principal agora prioriza email e senha, com recuperacao de senha
+              e sessao mais apropriada para rotina de trabalho. O link por email fica
+              como alternativa, nao como caminho principal.
             </p>
 
             <div className="mt-8 grid gap-4 md:grid-cols-3">
               <div className="rounded-2xl border border-[#E6ECF1] bg-[#FAFBFC] p-4">
                 <div className="text-xs uppercase tracking-[0.24em] text-[#5E7A96]">
-                  Clareza
+                  Principal
                 </div>
                 <div className="mt-2 text-sm leading-6 text-[#22313F]">
-                  A pessoa entende rapido o que fazer para entrar.
+                  Entrar com email e senha para uso continuo.
                 </div>
               </div>
 
               <div className="rounded-2xl border border-[#E6ECF1] bg-[#FAFBFC] p-4">
                 <div className="text-xs uppercase tracking-[0.24em] text-[#5E7A96]">
-                  Seguranca
+                  Recuperacao
                 </div>
                 <div className="mt-2 text-sm leading-6 text-[#22313F]">
-                  O acesso segue por link enviado ao email informado.
+                  Fluxo proprio para redefinir a senha com seguranca.
                 </div>
               </div>
 
               <div className="rounded-2xl border border-[#E6ECF1] bg-[#FAFBFC] p-4">
                 <div className="text-xs uppercase tracking-[0.24em] text-[#5E7A96]">
-                  Continuidade
+                  Alternativa
                 </div>
                 <div className="mt-2 text-sm leading-6 text-[#22313F]">
-                  A experiencia visual agora conversa com o restante do modulo.
+                  Magic link segue disponivel somente como apoio.
                 </div>
               </div>
             </div>
@@ -116,9 +138,8 @@ function LoginPageContent() {
                 O que acontece depois do login
               </div>
               <p className="mt-3 text-sm leading-7 text-[#5B6B79]">
-                Depois do acesso, o usuario entra no ambiente do icanHelp e pode seguir
-                para a jornada NR1, incluindo o diagnostico inicial que agora salva draft
-                real no backend.
+                Depois do acesso, o usuario entra no ambiente do icanHelp e segue para
+                a jornada de trabalho, sem depender do envio de um novo email a cada uso.
               </p>
             </section>
           </section>
@@ -133,7 +154,7 @@ function LoginPageContent() {
             </h2>
 
             <p className="mt-3 text-sm leading-7 text-[#5B6B79]">
-              Informe seu email para receber um link de acesso seguro.
+              Use email e senha como forma principal de acesso.
             </p>
 
             {callbackError ? (
@@ -154,7 +175,7 @@ function LoginPageContent() {
               </div>
             ) : null}
 
-            <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <form onSubmit={handlePasswordLogin} className="mt-6 space-y-4">
               <div>
                 <label className="mb-2 block text-sm font-medium text-[#22313F]">
                   Email
@@ -169,17 +190,49 @@ function LoginPageContent() {
                 />
               </div>
 
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[#22313F]">
+                  Senha
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Sua senha"
+                  className="w-full rounded-xl border border-[#D9E0E7] bg-white px-4 py-3 text-sm text-[#22313F] outline-none transition placeholder:text-[#7A8A98] focus:border-[#5E7A96]"
+                />
+              </div>
+
               <button
                 type="submit"
-                disabled={sending}
+                disabled={loadingPassword}
                 className="w-full rounded-xl bg-[#5E7A96] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#516C86] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {sending ? "Enviando..." : "Enviar link de acesso"}
+                {loadingPassword ? "Entrando..." : "Entrar com senha"}
               </button>
             </form>
 
+            <div className="mt-4 flex items-center justify-between gap-4 text-sm">
+              <Link
+                href="/auth/forgot-password"
+                className="font-medium text-[#5E7A96] underline underline-offset-4"
+              >
+                Esqueci minha senha
+              </Link>
+
+              <button
+                type="button"
+                onClick={handleMagicLink}
+                disabled={loadingMagic || !email.trim()}
+                className="font-medium text-[#5E7A96] underline underline-offset-4 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loadingMagic ? "Enviando link..." : "Usar link por email"}
+              </button>
+            </div>
+
             <div className="mt-6 rounded-2xl border border-[#E6ECF1] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
-              Dica: abra o email e clique no link no mesmo navegador em que voce pediu o acesso.
+              O link por email continua disponivel, mas o acesso diario deve usar senha.
             </div>
           </section>
         </div>
