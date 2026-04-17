@@ -62,6 +62,52 @@ function normalizeTenantId(body: unknown) {
   return raw.trim();
 }
 
+function readActiveTenantFromCookie(req: NextRequest) {
+  const tenantCookie = req.cookies.get("icanhelp_tenant")?.value?.trim() ?? "";
+  const establishmentCookie =
+    req.cookies.get("icanhelp_establishment")?.value?.trim() ?? "";
+
+  return {
+    tenantId: tenantCookie,
+    establishmentId: establishmentCookie,
+  };
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const active = readActiveTenantFromCookie(req);
+
+    if (!active.tenantId) {
+      return json(
+        {
+          ok: false,
+          error: "active_tenant_not_set",
+          tenantId: "",
+          establishmentId: active.establishmentId || "",
+        },
+        404
+      );
+    }
+
+    return json({
+      ok: true,
+      tenantId: active.tenantId,
+      tenant_id: active.tenantId,
+      activeTenantId: active.tenantId,
+      active_tenant_id: active.tenantId,
+      establishmentId: active.establishmentId || "",
+      establishment_id: active.establishmentId || "",
+      activeEstablishmentId: active.establishmentId || "",
+      active_establishment_id: active.establishmentId || "",
+    });
+  } catch (error) {
+    return json(
+      { ok: false, error: error instanceof Error ? error.message : "unknown_error" },
+      500
+    );
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     const token = getBearer(req);
@@ -106,6 +152,7 @@ export async function POST(req: NextRequest) {
     const response = json({
       ok: true,
       tenantId: row.tenant_id,
+      tenant_id: row.tenant_id,
       role: row.role,
     });
 
