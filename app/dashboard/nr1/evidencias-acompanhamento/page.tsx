@@ -168,6 +168,19 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
   const [loadingItems, setLoadingItems] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    title: "",
+    evidence_type: "document",
+    description: "",
+    linked_entity_type: "",
+    linked_entity_id: "",
+    reference_date: "",
+    file_name: "",
+    file_url: "",
+    validation_status: "pending_validation",
+    responsible_name: "",
+  });
 
   const selectedEstablishment = useMemo(() => {
     return establishments.find((item) => item.id === selectedEstablishmentId) || null;
@@ -339,11 +352,108 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
     })();
   }, [jwt, tenantId, selectedEstablishmentId]);
 
+  async function handleCreateEvidence() {
+    setError("");
+    setInfo("");
+
+    if (!jwt || !tenantId || !selectedEstablishmentId) {
+      setError("Contexto incompleto. Recarregue a pagina e confirme tenant e estabelecimento.");
+      return;
+    }
+
+    if (!form.title.trim()) {
+      setError("Informe o titulo da evidencia.");
+      return;
+    }
+
+    if (!form.evidence_type.trim()) {
+      setError("Informe o tipo da evidencia.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const createResponse = await fetch("/api/nr1/evidence-items", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + jwt,
+          "x-icanhelp-tenant": tenantId,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          establishment_id: selectedEstablishmentId,
+          title: form.title.trim(),
+          evidence_type: form.evidence_type.trim(),
+          description: form.description.trim() || null,
+          linked_entity_type: form.linked_entity_type.trim() || null,
+          linked_entity_id: form.linked_entity_id.trim() || null,
+          reference_date: form.reference_date.trim() || null,
+          file_name: form.file_name.trim() || null,
+          file_url: form.file_url.trim() || null,
+          validation_status: form.validation_status.trim() || null,
+          responsible_name: form.responsible_name.trim() || null,
+        }),
+      });
+
+      const createPayload = await readJsonSafe(createResponse);
+
+      if (!createResponse.ok) {
+        const message =
+          createPayload?.message ||
+          createPayload?.error ||
+          "Falha ao gravar evidencia no backend real.";
+        throw new Error(String(message));
+      }
+
+      const refreshResponse = await fetch(
+        "/api/nr1/evidence-items?establishmentId=" + encodeURIComponent(selectedEstablishmentId),
+        {
+          method: "GET",
+          headers: {
+            Authorization: "Bearer " + jwt,
+            "x-icanhelp-tenant": tenantId,
+          },
+          cache: "no-store",
+        }
+      );
+
+      const refreshPayload = await readJsonSafe(refreshResponse);
+
+      if (!refreshResponse.ok) {
+        const message =
+          refreshPayload?.message ||
+          refreshPayload?.error ||
+          "A evidencia foi criada, mas a releitura da lista falhou.";
+        throw new Error(String(message));
+      }
+
+      setItems(parseEvidenceItems(refreshPayload));
+      setForm({
+        title: "",
+        evidence_type: "document",
+        description: "",
+        linked_entity_type: "",
+        linked_entity_id: "",
+        reference_date: "",
+        file_name: "",
+        file_url: "",
+        validation_status: "pending_validation",
+        responsible_name: "",
+      });
+      setInfo("Evidencia gravada com sucesso no backend real.");
+    } catch (e: any) {
+      setError(e?.message || "Falha ao gravar evidencia.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <AppShell
       active="nr1"
       title="Evidencias e acompanhamento"
-      description="Quinta etapa da jornada. Agora a tela le o backend real de evidence-items por estabelecimento."
+      description="Quinta etapa da jornada. Agora a tela le e grava evidence-items reais por estabelecimento."
     >
       <div className="space-y-6">
         <section className={sectionClassName}>
@@ -354,8 +464,8 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
             Mostra evidencias reais do estabelecimento, com status, vinculo e rastreabilidade.
           </h2>
           <p className="mt-4 max-w-3xl text-sm leading-7 text-[#5B6B79]">
-            Esta etapa saiu da leitura indevida de assessments e agora consome o contrato real de evidence-items.
-            O acompanhamento detalhado por follow-ups continua como frente separada.
+            Esta etapa saiu da leitura indevida de assessments e agora consome e grava no contrato real de
+            evidence-items. O acompanhamento detalhado por follow-ups continua como frente separada.
           </p>
 
           <div className="mt-5 grid gap-4 md:grid-cols-4">
@@ -451,6 +561,162 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
               </div>
             </div>
           ) : null}
+        </section>
+
+        <section className={sectionClassName}>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+            registrar evidencia
+          </div>
+          <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
+            Criacao manual ligada ao backend real de evidence-items.
+          </h3>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">Titulo da evidencia</label>
+              <input
+                value={form.title}
+                onChange={(e) => setForm((current) => ({ ...current, title: e.target.value }))}
+                className={inputClassName}
+                placeholder="Ex.: Checklist assinado da verificacao"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">Tipo</label>
+              <select
+                value={form.evidence_type}
+                onChange={(e) => setForm((current) => ({ ...current, evidence_type: e.target.value }))}
+                className={inputClassName}
+              >
+                <option value="document">document</option>
+                <option value="image">image</option>
+                <option value="checklist">checklist</option>
+                <option value="report">report</option>
+                <option value="other">other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">Data de referencia</label>
+              <input
+                type="date"
+                value={form.reference_date}
+                onChange={(e) => setForm((current) => ({ ...current, reference_date: e.target.value }))}
+                className={inputClassName}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">Responsavel</label>
+              <input
+                value={form.responsible_name}
+                onChange={(e) => setForm((current) => ({ ...current, responsible_name: e.target.value }))}
+                className={inputClassName}
+                placeholder="Nome do responsavel"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">Entidade vinculada</label>
+              <select
+                value={form.linked_entity_type}
+                onChange={(e) => setForm((current) => ({ ...current, linked_entity_type: e.target.value }))}
+                className={inputClassName}
+              >
+                <option value="">sem vinculo</option>
+                <option value="action_plan">action_plan</option>
+                <option value="action_followup">action_followup</option>
+                <option value="other">other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">ID vinculado</label>
+              <input
+                value={form.linked_entity_id}
+                onChange={(e) => setForm((current) => ({ ...current, linked_entity_id: e.target.value }))}
+                className={inputClassName}
+                placeholder="UUID do item vinculado"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">Nome do arquivo</label>
+              <input
+                value={form.file_name}
+                onChange={(e) => setForm((current) => ({ ...current, file_name: e.target.value }))}
+                className={inputClassName}
+                placeholder="arquivo.pdf"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">URL do arquivo</label>
+              <input
+                value={form.file_url}
+                onChange={(e) => setForm((current) => ({ ...current, file_url: e.target.value }))}
+                className={inputClassName}
+                placeholder="https://..."
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">Status de validacao</label>
+              <select
+                value={form.validation_status}
+                onChange={(e) => setForm((current) => ({ ...current, validation_status: e.target.value }))}
+                className={inputClassName}
+              >
+                <option value="pending_validation">pending_validation</option>
+                <option value="validated">validated</option>
+                <option value="rejected">rejected</option>
+                <option value="archived">archived</option>
+              </select>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="text-sm font-semibold text-[#22313F]">Descricao</label>
+              <textarea
+                value={form.description}
+                onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))}
+                className={inputClassName + " min-h-[120px]"}
+                placeholder="Descreva a evidencia e o contexto do registro"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => void handleCreateEvidence()}
+              disabled={saving || !jwt || !tenantId || !selectedEstablishmentId || !form.title.trim() || !form.evidence_type.trim()}
+              className="rounded-xl bg-[#5E7A96] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#516C86] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? "Salvando..." : "Salvar evidencia"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                setForm({
+                  title: "",
+                  evidence_type: "document",
+                  description: "",
+                  linked_entity_type: "",
+                  linked_entity_id: "",
+                  reference_date: "",
+                  file_name: "",
+                  file_url: "",
+                  validation_status: "pending_validation",
+                  responsible_name: "",
+                })
+              }
+              className="rounded-xl border border-[#D9E0E7] bg-[#FAFBFC] px-5 py-3 text-sm font-semibold text-[#22313F]"
+            >
+              Limpar campos
+            </button>
+          </div>
         </section>
 
         <section className={sectionClassName}>
@@ -553,7 +819,8 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
           )}
 
           <div className="mt-6 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
-            Esta versao foi ligada ao backend real de evidence-items. O detalhamento por action-followups agora segue para a tela propria de trilha de acompanhamento.
+            Esta versao foi ligada ao backend real de evidence-items com leitura e gravacao por estabelecimento.
+            O detalhamento por action-followups agora segue para a tela propria de trilha de acompanhamento.
           </div>
         </section>
 
@@ -589,4 +856,5 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
     </AppShell>
   );
 }
+
 
