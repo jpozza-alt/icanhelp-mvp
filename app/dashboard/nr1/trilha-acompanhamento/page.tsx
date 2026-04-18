@@ -201,6 +201,18 @@ export default function Nr1TrilhaAcompanhamentoPage() {
   const [loadingFollowups, setLoadingFollowups] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    followup_date: "",
+    corrective_adjustment_needed: false,
+    execution_check: "",
+    inspection_result: "",
+    environmental_monitoring_result: "",
+    effectiveness_result: "",
+    continuity_check: "",
+    worker_participation_note: "",
+    notes: "",
+  });
 
   const selectedEstablishment = useMemo(() => {
     return establishments.find((item) => item.id === selectedEstablishmentId) || null;
@@ -425,11 +437,105 @@ export default function Nr1TrilhaAcompanhamentoPage() {
     })();
   }, [jwt, tenantId, selectedEstablishmentId, selectedActionPlanId]);
 
+  async function handleCreateFollowup() {
+    setError("");
+    setInfo("");
+
+    if (!jwt || !tenantId || !selectedEstablishmentId || !selectedActionPlanId) {
+      setError("Contexto incompleto. Confirme tenant, estabelecimento e action-plan.");
+      return;
+    }
+
+    if (!form.followup_date.trim()) {
+      setError("Informe a data do acompanhamento.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const createResponse = await fetch("/api/nr1/action-followups", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + jwt,
+          "x-icanhelp-tenant": tenantId,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          establishment_id: selectedEstablishmentId,
+          action_plan_id: selectedActionPlanId,
+          followup_date: form.followup_date.trim(),
+          corrective_adjustment_needed: form.corrective_adjustment_needed,
+          execution_check: form.execution_check.trim() || null,
+          inspection_result: form.inspection_result.trim() || null,
+          environmental_monitoring_result: form.environmental_monitoring_result.trim() || null,
+          effectiveness_result: form.effectiveness_result.trim() || null,
+          continuity_check: form.continuity_check.trim() || null,
+          worker_participation_note: form.worker_participation_note.trim() || null,
+          notes: form.notes.trim() || null,
+        }),
+      });
+
+      const createPayload = await readJsonSafe(createResponse);
+
+      if (!createResponse.ok) {
+        const message =
+          createPayload?.message ||
+          createPayload?.error ||
+          "Falha ao gravar followup no backend real.";
+        throw new Error(String(message));
+      }
+
+      const refreshResponse = await fetch(
+        "/api/nr1/action-followups?establishmentId=" +
+          encodeURIComponent(selectedEstablishmentId) +
+          "&actionPlanId=" +
+          encodeURIComponent(selectedActionPlanId),
+        {
+          method: "GET",
+          headers: {
+            Authorization: "Bearer " + jwt,
+            "x-icanhelp-tenant": tenantId,
+          },
+          cache: "no-store",
+        }
+      );
+
+      const refreshPayload = await readJsonSafe(refreshResponse);
+
+      if (!refreshResponse.ok) {
+        const message =
+          refreshPayload?.message ||
+          refreshPayload?.error ||
+          "O followup foi criado, mas a releitura da lista falhou.";
+        throw new Error(String(message));
+      }
+
+      setFollowups(parseFollowups(refreshPayload));
+      setForm({
+        followup_date: "",
+        corrective_adjustment_needed: false,
+        execution_check: "",
+        inspection_result: "",
+        environmental_monitoring_result: "",
+        effectiveness_result: "",
+        continuity_check: "",
+        worker_participation_note: "",
+        notes: "",
+      });
+      setInfo("Followup gravado com sucesso no backend real.");
+    } catch (e: any) {
+      setError(e?.message || "Falha ao gravar followup.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <AppShell
       active="nr1"
       title="Trilha de acompanhamento"
-      description="Sexta etapa da jornada. Agora a tela le action-followups reais por action-plan."
+      description="Sexta etapa da jornada. Agora a tela le e grava action-followups reais por action-plan."
     >
       <div className="space-y-6">
         <section className={supabaseSectionClass}>
@@ -441,7 +547,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
           </h2>
           <p className="mt-4 max-w-3xl text-sm leading-7 text-[#5B6B79]">
             Esta etapa consome o backend real de action-followups. Ela organiza o acompanhamento por
-            estabelecimento e por action-plan, sem gravacao nesta fase.
+            estabelecimento e por action-plan, com leitura e gravacao nesta fase.
           </p>
 
           <div className="mt-5 grid gap-4 md:grid-cols-3">
@@ -571,6 +677,149 @@ export default function Nr1TrilhaAcompanhamentoPage() {
 
         <section className={supabaseSectionClass}>
           <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+            registrar followup
+          </div>
+          <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
+            Criacao manual ligada ao backend real de action-followups.
+          </h3>
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">Data do acompanhamento</label>
+              <input
+                type="date"
+                value={form.followup_date}
+                onChange={(e) => setForm((current) => ({ ...current, followup_date: e.target.value }))}
+                className={selectClassName}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">Ajuste corretivo necessario</label>
+              <select
+                value={form.corrective_adjustment_needed ? "sim" : "nao"}
+                onChange={(e) =>
+                  setForm((current) => ({
+                    ...current,
+                    corrective_adjustment_needed: e.target.value === "sim",
+                  }))
+                }
+                className={selectClassName}
+              >
+                <option value="nao">nao</option>
+                <option value="sim">sim</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">Execucao</label>
+              <textarea
+                value={form.execution_check}
+                onChange={(e) => setForm((current) => ({ ...current, execution_check: e.target.value }))}
+                className={selectClassName + " min-h-[110px]"}
+                placeholder="Como a execucao foi verificada"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">Inspecao</label>
+              <textarea
+                value={form.inspection_result}
+                onChange={(e) => setForm((current) => ({ ...current, inspection_result: e.target.value }))}
+                className={selectClassName + " min-h-[110px]"}
+                placeholder="Resultado da inspecao"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">Efetividade</label>
+              <textarea
+                value={form.effectiveness_result}
+                onChange={(e) => setForm((current) => ({ ...current, effectiveness_result: e.target.value }))}
+                className={selectClassName + " min-h-[110px]"}
+                placeholder="Resultado da efetividade"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">Continuidade</label>
+              <textarea
+                value={form.continuity_check}
+                onChange={(e) => setForm((current) => ({ ...current, continuity_check: e.target.value }))}
+                className={selectClassName + " min-h-[110px]"}
+                placeholder="Checagem de continuidade"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">Monitoramento ambiental</label>
+              <textarea
+                value={form.environmental_monitoring_result}
+                onChange={(e) =>
+                  setForm((current) => ({ ...current, environmental_monitoring_result: e.target.value }))
+                }
+                className={selectClassName + " min-h-[110px]"}
+                placeholder="Resultado do monitoramento ambiental"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-semibold text-[#22313F]">Participacao dos trabalhadores</label>
+              <textarea
+                value={form.worker_participation_note}
+                onChange={(e) =>
+                  setForm((current) => ({ ...current, worker_participation_note: e.target.value }))
+                }
+                className={selectClassName + " min-h-[110px]"}
+                placeholder="Registro da participacao dos trabalhadores"
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="text-sm font-semibold text-[#22313F]">Observacoes</label>
+              <textarea
+                value={form.notes}
+                onChange={(e) => setForm((current) => ({ ...current, notes: e.target.value }))}
+                className={selectClassName + " min-h-[120px]"}
+                placeholder="Observacoes complementares do acompanhamento"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => void handleCreateFollowup()}
+              disabled={saving || !jwt || !tenantId || !selectedEstablishmentId || !selectedActionPlanId || !form.followup_date.trim()}
+              className="rounded-xl bg-[#5E7A96] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#516C86] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? "Salvando..." : "Salvar followup"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                setForm({
+                  followup_date: "",
+                  corrective_adjustment_needed: false,
+                  execution_check: "",
+                  inspection_result: "",
+                  environmental_monitoring_result: "",
+                  effectiveness_result: "",
+                  continuity_check: "",
+                  worker_participation_note: "",
+                  notes: "",
+                })
+              }
+              className="rounded-xl border border-[#D9E0E7] bg-[#FAFBFC] px-5 py-3 text-sm font-semibold text-[#22313F]"
+            >
+              Limpar campos
+            </button>
+          </div>
+        </section>
+
+        <section className={supabaseSectionClass}>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
             followups reais
           </div>
           <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
@@ -675,7 +924,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
           )}
 
           <div className="mt-6 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
-            Esta versao le action-followups reais. A gravacao de followup fica para a proxima frente.
+            Esta versao le e grava action-followups reais por action-plan.
           </div>
         </section>
 
@@ -704,3 +953,4 @@ export default function Nr1TrilhaAcompanhamentoPage() {
     </AppShell>
   );
 }
+
