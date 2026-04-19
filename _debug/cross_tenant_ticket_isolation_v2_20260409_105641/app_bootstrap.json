@@ -1,7 +1,0 @@
-﻿{
-    "app_reachable_before":  true,
-    "started_process":  false,
-    "process_id":  null,
-    "dev_log":  "C:\\icanhelp-mvp\\_debug\\cross_tenant_ticket_isolation_v2_20260409_105641\\local_app_dev.log",
-    "app_reachable_after":  true
-}

@@ -48,3 +48,6 @@ node_modules/
 jwt.txt
 scripts/.jwt_last.txt
 scripts/.jwt_secondary_last.txt
+
+# repo hygiene - ignore execution evidence artifacts
+_debug/

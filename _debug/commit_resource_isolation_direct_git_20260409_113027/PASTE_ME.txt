@@ -1,5 +1,0 @@
-﻿STATUS=PASS
-RUN_DIR=C:\icanhelp-mvp\_debug\commit_resource_isolation_direct_git_20260409_113027
-HEAD_BEFORE=f9f718cf3c583c30f36ab469f26fe0ec84865e43
-HEAD_AFTER=2936e7256e446f6331dafadf20f16e261aac4d1c
-COMMIT_MESSAGE=chore(security): freeze resource-level cross-tenant isolation milestone

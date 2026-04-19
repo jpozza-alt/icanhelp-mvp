@@ -1,7 +1,0 @@
-﻿STATUS=PASS
-MILESTONE=RESOURCE_LEVEL_CROSS_TENANT_ISOLATION_PASS
-CANONICAL_77=C:\icanhelp-mvp\scripts\77_cross_tenant_ticket_isolation.ps1
-LATEST_V2_PASS_RUN=C:\icanhelp-mvp\_debug\cross_tenant_ticket_isolation_v2_20260409_105641
-BACKUP_OF_OLD_77=C:\icanhelp-mvp\scripts\quarantine\77_cross_tenant_ticket_isolation_PRE_V2_20260409_110614.ps1
-DO_NOT_REOPEN_ARCHITECTURE_WITHOUT_NEW_EVIDENCE=true
-NEXT_STEP=ask for the next product hardening action
