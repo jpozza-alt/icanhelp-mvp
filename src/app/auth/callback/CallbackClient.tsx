@@ -57,7 +57,8 @@ export default function AuthCallbackPage() {
             return;
           }
 
-          router.replace("/dashboard");
+          window.location.assign("/dashboard");
+          return;
           return;
         }
 
@@ -74,7 +75,8 @@ export default function AuthCallbackPage() {
             return;
           }
 
-          router.replace("/dashboard");
+          window.location.assign("/dashboard");
+          return;
           return;
         }
 
@@ -104,4 +106,5 @@ export default function AuthCallbackPage() {
     </main>
   );
 }
+
 

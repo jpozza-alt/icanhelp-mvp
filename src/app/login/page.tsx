@@ -51,7 +51,8 @@ function LoginPageContent() {
         throw signInError;
       }
 
-      router.replace(redirectTo);
+      window.location.assign(redirectTo);
+      return;
     } catch (err: any) {
       setError(err?.message || "Falha ao entrar com email e senha.");
     } finally {
@@ -249,4 +250,5 @@ export default function LoginPage() {
     </Suspense>
   );
 }
+
 
