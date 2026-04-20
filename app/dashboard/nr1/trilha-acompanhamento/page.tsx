@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import AppShell from "@/components/AppShell";
 
@@ -186,6 +186,7 @@ function getStatusBadgeClass(value: string | null | undefined) {
 
 export default function Nr1TrilhaAcompanhamentoPage() {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [jwt, setJwt] = useState("");
   const [tenantId, setTenantId] = useState("");
@@ -241,7 +242,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
 
         const accessToken = data.session?.access_token;
         if (!accessToken) {
-          router.replace("/login");
+          router.replace("/login?next=" + encodeURIComponent(pathname || "/dashboard"));
           return;
         }
 
@@ -953,4 +954,5 @@ export default function Nr1TrilhaAcompanhamentoPage() {
     </AppShell>
   );
 }
+
 

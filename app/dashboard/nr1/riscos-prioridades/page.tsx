@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import AppShell from "@/components/AppShell";
 
@@ -232,6 +232,7 @@ function buildAssessmentPayload(
 
 export default function Nr1RiscosPrioridadesPage() {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [form, setForm] = useState<RiskFormState>(initialForm);
   const [jwt, setJwt] = useState("");
@@ -281,7 +282,7 @@ export default function Nr1RiscosPrioridadesPage() {
 
         const accessToken = data.session?.access_token;
         if (!accessToken) {
-          router.replace("/login");
+          router.replace("/login?next=" + encodeURIComponent(pathname || "/dashboard"));
           return;
         }
 

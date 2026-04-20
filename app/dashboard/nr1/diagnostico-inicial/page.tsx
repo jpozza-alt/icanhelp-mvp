@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import AppShell from "@/components/AppShell";
 import { Nr1JourneyCard } from "@/components/nr1/Nr1JourneyCard";
@@ -434,6 +434,7 @@ function buildAssessmentPayload(form: FormState, nextSignal: string) {
 
 export default function Nr1DiagnosticoInicialPage() {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [form, setForm] = useState<FormState>(initialForm);
   const [jwt, setJwt] = useState("");
@@ -540,7 +541,7 @@ export default function Nr1DiagnosticoInicialPage() {
 
         const accessToken = data.session?.access_token;
         if (!accessToken) {
-          router.replace("/login");
+          router.replace("/login?next=" + encodeURIComponent(pathname || "/dashboard"));
           return;
         }
 
@@ -1156,6 +1157,7 @@ export default function Nr1DiagnosticoInicialPage() {
     </AppShell>
   );
 }
+
 
 
 

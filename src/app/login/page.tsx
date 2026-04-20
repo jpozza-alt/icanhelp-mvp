@@ -21,6 +21,7 @@ function getErrorLabel(value: string | null) {
 function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("next") || "/dashboard";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -50,7 +51,7 @@ function LoginPageContent() {
         throw signInError;
       }
 
-      router.replace("/dashboard");
+      router.replace(redirectTo);
     } catch (err: any) {
       setError(err?.message || "Falha ao entrar com email e senha.");
     } finally {
@@ -248,3 +249,4 @@ export default function LoginPage() {
     </Suspense>
   );
 }
+

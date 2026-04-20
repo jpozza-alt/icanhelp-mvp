@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import AppShell from "@/components/AppShell";
 
@@ -289,6 +289,7 @@ function buildActionPlanPayload(form: ActionFormState, establishmentId: string) 
 
 export default function Nr1PlanoAcaoPage() {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [form, setForm] = useState<ActionFormState>(initialForm);
   const [jwt, setJwt] = useState("");
@@ -442,7 +443,7 @@ export default function Nr1PlanoAcaoPage() {
 
         const accessToken = data.session?.access_token;
         if (!accessToken) {
-          router.replace("/login");
+          router.replace("/login?next=" + encodeURIComponent(pathname || "/dashboard"));
           return;
         }
 
@@ -1069,6 +1070,7 @@ export default function Nr1PlanoAcaoPage() {
     </AppShell>
   );
 }
+
 
 
 
