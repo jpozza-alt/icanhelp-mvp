@@ -3,13 +3,11 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase/client";
 import AppShell from "@/components/AppShell";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import { Nr1JourneyCard } from "@/components/nr1/Nr1JourneyCard";
+import { Nr1ProgressDashboard } from "@/components/nr1/Nr1ProgressDashboard";
+import { Nr1DiagnosisDraftCard } from "@/components/nr1/Nr1DiagnosisDraftCard";
 
 type FormState = {
   companyName: string;
@@ -68,7 +66,11 @@ const sectionClassName = "rounded-3xl border border-[#D9E0E7] bg-white p-6 shado
 function yesNoOptions() {
   return (
     <>
-      <option value="">Selecione</option>
+      <option value="">
+      
+
+      
+Selecione</option>
       <option value="yes">Sim</option>
       <option value="no">Nao</option>
       <option value="partially">Em parte</option>
@@ -513,7 +515,24 @@ export default function Nr1DiagnosticoInicialPage() {
       setInfo("");
 
       try {
-        const { data, error: sessionError } = await supabase.auth.getSession();
+        await new Promise((resolve) => setTimeout(resolve, 250));
+
+        let data: { session: any | null } = { session: null };
+        let sessionError: any = null;
+
+        for (const waitMs of [0, 250, 500]) {
+          if (waitMs > 0) {
+            await new Promise((resolve) => setTimeout(resolve, waitMs));
+          }
+
+          const sessionResult = await supabase.auth.getSession();
+          data = sessionResult.data;
+          sessionError = sessionResult.error;
+
+          if (data?.session) {
+            break;
+          }
+        }
 
         if (sessionError) {
           throw sessionError;
@@ -1137,3 +1156,9 @@ export default function Nr1DiagnosticoInicialPage() {
     </AppShell>
   );
 }
+
+
+
+
+
+

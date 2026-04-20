@@ -3,13 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase/client";
 import AppShell from "@/components/AppShell";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 type TenantOption = {
   id: string;
@@ -422,7 +417,24 @@ export default function Nr1PlanoAcaoPage() {
       setInfo("");
 
       try {
-        const { data, error: sessionError } = await supabase.auth.getSession();
+        await new Promise((resolve) => setTimeout(resolve, 250));
+
+        let data: { session: any | null } = { session: null };
+        let sessionError: any = null;
+
+        for (const waitMs of [0, 250, 500]) {
+          if (waitMs > 0) {
+            await new Promise((resolve) => setTimeout(resolve, waitMs));
+          }
+
+          const sessionResult = await supabase.auth.getSession();
+          data = sessionResult.data;
+          sessionError = sessionResult.error;
+
+          if (data?.session) {
+            break;
+          }
+        }
 
         if (sessionError) {
           throw sessionError;
@@ -1057,5 +1069,7 @@ export default function Nr1PlanoAcaoPage() {
     </AppShell>
   );
 }
+
+
 
 
