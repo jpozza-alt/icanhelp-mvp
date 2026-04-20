@@ -23,6 +23,19 @@ function LoginPageContent() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("next") || "/dashboard";
 
+  async function waitForStableSession(maxAttempts = 12, delayMs = 250) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const result = await supabase.auth.getSession();
+      if (result.data.session) {
+        return true;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+
+    return false;
+  }
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loadingPassword, setLoadingPassword] = useState(false);
@@ -250,5 +263,6 @@ export default function LoginPage() {
     </Suspense>
   );
 }
+
 
 
