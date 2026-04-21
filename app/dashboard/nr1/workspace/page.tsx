@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 
 import Nr1WorkspaceOperationalLinks from '../../../../src/components/nr1/Nr1WorkspaceOperationalLinks';
+import Nr1WorkspaceLegacyShortcutGuard from '../../../../src/components/nr1/Nr1WorkspaceLegacyShortcutGuard';
 type Phase = "checking" | "redirecting-login" | "ready" | "failed";
 
 const WORKSPACE_PATH = "/dashboard/nr1/workspace";
@@ -181,6 +182,7 @@ export default function Nr1WorkspacePage() {
           <div className="mt-3 text-sm leading-7 text-white/85">{detail}</div>
         </section>
 
+        <Nr1WorkspaceLegacyShortcutGuard />
         <Nr1WorkspaceOperationalLinks />
 
         <section className="mt-[18px] grid gap-[18px] md:grid-cols-2 xl:grid-cols-4">
