@@ -1,6 +1,6 @@
-import Nr1WorkspaceContextBar from '../../../../src/components/nr1/Nr1WorkspaceContextBar';
-import Nr1WorkspaceLegacyShortcutGuard from '../../../../src/components/nr1/Nr1WorkspaceLegacyShortcutGuard';
-import Nr1WorkspaceOperationalLinks from '../../../../src/components/nr1/Nr1WorkspaceOperationalLinks';
+import Nr1WorkspaceContextBar from '@/components/nr1/Nr1WorkspaceContextBar';
+import Nr1WorkspaceLegacyShortcutGuard from '@/components/nr1/Nr1WorkspaceLegacyShortcutGuard';
+import Nr1WorkspaceOperationalLinks from '@/components/nr1/Nr1WorkspaceOperationalLinks';
 
 export default function Nr1WorkspacePage() {
   return (
