@@ -1,13 +1,12 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
 const COMPANY_KEY = 'nr1_workspace_company';
 const ESTABLISHMENT_KEY = 'nr1_workspace_establishment';
 
 type RouteCard = {
-  href: string;
+  path: string;
   title: string;
   description: string;
   badge: string;
@@ -38,24 +37,18 @@ function readStoredValue(key: string): string | null {
   }
 }
 
-function buildHref(path: string, company: string | null, establishment: string | null): string {
+function buildHref(path: string, company: string, establishment: string): string {
   const params = new URLSearchParams();
+  params.set('company', company);
+  params.set('establishment', establishment);
 
-  if (company) {
-    params.set('company', company);
-  }
-
-  if (establishment) {
-    params.set('establishment', establishment);
-  }
-
-  const query = params.toString();
-  return query ? path + '?' + query : path;
+  return path + '?' + params.toString();
 }
 
 export default function Nr1WorkspaceOperationalLinks() {
   const [company, setCompany] = useState<string | null>(null);
   const [establishment, setEstablishment] = useState<string | null>(null);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -64,36 +57,48 @@ export default function Nr1WorkspaceOperationalLinks() {
 
     setCompany(readStoredValue(COMPANY_KEY));
     setEstablishment(readStoredValue(ESTABLISHMENT_KEY));
+    setIsReady(true);
   }, []);
+
+  const hasContext = Boolean(company && establishment);
 
   const cards = useMemo<RouteCard[]>(() => {
     return [
       {
-        href: buildHref('/dashboard/nr1/diagnostico-inicial', company, establishment),
+        path: '/dashboard/nr1/diagnostico-inicial',
         title: 'Diagnostico inicial',
         description: 'Conferir a situacao atual, prioridades e lacunas de adequacao antes de aprofundar a jornada.',
         badge: 'Comeco'
       },
       {
-        href: buildHref('/dashboard/nr1/setores', company, establishment),
+        path: '/dashboard/nr1/setores',
         title: 'Setores e atividades',
         description: 'Mapear setores, atividades e frentes de trabalho ja com o contexto operacional herdado.',
         badge: 'Mapa'
       },
       {
-        href: buildHref('/dashboard/nr1/riscos', company, establishment),
+        path: '/dashboard/nr1/riscos',
         title: 'Riscos e prioridades',
         description: 'Entrar na camada de riscos ja usando a empresa e o estabelecimento ativos.',
         badge: 'Analise'
       },
       {
-        href: buildHref('/dashboard/nr1/plano-de-acao', company, establishment),
+        path: '/dashboard/nr1/plano-de-acao',
         title: 'Plano de acao',
         description: 'Transformar os riscos em execucao com acompanhamento objetivo e rota canonica.',
         badge: 'Execucao'
       }
     ];
-  }, [company, establishment]);
+  }, []);
+
+  function handleOpen(path: string) {
+    if (!company || !establishment) {
+      return;
+    }
+
+    const href = buildHref(path, company, establishment);
+    window.location.assign(href);
+  }
 
   return (
     <section className="mx-auto mb-6 max-w-6xl rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm backdrop-blur">
@@ -104,7 +109,7 @@ export default function Nr1WorkspaceOperationalLinks() {
           </div>
           <h2 className="text-2xl font-semibold text-slate-900">Acessos canônicos da jornada NR-1</h2>
           <p className="max-w-3xl text-sm leading-6 text-slate-600">
-            Estes atalhos usam o contexto confirmado no workspace e levam direto para as etapas reais da jornada operacional.
+            Estes atalhos so sao liberados quando o contexto operacional estiver realmente carregado no workspace.
           </p>
         </div>
 
@@ -114,25 +119,42 @@ export default function Nr1WorkspaceOperationalLinks() {
         </div>
       </div>
 
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+        {hasContext
+          ? 'Contexto confirmado. Os acessos abaixo vao abrir as rotas canonicas ja com company e establishment.'
+          : isReady
+            ? 'Contexto ainda nao disponivel. Volte ao topo do workspace, confirme empresa e estabelecimento e aguarde a liberacao dos atalhos.'
+            : 'Carregando contexto operacional do workspace...'}
+      </div>
+
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {cards.map((card) => (
-          <Link
-            key={card.href + card.title}
-            href={card.href}
-            className="group rounded-3xl border border-slate-200 bg-slate-50 p-5 transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:shadow-sm"
-          >
-            <div className="inline-flex items-center rounded-full bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600 ring-1 ring-slate-200">
-              {card.badge}
-            </div>
+        {cards.map((card) => {
+          const disabled = !hasContext;
+          const disabledClassName = disabled
+            ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+            : 'border-slate-200 bg-slate-50 text-slate-900 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white hover:shadow-sm';
 
-            <h3 className="mt-4 text-lg font-semibold text-slate-900">{card.title}</h3>
-            <p className="mt-2 text-sm leading-6 text-slate-600">{card.description}</p>
+          return (
+            <button
+              key={card.path}
+              type="button"
+              onClick={() => handleOpen(card.path)}
+              disabled={disabled}
+              className={'group rounded-3xl border p-5 text-left transition ' + disabledClassName}
+            >
+              <div className="inline-flex items-center rounded-full bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-600 ring-1 ring-slate-200">
+                {card.badge}
+              </div>
 
-            <div className="mt-4 text-sm font-semibold text-indigo-700 group-hover:text-indigo-800">
-              Abrir etapa
-            </div>
-          </Link>
-        ))}
+              <h3 className="mt-4 text-lg font-semibold">{card.title}</h3>
+              <p className="mt-2 text-sm leading-6">{card.description}</p>
+
+              <div className="mt-4 text-sm font-semibold text-indigo-700">
+                {disabled ? 'Aguardando contexto' : 'Abrir etapa'}
+              </div>
+            </button>
+          );
+        })}
       </div>
     </section>
   );
