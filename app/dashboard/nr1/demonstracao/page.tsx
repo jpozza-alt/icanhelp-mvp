@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-const executionHref = "/login?next=%2Fdashboard%2Fnr1%2Fentrar";
+const executionHref = "/login?next=%2Fdashboard%2Fnr1%2Fworkspace";
 
 const sections = [
   { title: "Boas-vindas", text: "Abertura da jornada em linguagem simples, com foco em valor e proxima acao." },
@@ -58,3 +58,4 @@ export default function Nr1DemonstracaoPage() {
     </main>
   );
 }
+

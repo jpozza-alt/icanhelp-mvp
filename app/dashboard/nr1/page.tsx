@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-const executionHref = "/login?next=%2Fdashboard%2Fnr1%2Fentrar";
+const executionHref = "/login?next=%2Fdashboard%2Fnr1%2Fworkspace";
 const demoHref = "/dashboard/nr1/demonstracao";
 
 const steps = [
@@ -225,3 +225,4 @@ export default function Nr1LandingPage() {
     </main>
   );
 }
+
