@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useNr1JourneyState } from "@/hooks/useNr1JourneyState";
 
 type StepKey = "diagnostico-inicial" | "setores" | "riscos" | "plano-de-acao";
@@ -15,17 +14,20 @@ type Nr1StepGuardProps = {
 };
 
 const ROUTES: Record<StepKey, string> = {
-  "diagnostico-inicial": "/dashboard/nr1/entrar",
+  "diagnostico-inicial": "/dashboard/nr1/diagnostico-inicial",
   setores: "/dashboard/nr1/setores",
   riscos: "/dashboard/nr1/riscos",
   "plano-de-acao": "/dashboard/nr1/plano-de-acao",
 };
 
-function getBlockedReason(stepKey: StepKey, state: {
-  hasDiagnosis: boolean;
-  hasDepartments: boolean;
-  hasRisks: boolean;
-}) {
+function getBlockedReason(
+  stepKey: StepKey,
+  state: {
+    hasDiagnosis: boolean;
+    hasDepartments: boolean;
+    hasRisks: boolean;
+  }
+) {
   if (stepKey === "setores" && !state.hasDiagnosis) {
     return {
       blocked: true,
@@ -98,7 +100,6 @@ export function Nr1StepGuard({
   description,
   children,
 }: Nr1StepGuardProps) {
-  const router = useRouter();
   const rawState = useNr1JourneyState() as Record<string, unknown>;
 
   const hasDiagnosis = Boolean(rawState.hasDiagnosis);
@@ -125,16 +126,6 @@ export function Nr1StepGuard({
     return ROUTES[stepKey];
   }, [stepKey, hasDiagnosis, hasDepartments, hasRisks, hasActionPlans]);
 
-  useEffect(() => {
-    if (isLoading || !guard.blocked) return;
-
-    const timer = window.setTimeout(() => {
-      router.replace(nextIncompleteRoute);
-    }, 1200);
-
-    return () => window.clearTimeout(timer);
-  }, [guard.blocked, isLoading, nextIncompleteRoute, router]);
-
   if (isLoading) {
     return (
       <section className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
@@ -155,7 +146,7 @@ export function Nr1StepGuard({
           <p className="text-sm text-neutral-700">{description}</p>
           <p className="text-sm text-neutral-800">{guard.reason}</p>
           <p className="text-sm text-neutral-600">
-            Redirecionando voce para a proxima etapa liberada...
+            Esta tela permanece aberta para orientar a proxima etapa correta, sem expulsar voce automaticamente.
           </p>
           <div className="flex flex-wrap gap-3 pt-2">
             <Link
