@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 
-type Phase = "checking" | "redirecting-login" | "ready" | "failed";
+type Phase = "checking" | "ready" | "redirecting-login" | "failed";
 
 const WORKSPACE_PATH = "/dashboard/nr1/workspace";
 const STORAGE_COMPANY = "nr1_workspace_company";
 const STORAGE_ESTABLISHMENT = "nr1_workspace_establishment";
+const REDIRECT_DELAY_MS = 8000;
 
 const companyOptions = [
   "Pasini Consultoria",
@@ -28,15 +29,6 @@ const summaryCards = [
   { value: "4", label: "atalhos operacionais" },
   { value: "NR-1", label: "jornada ativa" },
 ];
-
-async function waitForSession() {
-  for (let attempt = 0; attempt < 10; attempt += 1) {
-    const result = await supabase.auth.getSession();
-    if (result.data.session) return true;
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  return false;
-}
 
 function buildQuery(company: string, establishment: string, contextSaved: boolean) {
   if (!contextSaved || !company || !establishment) {
@@ -95,41 +87,6 @@ export default function Nr1WorkspacePage() {
   }, [company, establishment, contextSaved]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function run() {
-      try {
-        const hasSession = await waitForSession();
-
-        if (hasSession) {
-          if (!cancelled) {
-            setPhase("ready");
-            setDetail("Sessao encontrada. Workspace operacional liberado.");
-          }
-          return;
-        }
-
-        if (!cancelled) {
-          setPhase("redirecting-login");
-          setDetail("Voce precisa entrar antes de abrir o workspace. Redirecionando para o login.");
-          window.location.assign(loginUrl);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setPhase("failed");
-          setDetail(error instanceof Error ? error.message : "Falha ao validar a sessao.");
-        }
-      }
-    }
-
-    run();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [loginUrl]);
-
-  useEffect(() => {
     if (typeof window === "undefined") return;
 
     const storedCompany = window.localStorage.getItem(STORAGE_COMPANY) ?? "";
@@ -148,6 +105,69 @@ export default function Nr1WorkspacePage() {
       setContextMessage("Contexto ativo carregado do navegador.");
     }
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    let redirectTimer: number | null = null;
+
+    function clearRedirectTimer() {
+      if (redirectTimer !== null && typeof window !== "undefined") {
+        window.clearTimeout(redirectTimer);
+        redirectTimer = null;
+      }
+    }
+
+    function applySession(session: unknown) {
+      if (!isMounted) return;
+
+      if (session) {
+        clearRedirectTimer();
+        setPhase("ready");
+        setDetail("Sessao encontrada. Workspace operacional liberado.");
+        return;
+      }
+
+      setPhase("checking");
+      setDetail("Validando sua sessao antes de abrir o workspace.");
+      clearRedirectTimer();
+
+      if (typeof window !== "undefined") {
+        redirectTimer = window.setTimeout(() => {
+          if (!isMounted) return;
+          setPhase("redirecting-login");
+          setDetail("Voce precisa entrar antes de abrir o workspace. Redirecionando para o login.");
+          window.location.assign(loginUrl);
+        }, REDIRECT_DELAY_MS);
+      }
+    }
+
+    supabase.auth
+      .getSession()
+      .then(({ data, error }) => {
+        if (error) {
+          throw error;
+        }
+
+        applySession(data.session);
+      })
+      .catch((error) => {
+        if (!isMounted) return;
+        setPhase("failed");
+        setDetail(error instanceof Error ? error.message : "Falha ao validar a sessao.");
+      });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      applySession(session);
+    });
+
+    return () => {
+      isMounted = false;
+      clearRedirectTimer();
+      subscription.unsubscribe();
+    };
+  }, [loginUrl]);
 
   useEffect(() => {
     if (!company) {
@@ -208,157 +228,168 @@ export default function Nr1WorkspacePage() {
           <div className="mt-3 text-sm leading-7 text-white/85">{detail}</div>
         </section>
 
-        <section className="mt-[18px] grid gap-[18px] md:grid-cols-2 xl:grid-cols-4">
-          {summaryCards.map((item) => (
-            <div
-              key={item.label}
-              className="grid gap-2 rounded-[20px] border border-[#DBE5F0] bg-[linear-gradient(180deg,#FFFFFF,#F8FBFF)] p-[18px] shadow-[0_10px_30px_rgba(18,40,70,0.08)]"
-            >
-              <div className="text-[28px] font-extrabold">{item.value}</div>
-              <div className="text-[13px] text-[#60718A]">{item.label}</div>
-            </div>
-          ))}
-        </section>
-
-        <section className="mt-[18px] grid gap-[18px] lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="rounded-[24px] border border-[#DBE5F0] bg-white p-6 shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-2xl font-semibold">Contexto ativo</h2>
-              <span
-                className={
-                  contextReady
-                    ? "rounded-full border border-[#C8F0DA] bg-[#EBFBF3] px-[10px] py-[7px] text-xs font-bold text-[#20865A]"
-                    : "rounded-full border border-[#FFE3AA] bg-[#FFF8EA] px-[10px] py-[7px] text-xs font-bold text-[#C88A16]"
-                }
-              >
-                {contextReady ? "pronto" : "pendente"}
-              </span>
-            </div>
-
-            <p className="mt-4 text-sm leading-7 text-[#60718A]">
-              Antes de abrir as etapas, confirme empresa e estabelecimento. Isso organiza a retomada e
-              prepara a jornada para uso real.
+        {phase !== "ready" ? (
+          <section className="mt-[18px] rounded-[24px] border border-[#DBE5F0] bg-white p-6 shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
+            <h2 className="text-2xl font-semibold">Aguardando autenticacao</h2>
+            <p className="mt-3 text-sm leading-7 text-[#60718A]">
+              O workspace so libera o contexto e os atalhos operacionais depois que a sessao estiver realmente pronta.
             </p>
-
-            <div className="mt-6 grid gap-4">
-              <label className="grid gap-2 text-sm font-semibold text-[#132238]">
-                Empresa
-                <select
-                  value={company}
-                  onChange={(event) => {
-                    setCompany(event.target.value);
-                    setContextSaved(false);
-                  }}
-                  className="h-14 rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] px-4 text-base outline-none transition focus:border-[#13A3A8] focus:bg-white"
+          </section>
+        ) : (
+          <>
+            <section className="mt-[18px] grid gap-[18px] md:grid-cols-2 xl:grid-cols-4">
+              {summaryCards.map((item) => (
+                <div
+                  key={item.label}
+                  className="grid gap-2 rounded-[20px] border border-[#DBE5F0] bg-[linear-gradient(180deg,#FFFFFF,#F8FBFF)] p-[18px] shadow-[0_10px_30px_rgba(18,40,70,0.08)]"
                 >
-                  <option value="">Selecione a empresa</option>
-                  {companyOptions.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  <div className="text-[28px] font-extrabold">{item.value}</div>
+                  <div className="text-[13px] text-[#60718A]">{item.label}</div>
+                </div>
+              ))}
+            </section>
 
-              <label className="grid gap-2 text-sm font-semibold text-[#132238]">
-                Estabelecimento
-                <select
-                  value={establishment}
-                  onChange={(event) => {
-                    setEstablishment(event.target.value);
-                    setContextSaved(false);
-                  }}
-                  disabled={!company}
-                  className="h-14 rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] px-4 text-base outline-none transition focus:border-[#13A3A8] focus:bg-white disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  <option value="">Selecione o estabelecimento</option>
-                  {establishmentOptions.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </label>
+            <section className="mt-[18px] grid gap-[18px] lg:grid-cols-[1.05fr_0.95fr]">
+              <div className="rounded-[24px] border border-[#DBE5F0] bg-white p-6 shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-2xl font-semibold">Contexto ativo</h2>
+                  <span
+                    className={
+                      contextReady
+                        ? "rounded-full border border-[#C8F0DA] bg-[#EBFBF3] px-[10px] py-[7px] text-xs font-bold text-[#20865A]"
+                        : "rounded-full border border-[#FFE3AA] bg-[#FFF8EA] px-[10px] py-[7px] text-xs font-bold text-[#C88A16]"
+                    }
+                  >
+                    {contextReady ? "pronto" : "pendente"}
+                  </span>
+                </div>
 
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={handleSaveContext}
-                  className="rounded-[14px] bg-[linear-gradient(135deg,#0F7B83,#13A3A8)] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(19,163,168,0.24)] transition hover:-translate-y-[1px]"
-                >
-                  Confirmar contexto
-                </button>
+                <p className="mt-4 text-sm leading-7 text-[#60718A]">
+                  Antes de abrir as etapas, confirme empresa e estabelecimento. Isso organiza a retomada e
+                  prepara a jornada para uso real.
+                </p>
 
-                <button
-                  type="button"
-                  onClick={handleClearContext}
-                  className="rounded-[14px] border border-[#DBE5F0] bg-white px-4 py-3 text-sm font-semibold text-[#132238] transition hover:bg-[#F8FBFF]"
-                >
-                  Limpar contexto
-                </button>
+                <div className="mt-6 grid gap-4">
+                  <label className="grid gap-2 text-sm font-semibold text-[#132238]">
+                    Empresa
+                    <select
+                      value={company}
+                      onChange={(event) => {
+                        setCompany(event.target.value);
+                        setContextSaved(false);
+                      }}
+                      className="h-14 rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] px-4 text-base outline-none transition focus:border-[#13A3A8] focus:bg-white"
+                    >
+                      <option value="">Selecione a empresa</option>
+                      {companyOptions.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="grid gap-2 text-sm font-semibold text-[#132238]">
+                    Estabelecimento
+                    <select
+                      value={establishment}
+                      onChange={(event) => {
+                        setEstablishment(event.target.value);
+                        setContextSaved(false);
+                      }}
+                      disabled={!company}
+                      className="h-14 rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] px-4 text-base outline-none transition focus:border-[#13A3A8] focus:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      <option value="">Selecione o estabelecimento</option>
+                      {establishmentOptions.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={handleSaveContext}
+                      className="rounded-[14px] bg-[linear-gradient(135deg,#0F7B83,#13A3A8)] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(19,163,168,0.24)] transition hover:-translate-y-[1px]"
+                    >
+                      Confirmar contexto
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleClearContext}
+                      className="rounded-[14px] border border-[#DBE5F0] bg-white px-4 py-3 text-sm font-semibold text-[#132238] transition hover:bg-[#F8FBFF]"
+                    >
+                      Limpar contexto
+                    </button>
+                  </div>
+
+                  <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4 text-sm leading-7 text-[#60718A]">
+                    {contextMessage}
+                  </div>
+                </div>
               </div>
 
-              <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4 text-sm leading-7 text-[#60718A]">
-                {contextMessage}
+              <div className="rounded-[24px] border border-[#DBE5F0] bg-white p-6 shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-2xl font-semibold">Resumo do contexto</h2>
+                  <span className="rounded-full border border-[#C7EEEE] bg-[#E7F7F7] px-[10px] py-[7px] text-xs font-bold text-[#0F7B83]">
+                    uso real
+                  </span>
+                </div>
+
+                <div className="mt-5 grid gap-3">
+                  <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4">
+                    <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#60718A]">empresa ativa</div>
+                    <div className="mt-2 text-base font-semibold">{company || "Nao definida"}</div>
+                  </div>
+
+                  <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4">
+                    <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#60718A]">estabelecimento ativo</div>
+                    <div className="mt-2 text-base font-semibold">{establishment || "Nao definido"}</div>
+                  </div>
+
+                  <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4">
+                    <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#60718A]">prontidao operacional</div>
+                    <div className="mt-2 text-base font-semibold">{contextReady ? "Pronto para abrir etapas" : "Contexto ainda pendente"}</div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </section>
 
-          <div className="rounded-[24px] border border-[#DBE5F0] bg-white p-6 shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-2xl font-semibold">Resumo do contexto</h2>
-              <span className="rounded-full border border-[#C7EEEE] bg-[#E7F7F7] px-[10px] py-[7px] text-xs font-bold text-[#0F7B83]">
-                uso real
-              </span>
-            </div>
-
-            <div className="mt-5 grid gap-3">
-              <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4">
-                <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#60718A]">empresa ativa</div>
-                <div className="mt-2 text-base font-semibold">{company || "Nao definida"}</div>
-              </div>
-
-              <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4">
-                <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#60718A]">estabelecimento ativo</div>
-                <div className="mt-2 text-base font-semibold">{establishment || "Nao definido"}</div>
-              </div>
-
-              <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4">
-                <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#60718A]">prontidao operacional</div>
-                <div className="mt-2 text-base font-semibold">{contextReady ? "Pronto para abrir etapas" : "Contexto ainda pendente"}</div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-[18px] grid gap-[18px] xl:grid-cols-4">
-          {actions.map((item) => (
-            <div
-              key={item.title}
-              className="rounded-[24px] border border-[#DBE5F0] bg-white p-6 shadow-[0_10px_30px_rgba(18,40,70,0.08)]"
-            >
-              <h2 className="text-xl font-semibold">{item.title}</h2>
-              <p className="mt-3 text-sm leading-7 text-[#60718A]">{item.text}</p>
-
-              {contextReady ? (
-                <Link
-                  href={item.href}
-                  className="mt-5 inline-flex rounded-[14px] bg-[linear-gradient(135deg,#0F7B83,#13A3A8)] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(19,163,168,0.24)] transition hover:-translate-y-[1px]"
+            <section className="mt-[18px] grid gap-[18px] xl:grid-cols-4">
+              {actions.map((item) => (
+                <div
+                  key={item.title}
+                  className="rounded-[24px] border border-[#DBE5F0] bg-white p-6 shadow-[0_10px_30px_rgba(18,40,70,0.08)]"
                 >
-                  Abrir etapa
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  className="mt-5 inline-flex cursor-not-allowed rounded-[14px] border border-[#DBE5F0] bg-[#F8FBFF] px-4 py-3 text-sm font-semibold text-[#60718A] opacity-70"
-                >
-                  Defina o contexto primeiro
-                </button>
-              )}
-            </div>
-          ))}
-        </section>
+                  <h2 className="text-xl font-semibold">{item.title}</h2>
+                  <p className="mt-3 text-sm leading-7 text-[#60718A]">{item.text}</p>
+
+                  {contextReady ? (
+                    <Link
+                      href={item.href}
+                      className="mt-5 inline-flex rounded-[14px] bg-[linear-gradient(135deg,#0F7B83,#13A3A8)] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(19,163,168,0.24)] transition hover:-translate-y-[1px]"
+                    >
+                      Abrir etapa
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="mt-5 inline-flex cursor-not-allowed rounded-[14px] border border-[#DBE5F0] bg-[#F8FBFF] px-4 py-3 text-sm font-semibold text-[#60718A] opacity-70"
+                    >
+                      Defina o contexto primeiro
+                    </button>
+                  )}
+                </div>
+              ))}
+            </section>
+          </>
+        )}
       </div>
     </main>
   );

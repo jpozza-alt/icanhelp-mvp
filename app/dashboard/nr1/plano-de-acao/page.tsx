@@ -7,6 +7,7 @@ import { Nr1StepGuard } from "@/components/nr1/Nr1StepGuard";
 import { Nr1AutosaveNoteCard } from "@/components/nr1/Nr1AutosaveNoteCard";
 import { useNr1LocalAutosave } from "@/hooks/useNr1LocalAutosave";
 
+import Nr1WorkspaceContextBar from '../../../../src/components/nr1/Nr1WorkspaceContextBar';
 export default function Nr1PlanoAcaoPage() {
   const autosave = useNr1LocalAutosave("nr1:plano-acao:draft", "");
 
@@ -43,6 +44,8 @@ export default function Nr1PlanoAcaoPage() {
             onChange={(e) => autosave.setValue(e.target.value)}
           />
         </section>
+
+        <Nr1WorkspaceContextBar />
       </main>
     </Nr1StepGuard>
   );

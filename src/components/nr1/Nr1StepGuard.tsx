@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
-import { useNr1JourneyState } from "@/hooks/useNr1JourneyState";
+import { useEffect, useMemo, useState } from "react";
+import { isNr1DiagnosticoLocalCompleted } from "@/lib/nr1-diagnostico-local";
 
 type StepKey = "diagnostico-inicial" | "setores" | "riscos" | "plano-de-acao";
 
@@ -11,6 +11,7 @@ type Nr1StepGuardProps = {
   title: string;
   description: string;
   children?: React.ReactNode;
+  [key: string]: unknown;
 };
 
 const ROUTES: Record<StepKey, string> = {
@@ -20,160 +21,64 @@ const ROUTES: Record<StepKey, string> = {
   "plano-de-acao": "/dashboard/nr1/plano-de-acao",
 };
 
-function getBlockedReason(
-  stepKey: StepKey,
-  state: {
-    hasDiagnosis: boolean;
-    hasDepartments: boolean;
-    hasRisks: boolean;
-  }
-) {
-  if (stepKey === "setores" && !state.hasDiagnosis) {
-    return {
-      blocked: true,
-      reason: "Voce precisa concluir o diagnostico inicial antes de entrar em Setores.",
-      redirectTo: ROUTES["diagnostico-inicial"],
-      redirectLabel: "Ir para diagnostico inicial",
-    };
-  }
+export function Nr1StepGuard(props: Nr1StepGuardProps) {
+  const [ready, setReady] = useState(false);
+  const [localCompleted, setLocalCompleted] = useState(false);
 
-  if (stepKey === "riscos") {
-    if (!state.hasDiagnosis) {
-      return {
-        blocked: true,
-        reason: "Voce precisa concluir o diagnostico inicial antes de entrar em Riscos.",
-        redirectTo: ROUTES["diagnostico-inicial"],
-        redirectLabel: "Ir para diagnostico inicial",
-      };
-    }
+  useEffect(() => {
+    setLocalCompleted(isNr1DiagnosticoLocalCompleted());
+    setReady(true);
+  }, []);
 
-    if (!state.hasDepartments) {
-      return {
-        blocked: true,
-        reason: "Voce precisa cadastrar os setores antes de entrar em Riscos.",
-        redirectTo: ROUTES.setores,
-        redirectLabel: "Ir para Setores",
-      };
-    }
-  }
+  const requiresDiagnostico = useMemo(() => {
+    return props.stepKey === "riscos" || props.stepKey === "plano-de-acao";
+  }, [props.stepKey]);
 
-  if (stepKey === "plano-de-acao") {
-    if (!state.hasDiagnosis) {
-      return {
-        blocked: true,
-        reason: "Voce precisa concluir o diagnostico inicial antes de entrar em Plano de Acao.",
-        redirectTo: ROUTES["diagnostico-inicial"],
-        redirectLabel: "Ir para diagnostico inicial",
-      };
-    }
-
-    if (!state.hasDepartments) {
-      return {
-        blocked: true,
-        reason: "Voce precisa cadastrar os setores antes de entrar em Plano de Acao.",
-        redirectTo: ROUTES.setores,
-        redirectLabel: "Ir para Setores",
-      };
-    }
-
-    if (!state.hasRisks) {
-      return {
-        blocked: true,
-        reason: "Voce precisa registrar os riscos antes de entrar em Plano de Acao.",
-        redirectTo: ROUTES.riscos,
-        redirectLabel: "Ir para Riscos",
-      };
-    }
-  }
-
-  return {
-    blocked: false,
-    reason: "",
-    redirectTo: ROUTES[stepKey],
-    redirectLabel: "",
-  };
-}
-
-export function Nr1StepGuard({
-  stepKey,
-  title,
-  description,
-  children,
-}: Nr1StepGuardProps) {
-  const rawState = useNr1JourneyState() as Record<string, unknown>;
-
-  const hasDiagnosis = Boolean(rawState.hasDiagnosis);
-  const hasDepartments = Boolean(rawState.hasDepartments);
-  const hasRisks = Boolean(rawState.hasRisks);
-  const hasActionPlans = Boolean(rawState.hasActionPlans);
-  const isLoading = Boolean(rawState.isLoading ?? rawState.loading ?? false);
-
-  const guard = useMemo(
-    () =>
-      getBlockedReason(stepKey, {
-        hasDiagnosis,
-        hasDepartments,
-        hasRisks,
-      }),
-    [stepKey, hasDiagnosis, hasDepartments, hasRisks]
-  );
-
-  const nextIncompleteRoute = useMemo(() => {
-    if (!hasDiagnosis) return ROUTES["diagnostico-inicial"];
-    if (!hasDepartments) return ROUTES.setores;
-    if (!hasRisks) return ROUTES.riscos;
-    if (!hasActionPlans) return ROUTES["plano-de-acao"];
-    return ROUTES[stepKey];
-  }, [stepKey, hasDiagnosis, hasDepartments, hasRisks, hasActionPlans]);
-
-  if (isLoading) {
+  if (!ready) {
     return (
-      <section className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        <p className="mt-2 text-sm text-neutral-600">Carregando estado real da jornada...</p>
+      <section className="rounded-[24px] border border-[#DBE5F0] bg-white p-6 shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
+        <h2 className="text-2xl font-semibold text-[#132238]">Preparando etapa</h2>
+        <p className="mt-3 text-sm leading-7 text-[#60718A]">
+          Validando o estado local do diagnostico inicial.
+        </p>
       </section>
     );
   }
 
-  if (guard.blocked) {
-    return (
-      <section className="rounded-2xl border border-amber-300 bg-amber-50 p-6 shadow-sm">
-        <div className="space-y-3">
-          <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
-            Etapa bloqueada
-          </p>
-          <h2 className="text-xl font-semibold text-neutral-900">{title}</h2>
-          <p className="text-sm text-neutral-700">{description}</p>
-          <p className="text-sm text-neutral-800">{guard.reason}</p>
-          <p className="text-sm text-neutral-600">
-            Esta tela permanece aberta para orientar a proxima etapa correta, sem expulsar voce automaticamente.
-          </p>
-          <div className="flex flex-wrap gap-3 pt-2">
-            <Link
-              href={guard.redirectTo}
-              className="inline-flex items-center rounded-xl bg-neutral-900 px-4 py-2 text-sm font-medium text-white"
-            >
-              {guard.redirectLabel}
-            </Link>
-            <Link
-              href={nextIncompleteRoute}
-              className="inline-flex items-center rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-900"
-            >
-              Continuar jornada
-            </Link>
-          </div>
-        </div>
-      </section>
-    );
+  if (!requiresDiagnostico || localCompleted) {
+    return <>{props.children ?? null}</>;
   }
 
   return (
-    <section className="space-y-6">
-      <div className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-neutral-900">{title}</h2>
-        <p className="mt-2 text-sm text-neutral-600">{description}</p>
+    <section className="rounded-[24px] border border-[#FFE3AA] bg-[#FFF8EA] p-6 shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
+      <div className="text-xs font-bold uppercase tracking-[0.16em] text-[#C88A16]">
+        Bloqueio por pre-requisito
       </div>
-      {children}
+
+      <h2 className="mt-3 text-2xl font-semibold text-[#132238]">
+        Diagnostico inicial pendente
+      </h2>
+
+      <p className="mt-3 text-sm leading-7 text-[#60718A]">
+        Conclua o diagnostico inicial para liberar esta etapa. Depois disso, o bloqueio pode
+        migrar apenas para setores ou riscos subsequentes.
+      </p>
+
+      <div className="mt-5 flex flex-wrap gap-3">
+        <Link
+          href={ROUTES["diagnostico-inicial"]}
+          className="inline-flex rounded-[14px] bg-[linear-gradient(135deg,#0F7B83,#13A3A8)] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(19,163,168,0.24)] transition hover:-translate-y-[1px]"
+        >
+          Abrir diagnostico inicial
+        </Link>
+
+        <Link
+          href={ROUTES.setores}
+          className="inline-flex rounded-[14px] border border-[#DBE5F0] bg-white px-4 py-3 text-sm font-semibold text-[#132238] transition hover:bg-[#F8FBFF]"
+        >
+          Ir para setores
+        </Link>
+      </div>
     </section>
   );
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import Nr1WorkspaceContextBar from '../../../../src/components/nr1/Nr1WorkspaceContextBar';
 const sectorCards = [
   {
     title: "Administrativo",
@@ -68,6 +69,8 @@ export default function Nr1SetoresPage() {
             </Link>
           </div>
         </section>
+
+        <Nr1WorkspaceContextBar />
 
         <section className="mt-[18px] grid gap-[18px] xl:grid-cols-3">
           {sectorCards.map((item) => (
