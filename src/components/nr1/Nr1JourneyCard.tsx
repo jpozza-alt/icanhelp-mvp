@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { isNr1DiagnosticoLocalCompleted } from "@/lib/nr1-diagnostico-local";
+import { isNr1SetoresLocalCompleted } from "@/lib/nr1-setores-local";
 
 type Nr1JourneyStepId = "diagnostico-inicial" | "setores" | "riscos" | "plano-de-acao";
 
@@ -17,16 +18,18 @@ function joinClassNames(...values: Array<string | undefined>): string {
 }
 
 export function Nr1JourneyCard(props: Nr1JourneyCardProps) {
-  const [localCompleted, setLocalCompleted] = useState(false);
+  const [diagnosticoCompleted, setDiagnosticoCompleted] = useState(false);
+  const [setoresCompleted, setSetoresCompleted] = useState(false);
 
   useEffect(() => {
-    setLocalCompleted(isNr1DiagnosticoLocalCompleted());
+    setDiagnosticoCompleted(isNr1DiagnosticoLocalCompleted());
+    setSetoresCompleted(isNr1SetoresLocalCompleted());
   }, []);
 
   const currentStep = props.currentStep ?? "diagnostico-inicial";
 
   const card = useMemo(() => {
-    if (!localCompleted) {
+    if (!diagnosticoCompleted) {
       return {
         title: "Concluir diagnostico inicial",
         description:
@@ -38,22 +41,22 @@ export function Nr1JourneyCard(props: Nr1JourneyCardProps) {
       };
     }
 
-    if (currentStep === "riscos") {
+    if (!setoresCompleted) {
       return {
-        title: "Diagnostico concluido",
-        description: "O bloqueio por diagnostico foi removido. Agora voce pode seguir em riscos.",
-        href: "/dashboard/nr1/riscos",
-        buttonLabel: "Ir para riscos",
-        badge: "liberado",
-        badgeClassName: "border-[#C8F0DA] bg-[#EBFBF3] text-[#20865A]",
+        title: "Concluir setores e atividades",
+        description:
+          "A proxima liberacao da jornada depende da etapa de setores preenchida e concluida.",
+        href: "/dashboard/nr1/setores",
+        buttonLabel: "Abrir setores",
+        badge: "pendente",
+        badgeClassName: "border-[#FFE3AA] bg-[#FFF8EA] text-[#C88A16]",
       };
     }
 
     if (currentStep === "plano-de-acao") {
       return {
-        title: "Diagnostico concluido",
-        description:
-          "O bloqueio por diagnostico foi removido. Agora voce pode seguir em plano de acao.",
+        title: "Setores concluidos",
+        description: "Os pre-requisitos locais foram atendidos. Agora voce pode seguir em plano de acao.",
         href: "/dashboard/nr1/plano-de-acao",
         buttonLabel: "Ir para plano",
         badge: "liberado",
@@ -62,15 +65,14 @@ export function Nr1JourneyCard(props: Nr1JourneyCardProps) {
     }
 
     return {
-      title: "Diagnostico inicial concluido",
-      description:
-        "A jornada ja reconhece a conclusao local do diagnostico inicial e libera os proximos passos.",
+      title: "Setores concluidos",
+      description: "Os pre-requisitos locais foram atendidos. Agora voce pode seguir em riscos.",
       href: "/dashboard/nr1/riscos",
-      buttonLabel: "Seguir para riscos",
-      badge: "concluido",
+      buttonLabel: "Ir para riscos",
+      badge: "liberado",
       badgeClassName: "border-[#C8F0DA] bg-[#EBFBF3] text-[#20865A]",
     };
-  }, [currentStep, localCompleted]);
+  }, [currentStep, diagnosticoCompleted, setoresCompleted]);
 
   return (
     <article

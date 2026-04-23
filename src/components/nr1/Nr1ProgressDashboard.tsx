@@ -6,6 +6,7 @@ import {
   isNr1DiagnosticoLocalCompleted,
   readNr1DiagnosticoLocalDraft,
 } from "@/lib/nr1-diagnostico-local";
+import { isNr1SetoresLocalCompleted } from "@/lib/nr1-setores-local";
 
 type Nr1JourneyStepId = "diagnostico-inicial" | "setores" | "riscos" | "plano-de-acao";
 
@@ -20,34 +21,37 @@ function joinClassNames(...values: Array<string | undefined>): string {
 }
 
 export function Nr1ProgressDashboard(props: Nr1ProgressDashboardProps) {
-  const [localCompleted, setLocalCompleted] = useState(false);
+  const [diagnosticoCompleted, setDiagnosticoCompleted] = useState(false);
+  const [setoresCompleted, setSetoresCompleted] = useState(false);
   const [empresaNome, setEmpresaNome] = useState("Empresa local");
   const [estabelecimentoNome, setEstabelecimentoNome] = useState("Estabelecimento local");
 
   useEffect(() => {
-    setLocalCompleted(isNr1DiagnosticoLocalCompleted());
-    const draft = readNr1DiagnosticoLocalDraft();
+    setDiagnosticoCompleted(isNr1DiagnosticoLocalCompleted());
+    setSetoresCompleted(isNr1SetoresLocalCompleted());
 
+    const draft = readNr1DiagnosticoLocalDraft();
     if (draft.empresaNome.trim()) {
       setEmpresaNome(draft.empresaNome.trim());
     }
-
     if (draft.estabelecimentoNome.trim()) {
       setEstabelecimentoNome(draft.estabelecimentoNome.trim());
     }
   }, []);
 
   const nextHref = useMemo(() => {
-    if (!localCompleted) return "/dashboard/nr1/diagnostico-inicial";
+    if (!diagnosticoCompleted) return "/dashboard/nr1/diagnostico-inicial";
+    if (!setoresCompleted) return "/dashboard/nr1/setores";
     if (props.currentStep === "plano-de-acao") return "/dashboard/nr1/plano-de-acao";
     return "/dashboard/nr1/riscos";
-  }, [localCompleted, props.currentStep]);
+  }, [diagnosticoCompleted, props.currentStep, setoresCompleted]);
 
   const nextLabel = useMemo(() => {
-    if (!localCompleted) return "Concluir diagnostico";
+    if (!diagnosticoCompleted) return "Concluir diagnostico";
+    if (!setoresCompleted) return "Concluir setores";
     if (props.currentStep === "plano-de-acao") return "Ir para plano";
     return "Ir para riscos";
-  }, [localCompleted, props.currentStep]);
+  }, [diagnosticoCompleted, props.currentStep, setoresCompleted]);
 
   return (
     <section
@@ -72,16 +76,16 @@ export function Nr1ProgressDashboard(props: Nr1ProgressDashboardProps) {
               diagnostico inicial
             </div>
             <div className="mt-2 text-base font-semibold text-[#132238]">
-              {localCompleted ? "Concluido" : "Pendente"}
+              {diagnosticoCompleted ? "Concluido" : "Pendente"}
             </div>
           </div>
 
           <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4">
             <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#60718A]">
-              bloqueio por diagnostico
+              setores e atividades
             </div>
             <div className="mt-2 text-base font-semibold text-[#132238]">
-              {localCompleted ? "Removido" : "Ativo"}
+              {setoresCompleted ? "Concluido" : "Pendente"}
             </div>
           </div>
 
@@ -90,7 +94,7 @@ export function Nr1ProgressDashboard(props: Nr1ProgressDashboardProps) {
               proximo passo
             </div>
             <div className="mt-2 text-base font-semibold text-[#132238]">
-              {localCompleted ? "Riscos e plano" : "Concluir diagnostico"}
+              {!diagnosticoCompleted ? "Concluir diagnostico" : !setoresCompleted ? "Concluir setores" : "Riscos e plano"}
             </div>
           </div>
         </div>
