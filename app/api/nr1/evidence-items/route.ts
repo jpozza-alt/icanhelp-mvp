@@ -14,8 +14,19 @@ type EvidenceRow = Database["public"]["Tables"]["nr1_evidence_items"]["Row"]
 type EvidenceInsert = Database["public"]["Tables"]["nr1_evidence_items"]["Insert"]
 
 function getTenantId(req: NextRequest): string {
-  const queryValue = (req.nextUrl.searchParams.get("tenantId") || "").trim()
-  const headerValue = (req.headers.get("x-icanhelp-tenant") || "").trim()
+  const queryValue = (
+    req.nextUrl.searchParams.get("tenantId") ||
+    req.nextUrl.searchParams.get("tenant_id") ||
+    ""
+  ).trim()
+
+  const headerValue = (
+    req.headers.get("x-icanhelp-tenant") ||
+    req.headers.get("x-tenant-id") ||
+    req.headers.get("x-active-tenant-id") ||
+    ""
+  ).trim()
+
   const tenantId = queryValue || headerValue
 
   if (!tenantId) {
