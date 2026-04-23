@@ -7,6 +7,7 @@ import {
   readNr1DiagnosticoLocalDraft,
 } from "@/lib/nr1-diagnostico-local";
 import { isNr1SetoresLocalCompleted } from "@/lib/nr1-setores-local";
+import { isNr1RiscosLocalCompleted } from "@/lib/nr1-riscos-local";
 
 type Nr1JourneyStepId = "diagnostico-inicial" | "setores" | "riscos" | "plano-de-acao";
 
@@ -23,12 +24,14 @@ function joinClassNames(...values: Array<string | undefined>): string {
 export function Nr1ProgressDashboard(props: Nr1ProgressDashboardProps) {
   const [diagnosticoCompleted, setDiagnosticoCompleted] = useState(false);
   const [setoresCompleted, setSetoresCompleted] = useState(false);
+  const [riscosCompleted, setRiscosCompleted] = useState(false);
   const [empresaNome, setEmpresaNome] = useState("Empresa local");
   const [estabelecimentoNome, setEstabelecimentoNome] = useState("Estabelecimento local");
 
   useEffect(() => {
     setDiagnosticoCompleted(isNr1DiagnosticoLocalCompleted());
     setSetoresCompleted(isNr1SetoresLocalCompleted());
+    setRiscosCompleted(isNr1RiscosLocalCompleted());
 
     const draft = readNr1DiagnosticoLocalDraft();
     if (draft.empresaNome.trim()) {
@@ -42,16 +45,18 @@ export function Nr1ProgressDashboard(props: Nr1ProgressDashboardProps) {
   const nextHref = useMemo(() => {
     if (!diagnosticoCompleted) return "/dashboard/nr1/diagnostico-inicial";
     if (!setoresCompleted) return "/dashboard/nr1/setores";
+    if (!riscosCompleted) return "/dashboard/nr1/riscos";
     if (props.currentStep === "plano-de-acao") return "/dashboard/nr1/plano-de-acao";
-    return "/dashboard/nr1/riscos";
-  }, [diagnosticoCompleted, props.currentStep, setoresCompleted]);
+    return "/dashboard/nr1/plano-de-acao";
+  }, [diagnosticoCompleted, props.currentStep, riscosCompleted, setoresCompleted]);
 
   const nextLabel = useMemo(() => {
     if (!diagnosticoCompleted) return "Concluir diagnostico";
     if (!setoresCompleted) return "Concluir setores";
+    if (!riscosCompleted) return "Concluir riscos";
     if (props.currentStep === "plano-de-acao") return "Ir para plano";
-    return "Ir para riscos";
-  }, [diagnosticoCompleted, props.currentStep, setoresCompleted]);
+    return "Ir para plano";
+  }, [diagnosticoCompleted, props.currentStep, riscosCompleted, setoresCompleted]);
 
   return (
     <section
@@ -70,10 +75,10 @@ export function Nr1ProgressDashboard(props: Nr1ProgressDashboardProps) {
           </h2>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-4">
           <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4">
             <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#60718A]">
-              diagnostico inicial
+              diagnostico
             </div>
             <div className="mt-2 text-base font-semibold text-[#132238]">
               {diagnosticoCompleted ? "Concluido" : "Pendente"}
@@ -82,7 +87,7 @@ export function Nr1ProgressDashboard(props: Nr1ProgressDashboardProps) {
 
           <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4">
             <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#60718A]">
-              setores e atividades
+              setores
             </div>
             <div className="mt-2 text-base font-semibold text-[#132238]">
               {setoresCompleted ? "Concluido" : "Pendente"}
@@ -91,10 +96,19 @@ export function Nr1ProgressDashboard(props: Nr1ProgressDashboardProps) {
 
           <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4">
             <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#60718A]">
+              riscos
+            </div>
+            <div className="mt-2 text-base font-semibold text-[#132238]">
+              {riscosCompleted ? "Concluido" : "Pendente"}
+            </div>
+          </div>
+
+          <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4">
+            <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#60718A]">
               proximo passo
             </div>
             <div className="mt-2 text-base font-semibold text-[#132238]">
-              {!diagnosticoCompleted ? "Concluir diagnostico" : !setoresCompleted ? "Concluir setores" : "Riscos e plano"}
+              {!diagnosticoCompleted ? "Diagnostico" : !setoresCompleted ? "Setores" : !riscosCompleted ? "Riscos" : "Plano"}
             </div>
           </div>
         </div>

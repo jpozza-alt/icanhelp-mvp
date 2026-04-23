@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { isNr1DiagnosticoLocalCompleted } from "@/lib/nr1-diagnostico-local";
 import { isNr1SetoresLocalCompleted } from "@/lib/nr1-setores-local";
+import { isNr1RiscosLocalCompleted } from "@/lib/nr1-riscos-local";
 
 type Nr1JourneyStepId = "diagnostico-inicial" | "setores" | "riscos" | "plano-de-acao";
 
@@ -20,10 +21,12 @@ function joinClassNames(...values: Array<string | undefined>): string {
 export function Nr1JourneyCard(props: Nr1JourneyCardProps) {
   const [diagnosticoCompleted, setDiagnosticoCompleted] = useState(false);
   const [setoresCompleted, setSetoresCompleted] = useState(false);
+  const [riscosCompleted, setRiscosCompleted] = useState(false);
 
   useEffect(() => {
     setDiagnosticoCompleted(isNr1DiagnosticoLocalCompleted());
     setSetoresCompleted(isNr1SetoresLocalCompleted());
+    setRiscosCompleted(isNr1RiscosLocalCompleted());
   }, []);
 
   const currentStep = props.currentStep ?? "diagnostico-inicial";
@@ -45,7 +48,7 @@ export function Nr1JourneyCard(props: Nr1JourneyCardProps) {
       return {
         title: "Concluir setores e atividades",
         description:
-          "A proxima liberacao da jornada depende da etapa de setores preenchida e concluida.",
+          "A segunda liberacao da jornada depende da etapa de setores preenchida e concluida.",
         href: "/dashboard/nr1/setores",
         buttonLabel: "Abrir setores",
         badge: "pendente",
@@ -53,9 +56,21 @@ export function Nr1JourneyCard(props: Nr1JourneyCardProps) {
       };
     }
 
+    if (!riscosCompleted) {
+      return {
+        title: "Concluir riscos",
+        description:
+          "A liberacao do plano de acao depende da etapa de riscos preenchida e concluida.",
+        href: "/dashboard/nr1/riscos",
+        buttonLabel: "Abrir riscos",
+        badge: "pendente",
+        badgeClassName: "border-[#FFE3AA] bg-[#FFF8EA] text-[#C88A16]",
+      };
+    }
+
     if (currentStep === "plano-de-acao") {
       return {
-        title: "Setores concluidos",
+        title: "Riscos concluidos",
         description: "Os pre-requisitos locais foram atendidos. Agora voce pode seguir em plano de acao.",
         href: "/dashboard/nr1/plano-de-acao",
         buttonLabel: "Ir para plano",
@@ -65,14 +80,14 @@ export function Nr1JourneyCard(props: Nr1JourneyCardProps) {
     }
 
     return {
-      title: "Setores concluidos",
-      description: "Os pre-requisitos locais foram atendidos. Agora voce pode seguir em riscos.",
-      href: "/dashboard/nr1/riscos",
-      buttonLabel: "Ir para riscos",
+      title: "Riscos concluidos",
+      description: "Os pre-requisitos locais foram atendidos. Agora voce pode seguir na proxima etapa.",
+      href: "/dashboard/nr1/plano-de-acao",
+      buttonLabel: "Ir para plano",
       badge: "liberado",
       badgeClassName: "border-[#C8F0DA] bg-[#EBFBF3] text-[#20865A]",
     };
-  }, [currentStep, diagnosticoCompleted, setoresCompleted]);
+  }, [currentStep, diagnosticoCompleted, riscosCompleted, setoresCompleted]);
 
   return (
     <article
