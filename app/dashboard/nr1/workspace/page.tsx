@@ -1,396 +1,953 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/lib/supabase/client";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-type Phase = "checking" | "ready" | "redirecting-login" | "failed";
+type JsonObject = Record<string, unknown>;
 
-const WORKSPACE_PATH = "/dashboard/nr1/workspace";
-const STORAGE_COMPANY = "nr1_workspace_company";
-const STORAGE_ESTABLISHMENT = "nr1_workspace_establishment";
-const REDIRECT_DELAY_MS = 8000;
+type SaveStatus = "idle" | "loading" | "dirty" | "saving" | "saved" | "save_error";
 
-const companyOptions = [
-  "Pasini Consultoria",
-  "Empresa Modelo A",
-  "Empresa Modelo B",
-];
-
-const establishmentOptionsByCompany: Record<string, string[]> = {
-  "Pasini Consultoria": ["Estabelecimento Matriz", "Unidade Operacional", "Frente Externa"],
-  "Empresa Modelo A": ["Matriz A", "Filial A1"],
-  "Empresa Modelo B": ["Matriz B", "Base Campo B"],
+type BackendContext = {
+  tenantId: string | null;
+  establishmentId: string | null;
 };
 
-const summaryCards = [
-  { value: "workspace", label: "porta oficial da area autenticada" },
-  { value: "contexto", label: "empresa e estabelecimento ativos" },
-  { value: "4", label: "atalhos operacionais" },
-  { value: "NR-1", label: "jornada ativa" },
-];
+type HeaderContext = {
+  tenantId?: string | null;
+  establishmentId?: string | null;
+};
 
-function buildQuery(company: string, establishment: string, contextSaved: boolean) {
-  if (!contextSaved || !company || !establishment) {
-    return "";
+type SimpleEntity = {
+  id?: string;
+  name?: string;
+  legal_name?: string;
+  trade_name?: string;
+  title?: string;
+  description?: string;
+  status?: string;
+  employee_count?: number;
+  exposed_worker_count?: number;
+  [key: string]: unknown;
+};
+
+type AuditEvent = {
+  id?: string;
+  event_type?: string;
+  created_at?: string;
+  persistence_type?: string;
+  screen_key?: string;
+  entity_type?: string;
+  entity_id?: string;
+  reason?: string;
+  [key: string]: unknown;
+};
+
+type WorkspaceDraftPayload = {
+  activeSection: string;
+  diagnosticNotes: string;
+  checklist: Record<string, boolean>;
+  updatedAt: string | null;
+};
+
+const DEFAULT_DRAFT: WorkspaceDraftPayload = {
+  activeSection: "overview",
+  diagnosticNotes: "",
+  checklist: {
+    company_checked: false,
+    establishment_checked: false,
+    departments_checked: false,
+    activities_checked: false,
+    diagnosis_started: false,
+    evidence_pending: false,
+  },
+  updatedAt: null,
+};
+
+const SCREEN_KEY = "nr1_workspace";
+const RECORD_TYPE = "workspace_shell";
+const ENTITY_TYPE = "workspace_shell";
+
+function isRecord(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringOrNull(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function firstString(record: unknown, keys: string[]): string | null {
+  if (!isRecord(record)) return null;
+  for (const key of keys) {
+    const value = stringOrNull(record[key]);
+    if (value) return value;
+  }
+  return null;
+}
+
+function nestedString(record: unknown, path: string[]): string | null {
+  let current: unknown = record;
+  for (const key of path) {
+    if (!isRecord(current)) return null;
+    current = current[key];
+  }
+  return stringOrNull(current);
+}
+
+function extractArray<T>(payload: unknown, preferredKeys: string[]): T[] {
+  if (Array.isArray(payload)) return payload as T[];
+
+  if (!isRecord(payload)) return [];
+
+  for (const key of preferredKeys) {
+    const value = payload[key];
+    if (Array.isArray(value)) return value as T[];
   }
 
+  for (const value of Object.values(payload)) {
+    if (Array.isArray(value)) return value as T[];
+  }
+
+  return [];
+}
+
+function displayName(item: SimpleEntity, fallback: string): string {
   return (
-    "?company=" +
-    encodeURIComponent(company) +
-    "&establishment=" +
-    encodeURIComponent(establishment)
+    firstString(item, ["name", "legal_name", "trade_name", "title", "description"]) ||
+    fallback
   );
 }
 
+function buildUrl(path: string, params: Record<string, string | null | undefined>): string {
+  const search = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== null && value !== undefined && value !== "") {
+      search.set(key, value);
+    }
+  }
+
+  const query = search.toString();
+  return query ? `${path}?${query}` : path;
+}
+
+function normalizeDraftPayload(value: unknown): WorkspaceDraftPayload {
+  let parsed = value;
+
+  if (typeof value === "string") {
+    try {
+      parsed = JSON.parse(value) as unknown;
+    } catch {
+      parsed = {};
+    }
+  }
+
+  if (!isRecord(parsed)) {
+    return DEFAULT_DRAFT;
+  }
+
+  const checklistSource = isRecord(parsed.checklist) ? parsed.checklist : {};
+  const checklist: Record<string, boolean> = { ...DEFAULT_DRAFT.checklist };
+
+  for (const [key, itemValue] of Object.entries(checklistSource)) {
+    checklist[key] = Boolean(itemValue);
+  }
+
+  return {
+    activeSection: stringOrNull(parsed.activeSection) || DEFAULT_DRAFT.activeSection,
+    diagnosticNotes: stringOrNull(parsed.diagnosticNotes) || "",
+    checklist,
+    updatedAt: stringOrNull(parsed.updatedAt),
+  };
+}
+
+function findDraftPayload(payload: unknown): WorkspaceDraftPayload {
+  if (!isRecord(payload)) return DEFAULT_DRAFT;
+
+  const direct = payload.payload_json;
+  if (direct !== undefined) return normalizeDraftPayload(direct);
+
+  const nestedKeys = ["data", "draft", "state", "item", "record"];
+
+  for (const key of nestedKeys) {
+    const nested = payload[key];
+    if (isRecord(nested) && nested.payload_json !== undefined) {
+      return normalizeDraftPayload(nested.payload_json);
+    }
+  }
+
+  return DEFAULT_DRAFT;
+}
+
+async function fetchJson<T = unknown>(
+  path: string,
+  options: RequestInit = {},
+  context: HeaderContext = {}
+): Promise<T> {
+  const headers = new Headers(options.headers);
+
+  headers.set("accept", "application/json");
+
+  if (options.body && !headers.has("content-type")) {
+    headers.set("content-type", "application/json");
+  }
+
+  if (context.tenantId) {
+    headers.set("x-tenant-id", context.tenantId);
+  }
+
+  if (context.establishmentId) {
+    headers.set("x-establishment-id", context.establishmentId);
+  }
+
+  const response = await fetch(path, {
+    ...options,
+    headers,
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`${response.status} ${response.statusText} ${text}`.trim());
+  }
+
+  return response.json() as Promise<T>;
+}
+
+async function loadFirstOk(paths: string[], context: HeaderContext = {}): Promise<unknown | null> {
+  for (const path of paths) {
+    try {
+      return await fetchJson(path, {}, context);
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
 export default function Nr1WorkspacePage() {
-  const [phase, setPhase] = useState<Phase>("checking");
-  const [detail, setDetail] = useState("Validando sua sessao antes de abrir o workspace.");
-  const [company, setCompany] = useState("");
-  const [establishment, setEstablishment] = useState("");
-  const [contextSaved, setContextSaved] = useState(false);
-  const [contextMessage, setContextMessage] = useState("Defina o contexto ativo para liberar os atalhos operacionais.");
+  const [context, setContext] = useState<BackendContext>({
+    tenantId: null,
+    establishmentId: null,
+  });
 
-  const loginUrl = useMemo(() => {
-    return "/login?next=" + encodeURIComponent(WORKSPACE_PATH);
-  }, []);
+  const [company, setCompany] = useState<SimpleEntity | null>(null);
+  const [establishments, setEstablishments] = useState<SimpleEntity[]>([]);
+  const [departments, setDepartments] = useState<SimpleEntity[]>([]);
+  const [activities, setActivities] = useState<SimpleEntity[]>([]);
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
+  const [draft, setDraft] = useState<WorkspaceDraftPayload>(DEFAULT_DRAFT);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("loading");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
-  const establishmentOptions = useMemo(() => {
-    return establishmentOptionsByCompany[company] ?? [];
-  }, [company]);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestDraftRef = useRef<WorkspaceDraftPayload>(DEFAULT_DRAFT);
+  const contextRef = useRef<BackendContext>({ tenantId: null, establishmentId: null });
 
-  const actions = useMemo(() => {
-    const query = buildQuery(company, establishment, contextSaved);
-
-    return [
-      {
-        title: "Diagnostico inicial",
-        href: "/dashboard/nr1/diagnostico-inicial" + query,
-        text: "Abrir o ponto inicial da jornada autenticada.",
-      },
-      {
-        title: "Setores e atividades",
-        href: "/dashboard/nr1/setores" + query,
-        text: "Ir direto para a base operacional.",
-      },
-      {
-        title: "Riscos e prioridades",
-        href: "/dashboard/nr1/riscos" + query,
-        text: "Abrir a etapa de riscos e prioridades.",
-      },
-      {
-        title: "Plano de acao",
-        href: "/dashboard/nr1/plano-de-acao" + query,
-        text: "Abrir a etapa de plano de acao.",
-      },
-    ];
-  }, [company, establishment, contextSaved]);
+  const activeEstablishmentId = context.establishmentId;
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const storedCompany = window.localStorage.getItem(STORAGE_COMPANY) ?? "";
-    const storedEstablishment = window.localStorage.getItem(STORAGE_ESTABLISHMENT) ?? "";
-
-    if (storedCompany) {
-      setCompany(storedCompany);
-    }
-
-    if (storedEstablishment) {
-      setEstablishment(storedEstablishment);
-    }
-
-    if (storedCompany && storedEstablishment) {
-      setContextSaved(true);
-      setContextMessage("Contexto ativo carregado do navegador.");
-    }
-  }, []);
+    latestDraftRef.current = draft;
+  }, [draft]);
 
   useEffect(() => {
-    let isMounted = true;
-    let redirectTimer: number | null = null;
+    contextRef.current = context;
+  }, [context]);
 
-    function clearRedirectTimer() {
-      if (redirectTimer !== null && typeof window !== "undefined") {
-        window.clearTimeout(redirectTimer);
-        redirectTimer = null;
-      }
+  const progressPercent = useMemo(() => {
+    const values = Object.values(draft.checklist);
+    if (values.length === 0) return 0;
+    const completed = values.filter(Boolean).length;
+    return Math.round((completed / values.length) * 100);
+  }, [draft.checklist]);
+
+  const headerContext = useMemo<HeaderContext>(
+    () => ({
+      tenantId: context.tenantId,
+      establishmentId: context.establishmentId,
+    }),
+    [context.tenantId, context.establishmentId]
+  );
+
+  const resolveContext = useCallback(async (): Promise<BackendContext> => {
+    const payload = await loadFirstOk([
+      "/api/debug/context",
+      "/api/nr1/context",
+      "/api/tenant/context",
+      "/api/tenants/active",
+    ]);
+
+    const tenantId =
+      nestedString(payload, ["tenant", "id"]) ||
+      nestedString(payload, ["activeTenant", "id"]) ||
+      nestedString(payload, ["data", "tenant", "id"]) ||
+      nestedString(payload, ["data", "activeTenant", "id"]) ||
+      firstString(payload, ["tenant_id", "tenantId", "active_tenant_id"]);
+
+    const establishmentId =
+      nestedString(payload, ["establishment", "id"]) ||
+      nestedString(payload, ["activeEstablishment", "id"]) ||
+      nestedString(payload, ["data", "establishment", "id"]) ||
+      nestedString(payload, ["data", "activeEstablishment", "id"]) ||
+      firstString(payload, ["establishment_id", "establishmentId", "active_establishment_id"]);
+
+    return { tenantId, establishmentId };
+  }, []);
+
+  const loadCompany = useCallback(async (nextContext: BackendContext): Promise<SimpleEntity | null> => {
+    const payload = await loadFirstOk(
+      [
+        "/api/nr1/company",
+        "/api/nr1/companies",
+        "/api/nr1/company-profile",
+        "/api/nr1/companies-profile",
+      ],
+      nextContext
+    );
+
+    if (!payload) return null;
+
+    if (Array.isArray(payload)) return (payload[0] as SimpleEntity) || null;
+
+    if (isRecord(payload)) {
+      if (isRecord(payload.company)) return payload.company as SimpleEntity;
+      if (isRecord(payload.data)) return payload.data as SimpleEntity;
+      if (isRecord(payload.profile)) return payload.profile as SimpleEntity;
     }
 
-    function applySession(session: unknown) {
-      if (!isMounted) return;
+    return payload as SimpleEntity;
+  }, []);
 
-      if (session) {
-        clearRedirectTimer();
-        setPhase("ready");
-        setDetail("Sessao encontrada. Workspace operacional liberado.");
+  const loadEstablishments = useCallback(
+    async (nextContext: BackendContext): Promise<SimpleEntity[]> => {
+      if (!nextContext.tenantId) return [];
+
+      const path = buildUrl("/api/nr1/establishments", {
+        tenantId: nextContext.tenantId,
+      });
+
+      const payload = await loadFirstOk([path], nextContext);
+      return extractArray<SimpleEntity>(payload, ["establishments", "items", "data"]);
+    },
+    []
+  );
+
+  const loadDepartments = useCallback(
+    async (nextContext: BackendContext): Promise<SimpleEntity[]> => {
+      if (!nextContext.establishmentId) return [];
+
+      const path = buildUrl("/api/nr1/departments", {
+        establishment_id: nextContext.establishmentId,
+      });
+
+      const payload = await loadFirstOk([path], nextContext);
+      return extractArray<SimpleEntity>(payload, ["departments", "items", "data"]);
+    },
+    []
+  );
+
+  const loadActivities = useCallback(
+    async (nextContext: BackendContext): Promise<SimpleEntity[]> => {
+      if (!nextContext.establishmentId) return [];
+
+      const path = buildUrl("/api/nr1/activities", {
+        establishment_id: nextContext.establishmentId,
+      });
+
+      const payload = await loadFirstOk([path], nextContext);
+      return extractArray<SimpleEntity>(payload, ["activities", "work_activities", "items", "data"]);
+    },
+    []
+  );
+
+  const loadDraftState = useCallback(
+    async (nextContext: BackendContext): Promise<WorkspaceDraftPayload> => {
+      if (!nextContext.tenantId || !nextContext.establishmentId) return DEFAULT_DRAFT;
+
+      const path = buildUrl("/api/nr1/draft-state", {
+        tenantId: nextContext.tenantId,
+        establishmentId: nextContext.establishmentId,
+        screenKey: SCREEN_KEY,
+        recordType: RECORD_TYPE,
+      });
+
+      const payload = await fetchJson(path, {}, nextContext);
+      return findDraftPayload(payload);
+    },
+    []
+  );
+
+  const loadAuditEvents = useCallback(
+    async (nextContext: BackendContext): Promise<AuditEvent[]> => {
+      if (!nextContext.tenantId || !nextContext.establishmentId) return [];
+
+      const path = buildUrl("/api/nr1/audit-events", {
+        tenantId: nextContext.tenantId,
+        establishmentId: nextContext.establishmentId,
+        screenKey: SCREEN_KEY,
+        entityType: ENTITY_TYPE,
+        entityId: nextContext.establishmentId,
+        limit: "25",
+      });
+
+      const payload = await fetchJson(path, {}, nextContext);
+      return extractArray<AuditEvent>(payload, ["audit_events", "events", "items", "data"]);
+    },
+    []
+  );
+
+  const recordAuditEvent = useCallback(
+    async (
+      eventType: string,
+      newValue: JsonObject,
+      persistenceType: "draft" | "formal" = "draft"
+    ): Promise<void> => {
+      const currentContext = contextRef.current;
+
+      if (!currentContext.tenantId || !currentContext.establishmentId) return;
+
+      const auditPostPath = buildUrl("/api/nr1/audit-events", {
+        tenantId: currentContext.tenantId,
+      });
+
+      await fetchJson(
+        auditPostPath,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            establishment_id: currentContext.establishmentId,
+            module_name: "nr1",
+            screen_key: SCREEN_KEY,
+            entity_type: ENTITY_TYPE,
+            entity_id: currentContext.establishmentId,
+            event_type: eventType,
+            old_value_json: null,
+            new_value_json: newValue,
+            persistence_type: persistenceType,
+            reason: "workspace_nr1_real_audit_event",
+          }),
+        },
+        currentContext
+      );
+    },
+    []
+  );
+
+  const refreshAuditEvents = useCallback(async (): Promise<void> => {
+    const currentContext = contextRef.current;
+
+    if (!currentContext.establishmentId) return;
+
+    try {
+      const events = await loadAuditEvents(currentContext);
+      setAuditEvents(events);
+    } catch {
+      // A trilha nao deve travar a tela quando a listagem falhar.
+    }
+  }, [loadAuditEvents]);
+
+  const saveDraft = useCallback(
+    async (nextDraft: WorkspaceDraftPayload, reason: string): Promise<void> => {
+      const currentContext = contextRef.current;
+
+      if (!currentContext.tenantId || !currentContext.establishmentId) {
+        setSaveStatus("save_error");
         return;
       }
 
-      setPhase("checking");
-      setDetail("Validando sua sessao antes de abrir o workspace.");
-      clearRedirectTimer();
+      setSaveStatus("saving");
 
-      if (typeof window !== "undefined") {
-        redirectTimer = window.setTimeout(() => {
-          if (!isMounted) return;
-          setPhase("redirecting-login");
-          setDetail("Voce precisa entrar antes de abrir o workspace. Redirecionando para o login.");
-          window.location.assign(loginUrl);
-        }, REDIRECT_DELAY_MS);
+      const payloadToSave: WorkspaceDraftPayload = {
+        ...nextDraft,
+        updatedAt: new Date().toISOString(),
+      };
+
+      try {
+        const draftPostPath = buildUrl("/api/nr1/draft-state", {
+          tenantId: currentContext.tenantId,
+        });
+
+        await fetchJson(
+          draftPostPath,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              establishment_id: currentContext.establishmentId,
+              screen_key: SCREEN_KEY,
+              record_type: RECORD_TYPE,
+              record_id: null,
+              payload_json: payloadToSave,
+              is_dirty: false,
+            }),
+          },
+          currentContext
+        );
+
+        await recordAuditEvent("workspace_draft_saved", {
+          reason,
+          screen_key: SCREEN_KEY,
+          record_type: RECORD_TYPE,
+          record_id: null,
+          progress_percent: progressPercent,
+        });
+
+        const savedAt = new Date().toISOString();
+        setDraft(payloadToSave);
+        setLastSavedAt(savedAt);
+        setSaveStatus("saved");
+        await refreshAuditEvents();
+      } catch {
+        setSaveStatus("save_error");
+      }
+    },
+    [progressPercent, recordAuditEvent, refreshAuditEvents]
+  );
+
+  const scheduleDraftSave = useCallback(
+    (nextDraft: WorkspaceDraftPayload, reason: string): void => {
+      setDraft(nextDraft);
+      setSaveStatus("dirty");
+
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+
+      saveTimerRef.current = setTimeout(() => {
+        void saveDraft(nextDraft, reason);
+      }, 900);
+    },
+    [saveDraft]
+  );
+
+  const patchDraft = useCallback(
+    (patch: Partial<WorkspaceDraftPayload>, reason: string): void => {
+      const nextDraft: WorkspaceDraftPayload = {
+        ...latestDraftRef.current,
+        ...patch,
+      };
+
+      scheduleDraftSave(nextDraft, reason);
+    },
+    [scheduleDraftSave]
+  );
+
+  const patchChecklist = useCallback(
+    (key: string, value: boolean): void => {
+      const nextDraft: WorkspaceDraftPayload = {
+        ...latestDraftRef.current,
+        checklist: {
+          ...latestDraftRef.current.checklist,
+          [key]: value,
+        },
+      };
+
+      scheduleDraftSave(nextDraft, `checklist_${key}`);
+    },
+    [scheduleDraftSave]
+  );
+
+  const selectEstablishment = useCallback(
+    async (establishmentId: string): Promise<void> => {
+      const nextContext = {
+        tenantId: contextRef.current.tenantId,
+        establishmentId,
+      };
+
+      setContext(nextContext);
+      setSaveStatus("loading");
+
+      try {
+        const [nextDepartments, nextActivities, nextDraft, nextAuditEvents] = await Promise.all([
+          loadDepartments(nextContext),
+          loadActivities(nextContext),
+          loadDraftState(nextContext),
+          loadAuditEvents(nextContext),
+        ]);
+
+        setDepartments(nextDepartments);
+        setActivities(nextActivities);
+        setDraft(nextDraft);
+        setAuditEvents(nextAuditEvents);
+        setSaveStatus("saved");
+
+        await recordAuditEvent("establishment_selected", {
+          establishment_id: establishmentId,
+          screen_key: SCREEN_KEY,
+        });
+
+        await refreshAuditEvents();
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : "Erro ao trocar estabelecimento.");
+        setSaveStatus("save_error");
+      }
+    },
+    [loadActivities, loadAuditEvents, loadDepartments, loadDraftState, recordAuditEvent, refreshAuditEvents]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function boot(): Promise<void> {
+      setSaveStatus("loading");
+      setLoadError(null);
+
+      try {
+        const resolvedContext = await resolveContext();
+        const loadedEstablishments = await loadEstablishments(resolvedContext);
+        const fallbackEstablishmentId =
+          resolvedContext.establishmentId ||
+          firstString(loadedEstablishments[0], ["id"]);
+
+        const nextContext = {
+          tenantId: resolvedContext.tenantId,
+          establishmentId: fallbackEstablishmentId,
+        };
+
+        const [loadedCompany, loadedDepartments, loadedActivities, loadedDraft, loadedAuditEvents] =
+          await Promise.all([
+            loadCompany(nextContext),
+            loadDepartments(nextContext),
+            loadActivities(nextContext),
+            loadDraftState(nextContext),
+            loadAuditEvents(nextContext),
+          ]);
+
+        if (cancelled) return;
+
+        setContext(nextContext);
+        setCompany(loadedCompany);
+        setEstablishments(loadedEstablishments);
+        setDepartments(loadedDepartments);
+        setActivities(loadedActivities);
+        setDraft(loadedDraft);
+        setAuditEvents(loadedAuditEvents);
+        setSaveStatus("saved");
+
+        if (nextContext.establishmentId) {
+          await recordAuditEvent("workspace_opened", {
+            screen_key: SCREEN_KEY,
+            establishment_id: nextContext.establishmentId,
+          });
+          await refreshAuditEvents();
+        }
+      } catch (error) {
+        if (cancelled) return;
+        setLoadError(error instanceof Error ? error.message : "Erro ao carregar workspace NR1.");
+        setSaveStatus("save_error");
       }
     }
 
-    supabase.auth
-      .getSession()
-      .then(({ data, error }) => {
-        if (error) {
-          throw error;
-        }
-
-        applySession(data.session);
-      })
-      .catch((error) => {
-        if (!isMounted) return;
-        setPhase("failed");
-        setDetail(error instanceof Error ? error.message : "Falha ao validar a sessao.");
-      });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      applySession(session);
-    });
+    void boot();
 
     return () => {
-      isMounted = false;
-      clearRedirectTimer();
-      subscription.unsubscribe();
+      cancelled = true;
+
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
     };
-  }, [loginUrl]);
+  }, [
+    loadActivities,
+    loadAuditEvents,
+    loadCompany,
+    loadDepartments,
+    loadDraftState,
+    loadEstablishments,
+    recordAuditEvent,
+    refreshAuditEvents,
+    resolveContext,
+  ]);
 
-  useEffect(() => {
-    if (!company) {
-      setEstablishment("");
-      setContextSaved(false);
-      return;
-    }
+  const selectedEstablishment = useMemo(() => {
+    return establishments.find((item) => item.id === activeEstablishmentId) || null;
+  }, [activeEstablishmentId, establishments]);
 
-    if (establishment && establishmentOptions.indexOf(establishment) < 0) {
-      setEstablishment("");
-      setContextSaved(false);
-    }
-  }, [company, establishment, establishmentOptions]);
+  const statusLabel = useMemo(() => {
+    if (saveStatus === "loading") return "Carregando dados reais...";
+    if (saveStatus === "dirty") return "Alteracoes pendentes";
+    if (saveStatus === "saving") return "Salvando...";
+    if (saveStatus === "saved") return "Salvo";
+    if (saveStatus === "save_error") return "Erro ao salvar";
+    return "Pronto";
+  }, [saveStatus]);
 
-  function handleSaveContext() {
-    if (!company || !establishment) {
-      setContextSaved(false);
-      setContextMessage("Preencha empresa e estabelecimento antes de continuar.");
-      return;
-    }
-
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_COMPANY, company);
-      window.localStorage.setItem(STORAGE_ESTABLISHMENT, establishment);
-    }
-
-    setContextSaved(true);
-    setContextMessage("Contexto ativo confirmado. Agora os atalhos operacionais podem ser usados.");
-  }
-
-  function handleClearContext() {
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(STORAGE_COMPANY);
-      window.localStorage.removeItem(STORAGE_ESTABLISHMENT);
-    }
-
-    setCompany("");
-    setEstablishment("");
-    setContextSaved(false);
-    setContextMessage("Contexto limpo. Defina novamente empresa e estabelecimento.");
-  }
-
-  const contextReady = phase === "ready" && contextSaved && !!company && !!establishment;
+  const checklistItems = [
+    ["company_checked", "Empresa revisada"],
+    ["establishment_checked", "Estabelecimento selecionado"],
+    ["departments_checked", "Setores carregados"],
+    ["activities_checked", "Atividades carregadas"],
+    ["diagnosis_started", "Diagnostico iniciado"],
+    ["evidence_pending", "Evidencias pendentes mapeadas"],
+  ] as const;
 
   return (
-    <main className="min-h-screen bg-[#F4F7FB] text-[#132238]">
-      <div className="mx-auto max-w-[1400px] px-6 py-8">
-        <section className="overflow-hidden rounded-[28px] bg-[linear-gradient(135deg,#0F2337_0%,#13495C_60%,#178A8F_100%)] p-7 text-white shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
-          <div className="text-[12px] uppercase tracking-[0.08em] text-white/70">workspace autenticado</div>
-          <h1 className="mt-4 text-[38px] font-semibold leading-tight">Area real da jornada NR-1</h1>
-          <p className="mt-3 max-w-[760px] text-base leading-7 text-white/85">
-            Esta passa a ser a porta oficial do uso real do modulo. Defina o contexto operacional
-            antes de abrir as etapas da jornada.
-          </p>
-          <div className="mt-5 inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white/90">
-            Estado atual: {phase}
+    <main className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="mx-auto flex w-full max-w-7xl gap-6 px-6 py-6">
+        <aside className="sticky top-6 hidden h-[calc(100vh-3rem)] w-72 shrink-0 rounded-2xl border border-slate-800 bg-slate-900/80 p-5 shadow-xl lg:block">
+          <div className="mb-6">
+            <p className="text-xs uppercase tracking-[0.3em] text-cyan-300">ICANHELP</p>
+            <h1 className="mt-2 text-2xl font-semibold">Workspace NR1</h1>
+            <p className="mt-2 text-sm text-slate-400">Rascunho real, trilha real e contexto por estabelecimento.</p>
           </div>
-          <div className="mt-3 text-sm leading-7 text-white/85">{detail}</div>
-        </section>
 
-        {phase !== "ready" ? (
-          <section className="mt-[18px] rounded-[24px] border border-[#DBE5F0] bg-white p-6 shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
-            <h2 className="text-2xl font-semibold">Aguardando autenticacao</h2>
-            <p className="mt-3 text-sm leading-7 text-[#60718A]">
-              O workspace so libera o contexto e os atalhos operacionais depois que a sessao estiver realmente pronta.
+          <nav className="space-y-2">
+            {[
+              ["overview", "Visao Geral"],
+              ["company", "Empresa"],
+              ["establishments", "Estabelecimentos"],
+              ["departments", "Setores"],
+              ["activities", "Atividades"],
+              ["diagnosis", "Diagnostico"],
+              ["audit", "Trilha"],
+            ].map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => patchDraft({ activeSection: key }, `section_${key}`)}
+                className={`w-full rounded-xl px-4 py-3 text-left text-sm transition ${
+                  draft.activeSection === key
+                    ? "bg-cyan-400 text-slate-950"
+                    : "bg-slate-800/70 text-slate-200 hover:bg-slate-700"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="mt-6 rounded-xl border border-slate-800 bg-slate-950 p-4">
+            <p className="text-sm text-slate-400">Progresso</p>
+            <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-800">
+              <div
+                className="h-full rounded-full bg-cyan-300"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <p className="mt-2 text-2xl font-semibold">{progressPercent}%</p>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-slate-800 bg-slate-950 p-4">
+            <p className="text-sm text-slate-400">Status</p>
+            <p className="mt-1 text-sm font-medium">{statusLabel}</p>
+            <p className="mt-2 text-xs text-slate-500">
+              {lastSavedAt ? `Ultimo autosave: ${new Date(lastSavedAt).toLocaleTimeString("pt-BR")}` : "Aguardando autosave"}
             </p>
-          </section>
-        ) : (
-          <>
-            <section className="mt-[18px] grid gap-[18px] md:grid-cols-2 xl:grid-cols-4">
-              {summaryCards.map((item) => (
-                <div
-                  key={item.label}
-                  className="grid gap-2 rounded-[20px] border border-[#DBE5F0] bg-[linear-gradient(180deg,#FFFFFF,#F8FBFF)] p-[18px] shadow-[0_10px_30px_rgba(18,40,70,0.08)]"
-                >
-                  <div className="text-[28px] font-extrabold">{item.value}</div>
-                  <div className="text-[13px] text-[#60718A]">{item.label}</div>
-                </div>
-              ))}
-            </section>
+          </div>
+        </aside>
 
-            <section className="mt-[18px] grid gap-[18px] lg:grid-cols-[1.05fr_0.95fr]">
-              <div className="rounded-[24px] border border-[#DBE5F0] bg-white p-6 shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-2xl font-semibold">Contexto ativo</h2>
-                  <span
-                    className={
-                      contextReady
-                        ? "rounded-full border border-[#C8F0DA] bg-[#EBFBF3] px-[10px] py-[7px] text-xs font-bold text-[#20865A]"
-                        : "rounded-full border border-[#FFE3AA] bg-[#FFF8EA] px-[10px] py-[7px] text-xs font-bold text-[#C88A16]"
-                    }
-                  >
-                    {contextReady ? "pronto" : "pendente"}
-                  </span>
-                </div>
-
-                <p className="mt-4 text-sm leading-7 text-[#60718A]">
-                  Antes de abrir as etapas, confirme empresa e estabelecimento. Isso organiza a retomada e
-                  prepara a jornada para uso real.
+        <section className="min-w-0 flex-1">
+          <header className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-cyan-300">NR1 / SST</p>
+                <h2 className="mt-2 text-3xl font-semibold">Adequacao NR1 da empresa</h2>
+                <p className="mt-2 max-w-3xl text-sm text-slate-400">
+                  Esta tela mantem empresas, estabelecimentos, setores e atividades no backend e usa draft-state para rascunho do workspace e audit-events para trilha lateral.
                 </p>
-
-                <div className="mt-6 grid gap-4">
-                  <label className="grid gap-2 text-sm font-semibold text-[#132238]">
-                    Empresa
-                    <select
-                      value={company}
-                      onChange={(event) => {
-                        setCompany(event.target.value);
-                        setContextSaved(false);
-                      }}
-                      className="h-14 rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] px-4 text-base outline-none transition focus:border-[#13A3A8] focus:bg-white"
-                    >
-                      <option value="">Selecione a empresa</option>
-                      {companyOptions.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="grid gap-2 text-sm font-semibold text-[#132238]">
-                    Estabelecimento
-                    <select
-                      value={establishment}
-                      onChange={(event) => {
-                        setEstablishment(event.target.value);
-                        setContextSaved(false);
-                      }}
-                      disabled={!company}
-                      className="h-14 rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] px-4 text-base outline-none transition focus:border-[#13A3A8] focus:bg-white disabled:cursor-not-allowed disabled:opacity-70"
-                    >
-                      <option value="">Selecione o estabelecimento</option>
-                      {establishmentOptions.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={handleSaveContext}
-                      className="rounded-[14px] bg-[linear-gradient(135deg,#0F7B83,#13A3A8)] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(19,163,168,0.24)] transition hover:-translate-y-[1px]"
-                    >
-                      Confirmar contexto
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleClearContext}
-                      className="rounded-[14px] border border-[#DBE5F0] bg-white px-4 py-3 text-sm font-semibold text-[#132238] transition hover:bg-[#F8FBFF]"
-                    >
-                      Limpar contexto
-                    </button>
-                  </div>
-
-                  <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4 text-sm leading-7 text-[#60718A]">
-                    {contextMessage}
-                  </div>
-                </div>
               </div>
 
-              <div className="rounded-[24px] border border-[#DBE5F0] bg-white p-6 shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-2xl font-semibold">Resumo do contexto</h2>
-                  <span className="rounded-full border border-[#C7EEEE] bg-[#E7F7F7] px-[10px] py-[7px] text-xs font-bold text-[#0F7B83]">
-                    uso real
-                  </span>
-                </div>
-
-                <div className="mt-5 grid gap-3">
-                  <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4">
-                    <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#60718A]">empresa ativa</div>
-                    <div className="mt-2 text-base font-semibold">{company || "Nao definida"}</div>
-                  </div>
-
-                  <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4">
-                    <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#60718A]">estabelecimento ativo</div>
-                    <div className="mt-2 text-base font-semibold">{establishment || "Nao definido"}</div>
-                  </div>
-
-                  <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4">
-                    <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#60718A]">prontidao operacional</div>
-                    <div className="mt-2 text-base font-semibold">{contextReady ? "Pronto para abrir etapas" : "Contexto ainda pendente"}</div>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className="mt-[18px] grid gap-[18px] xl:grid-cols-4">
-              {actions.map((item) => (
-                <div
-                  key={item.title}
-                  className="rounded-[24px] border border-[#DBE5F0] bg-white p-6 shadow-[0_10px_30px_rgba(18,40,70,0.08)]"
+              <div className="rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm">
+                <p className="text-slate-400">Estabelecimento ativo</p>
+                <select
+                  value={activeEstablishmentId || ""}
+                  onChange={(event) => void selectEstablishment(event.target.value)}
+                  className="mt-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-slate-100"
                 >
-                  <h2 className="text-xl font-semibold">{item.title}</h2>
-                  <p className="mt-3 text-sm leading-7 text-[#60718A]">{item.text}</p>
+                  <option value="">Selecione</option>
+                  {establishments.map((item, index) => (
+                    <option key={item.id || index} value={item.id || ""}>
+                      {displayName(item, `Estabelecimento ${index + 1}`)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
-                  {contextReady ? (
-                    <Link
-                      href={item.href}
-                      className="mt-5 inline-flex rounded-[14px] bg-[linear-gradient(135deg,#0F7B83,#13A3A8)] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(19,163,168,0.24)] transition hover:-translate-y-[1px]"
-                    >
-                      Abrir etapa
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled
-                      className="mt-5 inline-flex cursor-not-allowed rounded-[14px] border border-[#DBE5F0] bg-[#F8FBFF] px-4 py-3 text-sm font-semibold text-[#60718A] opacity-70"
-                    >
-                      Defina o contexto primeiro
-                    </button>
-                  )}
+            {loadError ? (
+              <div className="mt-4 rounded-xl border border-red-500/40 bg-red-950/40 p-4 text-sm text-red-100">
+                {loadError}
+              </div>
+            ) : null}
+          </header>
+
+          <div className="mt-6 grid gap-6 xl:grid-cols-3">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+              <p className="text-sm text-slate-400">Empresa</p>
+              <h3 className="mt-2 text-xl font-semibold">
+                {company ? displayName(company, "Empresa cadastrada") : "Empresa nao carregada"}
+              </h3>
+              <p className="mt-2 text-sm text-slate-500">
+                Tenant: {context.tenantId || "nao resolvido"}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+              <p className="text-sm text-slate-400">Estabelecimento</p>
+              <h3 className="mt-2 text-xl font-semibold">
+                {selectedEstablishment ? displayName(selectedEstablishment, "Estabelecimento") : "Nao selecionado"}
+              </h3>
+              <p className="mt-2 text-sm text-slate-500">
+                ID: {activeEstablishmentId || "sem contexto"}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+              <p className="text-sm text-slate-400">Rascunho real</p>
+              <h3 className="mt-2 text-xl font-semibold">{statusLabel}</h3>
+              <p className="mt-2 text-sm text-slate-500">
+                record_id: null / entity_id: establishmentId
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-6 xl:grid-cols-2">
+            <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-xl font-semibold">Checklist do workspace</h3>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Cada alteracao e autosalva no draft-state.
+                  </p>
                 </div>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => void saveDraft(latestDraftRef.current, "manual_save")}
+                  className="rounded-xl bg-cyan-300 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-200"
+                >
+                  Salvar agora
+                </button>
+              </div>
+
+              <div className="mt-5 space-y-3">
+                {checklistItems.map(([key, label]) => (
+                  <label
+                    key={key}
+                    className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={Boolean(draft.checklist[key])}
+                      onChange={(event) => patchChecklist(key, event.target.checked)}
+                      className="h-4 w-4 rounded border-slate-700"
+                    />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
             </section>
-          </>
-        )}
+
+            <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+              <h3 className="text-xl font-semibold">Diagnostico em rascunho</h3>
+              <p className="mt-1 text-sm text-slate-400">
+                Enquanto nao houver rota especifica de diagnosis, o conteudo fica no draft-state do workspace.
+              </p>
+
+              <textarea
+                value={draft.diagnosticNotes}
+                onChange={(event) =>
+                  patchDraft({ diagnosticNotes: event.target.value }, "diagnostic_notes")
+                }
+                rows={10}
+                placeholder="Digite observacoes do diagnostico guiado, pendencias, riscos percebidos ou encaminhamentos."
+                className="mt-5 w-full rounded-xl border border-slate-700 bg-slate-950 p-4 text-sm text-slate-100 outline-none focus:border-cyan-300"
+              />
+            </section>
+          </div>
+
+          <div className="mt-6 grid gap-6 xl:grid-cols-2">
+            <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+              <h3 className="text-xl font-semibold">Setores do backend</h3>
+              <p className="mt-1 text-sm text-slate-400">
+                Fonte: /api/nr1/departments
+              </p>
+
+              <div className="mt-5 space-y-3">
+                {departments.length === 0 ? (
+                  <p className="rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-500">
+                    Nenhum setor retornado para este estabelecimento.
+                  </p>
+                ) : (
+                  departments.map((item, index) => (
+                    <div key={item.id || index} className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+                      <p className="font-medium">{displayName(item, `Setor ${index + 1}`)}</p>
+                      <p className="mt-1 text-xs text-slate-500">ID: {item.id || "sem id"}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+              <h3 className="text-xl font-semibold">Atividades do backend</h3>
+              <p className="mt-1 text-sm text-slate-400">
+                Fonte: /api/nr1/activities
+              </p>
+
+              <div className="mt-5 space-y-3">
+                {activities.length === 0 ? (
+                  <p className="rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-500">
+                    Nenhuma atividade retornada para este estabelecimento.
+                  </p>
+                ) : (
+                  activities.map((item, index) => (
+                    <div key={item.id || index} className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+                      <p className="font-medium">{displayName(item, `Atividade ${index + 1}`)}</p>
+                      <p className="mt-1 text-xs text-slate-500">ID: {item.id || "sem id"}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+          </div>
+
+          <section className="mt-6 rounded-2xl border border-slate-800 bg-slate-900 p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-semibold">Trilha real do workspace</h3>
+                <p className="mt-1 text-sm text-slate-400">
+                  Fonte: /api/nr1/audit-events
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void refreshAuditEvents()}
+                className="rounded-xl border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-100 hover:bg-slate-800"
+              >
+                Atualizar trilha
+              </button>
+            </div>
+
+            <div className="mt-5 space-y-3">
+              {auditEvents.length === 0 ? (
+                <p className="rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-500">
+                  Nenhum evento retornado ainda.
+                </p>
+              ) : (
+                auditEvents.map((event, index) => (
+                  <div key={event.id || index} className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                      <p className="font-medium">{event.event_type || "evento"}</p>
+                      <p className="text-xs text-slate-500">
+                        {event.created_at
+                          ? new Date(event.created_at).toLocaleString("pt-BR")
+                          : "sem data"}
+                      </p>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {event.persistence_type || "draft"} / {event.entity_type || ENTITY_TYPE}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        </section>
       </div>
     </main>
   );
 }
+
+
+
