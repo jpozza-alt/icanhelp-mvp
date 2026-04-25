@@ -114,6 +114,34 @@ type ActivityForm = {
   notes: string;
 };
 
+type DiagnosisContextForm = {
+  work_description: string;
+  exposed_people_count: string;
+  work_routine_type: string;
+  process_changes_frequency: string;
+  has_external_work: boolean;
+  has_multi_company_interaction: boolean;
+  incident_history: string;
+  notes: string;
+};
+
+type PsychosocialForm = {
+  has_work_overload: boolean;
+  has_excessive_pressure: boolean;
+  has_role_ambiguity: boolean;
+  has_low_autonomy: boolean;
+  has_leadership_support_failure: boolean;
+  has_peer_conflict: boolean;
+  has_hostile_public_contact: boolean;
+  has_constant_interruptions: boolean;
+  has_task_accumulation: boolean;
+  has_communication_difficulty: boolean;
+  has_remote_isolation: boolean;
+  has_badly_managed_change: boolean;
+  has_report_channel: boolean;
+  notes: string;
+};
+
 const SCREEN_KEY = "nr1_workspace";
 const RECORD_TYPE = "workspace_shell";
 const ENTITY_TYPE = "workspace_shell";
@@ -190,6 +218,34 @@ const INITIAL_ACTIVITY_FORM: ActivityForm = {
   notes: "",
 };
 
+const INITIAL_DIAGNOSIS_CONTEXT_FORM: DiagnosisContextForm = {
+  work_description: "",
+  exposed_people_count: "",
+  work_routine_type: "",
+  process_changes_frequency: "",
+  has_external_work: false,
+  has_multi_company_interaction: false,
+  incident_history: "",
+  notes: "",
+};
+
+const INITIAL_PSYCHOSOCIAL_FORM: PsychosocialForm = {
+  has_work_overload: false,
+  has_excessive_pressure: false,
+  has_role_ambiguity: false,
+  has_low_autonomy: false,
+  has_leadership_support_failure: false,
+  has_peer_conflict: false,
+  has_hostile_public_contact: false,
+  has_constant_interruptions: false,
+  has_task_accumulation: false,
+  has_communication_difficulty: false,
+  has_remote_isolation: false,
+  has_badly_managed_change: false,
+  has_report_channel: false,
+  notes: "",
+};
+
 function isRecord(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -232,6 +288,12 @@ function numberOrNull(value: string): number | null {
   if (Number.isNaN(parsed)) return null;
 
   return parsed;
+}
+
+function isoDatePlusDays(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
 }
 
 function buildUrl(path: string, params: Record<string, string | null | undefined>): string {
@@ -415,6 +477,14 @@ export default function Nr1WorkspacePage() {
   const [establishmentForm, setEstablishmentForm] = useState<EstablishmentForm>(INITIAL_ESTABLISHMENT_FORM);
   const [departmentForm, setDepartmentForm] = useState<DepartmentForm>(INITIAL_DEPARTMENT_FORM);
   const [activityForm, setActivityForm] = useState<ActivityForm>(INITIAL_ACTIVITY_FORM);
+  const [diagnosisActivityId, setDiagnosisActivityId] = useState<string>("");
+  const [diagnosisSessionId, setDiagnosisSessionId] = useState<string>("");
+  const [diagnosisRiskId, setDiagnosisRiskId] = useState<string>("");
+  const [diagnosisStatus, setDiagnosisStatus] = useState<FormStatus>("idle");
+  const [diagnosisError, setDiagnosisError] = useState<string | null>(null);
+  const [diagnosisSuccess, setDiagnosisSuccess] = useState<string | null>(null);
+  const [diagnosisContextForm, setDiagnosisContextForm] = useState<DiagnosisContextForm>(INITIAL_DIAGNOSIS_CONTEXT_FORM);
+  const [psychosocialForm, setPsychosocialForm] = useState<PsychosocialForm>(INITIAL_PSYCHOSOCIAL_FORM);
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestDraftRef = useRef<WorkspaceDraftPayload>(DEFAULT_DRAFT);
@@ -1085,6 +1155,267 @@ export default function Nr1WorkspacePage() {
     }
   }
 
+  async function handleStartDiagnosisSession(): Promise<void> {
+    setDiagnosisStatus("saving");
+    setDiagnosisError(null);
+    setDiagnosisSuccess(null);
+
+    const currentContext = contextRef.current;
+    const activityId = diagnosisActivityId || firstString(activities[0], ["id"]) || "";
+    const selectedActivity = activities.find((item) => item.id === activityId) || activities[0] || null;
+    const departmentId = firstString(selectedActivity, ["department_id"]) || firstString(departments[0], ["id"]) || "";
+
+    if (!currentContext.tenantId || !currentContext.establishmentId) {
+      setDiagnosisStatus("error");
+      setDiagnosisError("Selecione um estabelecimento antes.");
+      return;
+    }
+
+    if (!departmentId || !activityId) {
+      setDiagnosisStatus("error");
+      setDiagnosisError("Cadastre e selecione uma atividade vinculada a um setor.");
+      return;
+    }
+
+    try {
+      const path = buildUrl("/api/nr1/diagnosis-sessions", {
+        tenantId: currentContext.tenantId,
+      });
+
+      const response = await fetchJson(
+        path,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            establishment_id: currentContext.establishmentId,
+            department_id: departmentId,
+            activity_id: activityId,
+            current_stage: "psychosocial",
+            status: "open",
+          }),
+        },
+        currentContext
+      );
+
+      const sessionId = firstString(extractFirstEntity(response), ["id"]);
+
+      if (!sessionId) {
+        throw new Error("A rota nao retornou o id da sessao de diagnostico.");
+      }
+
+      setDiagnosisActivityId(activityId);
+      setDiagnosisSessionId(sessionId);
+      patchChecklist("diagnosis_started", true);
+
+      await recordAuditEvent("diagnosis_session_started_from_workspace", {
+        diagnosis_session_id: sessionId,
+        establishment_id: currentContext.establishmentId,
+        department_id: departmentId,
+        activity_id: activityId,
+      }, "formal");
+
+      await refreshAuditEvents();
+
+      setDiagnosisSuccess("Sessao de diagnostico iniciada.");
+      setDiagnosisStatus("saved");
+    } catch (error) {
+      setDiagnosisStatus("error");
+      setDiagnosisError(error instanceof Error ? error.message : "Erro ao iniciar diagnostico.");
+    }
+  }
+
+  async function handleSaveDiagnosisContext(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setDiagnosisStatus("saving");
+    setDiagnosisError(null);
+    setDiagnosisSuccess(null);
+
+    const currentContext = contextRef.current;
+
+    if (!currentContext.tenantId || !currentContext.establishmentId || !diagnosisSessionId) {
+      setDiagnosisStatus("error");
+      setDiagnosisError("Inicie uma sessao de diagnostico antes.");
+      return;
+    }
+
+    try {
+      const path = buildUrl("/api/nr1/diagnosis-context", {
+        tenantId: currentContext.tenantId,
+      });
+
+      await fetchJson(
+        path,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            establishment_id: currentContext.establishmentId,
+            diagnosis_session_id: diagnosisSessionId,
+            work_description: diagnosisContextForm.work_description,
+            exposed_people_count: numberOrNull(diagnosisContextForm.exposed_people_count),
+            work_routine_type: diagnosisContextForm.work_routine_type,
+            process_changes_frequency: diagnosisContextForm.process_changes_frequency,
+            has_external_work: diagnosisContextForm.has_external_work,
+            has_multi_company_interaction: diagnosisContextForm.has_multi_company_interaction,
+            incident_history: diagnosisContextForm.incident_history,
+            notes: diagnosisContextForm.notes,
+          }),
+        },
+        currentContext
+      );
+
+      await recordAuditEvent("diagnosis_context_saved_from_workspace", {
+        diagnosis_session_id: diagnosisSessionId,
+      }, "formal");
+
+      await refreshAuditEvents();
+
+      setDiagnosisSuccess("Contexto do trabalho salvo.");
+      setDiagnosisStatus("saved");
+    } catch (error) {
+      setDiagnosisStatus("error");
+      setDiagnosisError(error instanceof Error ? error.message : "Erro ao salvar contexto.");
+    }
+  }
+
+  async function handleSavePsychosocialDiagnosis(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setDiagnosisStatus("saving");
+    setDiagnosisError(null);
+    setDiagnosisSuccess(null);
+
+    const currentContext = contextRef.current;
+
+    if (!currentContext.tenantId || !currentContext.establishmentId || !diagnosisSessionId) {
+      setDiagnosisStatus("error");
+      setDiagnosisError("Inicie uma sessao de diagnostico antes.");
+      return;
+    }
+
+    try {
+      const path = buildUrl("/api/nr1/diagnosis-psychosocial", {
+        tenantId: currentContext.tenantId,
+      });
+
+      await fetchJson(
+        path,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            establishment_id: currentContext.establishmentId,
+            diagnosis_session_id: diagnosisSessionId,
+            has_work_overload: psychosocialForm.has_work_overload,
+            has_excessive_pressure: psychosocialForm.has_excessive_pressure,
+            has_role_ambiguity: psychosocialForm.has_role_ambiguity,
+            has_low_autonomy: psychosocialForm.has_low_autonomy,
+            has_leadership_support_failure: psychosocialForm.has_leadership_support_failure,
+            has_peer_conflict: psychosocialForm.has_peer_conflict,
+            has_hostile_public_contact: psychosocialForm.has_hostile_public_contact,
+            has_constant_interruptions: psychosocialForm.has_constant_interruptions,
+            has_task_accumulation: psychosocialForm.has_task_accumulation,
+            has_communication_difficulty: psychosocialForm.has_communication_difficulty,
+            has_remote_isolation: psychosocialForm.has_remote_isolation,
+            has_badly_managed_change: psychosocialForm.has_badly_managed_change,
+            has_report_channel: psychosocialForm.has_report_channel,
+            notes: psychosocialForm.notes,
+          }),
+        },
+        currentContext
+      );
+
+      await recordAuditEvent("diagnosis_psychosocial_saved_from_workspace", {
+        diagnosis_session_id: diagnosisSessionId,
+      }, "formal");
+
+      await refreshAuditEvents();
+
+      setDiagnosisSuccess("Diagnostico psicossocial salvo.");
+      setDiagnosisStatus("saved");
+    } catch (error) {
+      setDiagnosisStatus("error");
+      setDiagnosisError(error instanceof Error ? error.message : "Erro ao salvar diagnostico psicossocial.");
+    }
+  }
+
+  async function handleCreatePsychosocialRisk(): Promise<void> {
+    setDiagnosisStatus("saving");
+    setDiagnosisError(null);
+    setDiagnosisSuccess(null);
+
+    const currentContext = contextRef.current;
+    const activityId = diagnosisActivityId || firstString(activities[0], ["id"]) || "";
+    const selectedActivity = activities.find((item) => item.id === activityId) || activities[0] || null;
+    const departmentId = firstString(selectedActivity, ["department_id"]) || firstString(departments[0], ["id"]) || "";
+
+    if (!currentContext.tenantId || !currentContext.establishmentId || !diagnosisSessionId) {
+      setDiagnosisStatus("error");
+      setDiagnosisError("Inicie uma sessao de diagnostico antes.");
+      return;
+    }
+
+    if (!departmentId || !activityId) {
+      setDiagnosisStatus("error");
+      setDiagnosisError("Atividade ou setor nao resolvido.");
+      return;
+    }
+
+    try {
+      const path = buildUrl("/api/nr1/risks", {
+        tenantId: currentContext.tenantId,
+      });
+
+      const response = await fetchJson(
+        path,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            establishment_id: currentContext.establishmentId,
+            department_id: departmentId,
+            activity_id: activityId,
+            diagnosis_session_id: diagnosisSessionId,
+            title: "Risco psicossocial identificado no diagnostico",
+            risk_category: "psychosocial",
+            hazard_description: "Indicadores psicossociais sinalizados no diagnostico guiado.",
+            source_circumstance: "Diagnostico guiado psicossocial",
+            exposed_group: "Trabalhadores da atividade analisada",
+            possible_harms: "Estresse ocupacional, fadiga, sofrimento psiquico e reducao de desempenho.",
+            existing_controls: "Controles ainda nao formalizados no sistema.",
+            exposure_characterization: "Exposicao relacionada a organizacao do trabalho e interacoes da rotina.",
+            severity_level: "medium",
+            probability_level: "medium",
+            risk_level: "medium",
+            classification: "priorizar monitoramento",
+            recommended_measure: "Revisar carga de trabalho, apoio da lideranca, canais de comunicacao e medidas preventivas.",
+            suggested_responsible: "Gestao da empresa",
+            suggested_deadline: isoDatePlusDays(30),
+            status: "identified",
+          }),
+        },
+        currentContext
+      );
+
+      const riskId = firstString(extractFirstEntity(response), ["id"]);
+
+      if (!riskId) {
+        throw new Error("A rota nao retornou o id do risco.");
+      }
+
+      setDiagnosisRiskId(riskId);
+
+      await recordAuditEvent("psychosocial_risk_created_from_workspace", {
+        diagnosis_session_id: diagnosisSessionId,
+        risk_id: riskId,
+        activity_id: activityId,
+      }, "formal");
+
+      await refreshAuditEvents();
+
+      setDiagnosisSuccess("Risco psicossocial gerado no inventario.");
+      setDiagnosisStatus("saved");
+    } catch (error) {
+      setDiagnosisStatus("error");
+      setDiagnosisError(error instanceof Error ? error.message : "Erro ao gerar risco psicossocial.");
+    }
+  }
   useEffect(() => {
     let cancelled = false;
 
@@ -1616,18 +1947,217 @@ export default function Nr1WorkspacePage() {
           ) : null}
 
           {draft.activeSection === "diagnostico" ? (
-            <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="text-xl font-semibold">Diagnostico em rascunho</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Esta area ainda e rascunho. A proxima frente sera transformar isto em diagnostico guiado Pasini/NR1.
-              </p>
-              <textarea
-                value={draft.diagnosticNotes}
-                onChange={(event) => patchDraft({ diagnosticNotes: event.target.value }, "diagnostic_notes")}
-                rows={10}
-                placeholder="Registre observacoes, pendencias, riscos percebidos e encaminhamentos."
-                className="mt-5 w-full rounded-2xl border border-slate-300 p-4 text-sm"
-              />
+            <section className="space-y-6">
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold">Diagnostico Guiado NR1/Pasini</h2>
+                    <p className="mt-1 max-w-3xl text-sm text-slate-500">
+                      Fluxo real: atividade cadastrada, sessao de diagnostico, contexto do trabalho, sinais psicossociais e risco gerado no inventario.
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                    <p className="font-medium">Status do diagnostico</p>
+                    <p className="mt-1 text-slate-600">{diagnosisStatus}</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {diagnosisSessionId ? `Sessao: ${diagnosisSessionId}` : "Sessao ainda nao iniciada"}
+                    </p>
+                  </div>
+                </div>
+
+                {diagnosisError ? (
+                  <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                    {diagnosisError}
+                  </div>
+                ) : null}
+
+                {diagnosisSuccess ? (
+                  <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                    {diagnosisSuccess}
+                  </div>
+                ) : null}
+
+                <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700">Atividade analisada</label>
+                    <select
+                      value={diagnosisActivityId || firstString(activities[0], ["id"]) || ""}
+                      onChange={(event) => setDiagnosisActivityId(event.target.value)}
+                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                    >
+                      <option value="">Selecione uma atividade</option>
+                      {activities.map((item, index) => (
+                        <option key={item.id || index} value={item.id || ""}>
+                          {displayName(item, `Atividade ${index + 1}`)}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-2 text-xs text-slate-500">
+                      A sessao exige estabelecimento, setor e atividade reais.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => void handleStartDiagnosisSession()}
+                    disabled={diagnosisStatus === "saving"}
+                    className="rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:opacity-60"
+                  >
+                    Iniciar diagnostico
+                  </button>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveDiagnosisContext} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h3 className="text-lg font-semibold">1. Contexto do trabalho</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Registra a rotina real antes da avaliacao psicossocial.
+                </p>
+
+                <div className="mt-5 grid gap-3">
+                  <textarea
+                    value={diagnosisContextForm.work_description}
+                    onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, work_description: event.target.value }))}
+                    rows={4}
+                    placeholder="Descreva a rotina, demandas, picos, interacoes e pressao operacional."
+                    className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  />
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <input
+                      value={diagnosisContextForm.exposed_people_count}
+                      onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, exposed_people_count: event.target.value }))}
+                      placeholder="Pessoas expostas"
+                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    />
+                    <input
+                      value={diagnosisContextForm.work_routine_type}
+                      onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, work_routine_type: event.target.value }))}
+                      placeholder="Tipo de rotina"
+                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    />
+                    <input
+                      value={diagnosisContextForm.process_changes_frequency}
+                      onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, process_changes_frequency: event.target.value }))}
+                      placeholder="Frequencia de mudancas"
+                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <textarea
+                    value={diagnosisContextForm.incident_history}
+                    onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, incident_history: event.target.value }))}
+                    rows={3}
+                    placeholder="Historico de incidentes, queixas, afastamentos ou sinais observados."
+                    className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  />
+                  <textarea
+                    value={diagnosisContextForm.notes}
+                    onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, notes: event.target.value }))}
+                    rows={3}
+                    placeholder="Observacoes complementares."
+                    className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  />
+                  <div className="grid gap-2 text-sm text-slate-700 md:grid-cols-2">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={diagnosisContextForm.has_external_work}
+                        onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, has_external_work: event.target.checked }))}
+                      />
+                      <span>Ha trabalho externo</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={diagnosisContextForm.has_multi_company_interaction}
+                        onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, has_multi_company_interaction: event.target.checked }))}
+                      />
+                      <span>Ha interacao com outras empresas</span>
+                    </label>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={diagnosisStatus === "saving" || !diagnosisSessionId}
+                  className="mt-5 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+                >
+                  Salvar contexto
+                </button>
+              </form>
+
+              <form onSubmit={handleSavePsychosocialDiagnosis} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h3 className="text-lg font-semibold">2. Sinais psicossociais</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Marque os fatores observados. O objetivo e registrar indicios para tratamento tecnico posterior.
+                </p>
+
+                <div className="mt-5 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
+                  {[
+                    ["has_work_overload", "Sobrecarga de trabalho"],
+                    ["has_excessive_pressure", "Pressao excessiva"],
+                    ["has_role_ambiguity", "Ambiguidade de papel"],
+                    ["has_low_autonomy", "Baixa autonomia"],
+                    ["has_leadership_support_failure", "Falha de apoio da lideranca"],
+                    ["has_peer_conflict", "Conflito entre pares"],
+                    ["has_hostile_public_contact", "Contato hostil com publico"],
+                    ["has_constant_interruptions", "Interrupcoes constantes"],
+                    ["has_task_accumulation", "Acumulo de tarefas"],
+                    ["has_communication_difficulty", "Dificuldade de comunicacao"],
+                    ["has_remote_isolation", "Isolamento no trabalho remoto"],
+                    ["has_badly_managed_change", "Mudanca mal gerida"],
+                    ["has_report_channel", "Existe canal de relato"],
+                  ].map(([key, label]) => (
+                    <label key={key} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(psychosocialForm[key as keyof PsychosocialForm])}
+                        onChange={(event) => setPsychosocialForm((prev) => ({ ...prev, [key]: event.target.checked }))}
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                </div>
+
+                <textarea
+                  value={psychosocialForm.notes}
+                  onChange={(event) => setPsychosocialForm((prev) => ({ ...prev, notes: event.target.value }))}
+                  rows={4}
+                  placeholder="Comentarios tecnicos sobre os sinais psicossociais."
+                  className="mt-5 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                />
+
+                <button
+                  type="submit"
+                  disabled={diagnosisStatus === "saving" || !diagnosisSessionId}
+                  className="mt-5 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+                >
+                  Salvar psicossocial
+                </button>
+              </form>
+
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h3 className="text-lg font-semibold">3. Encaminhar para inventario de riscos</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Cria um risco psicossocial vinculado a atividade, setor, estabelecimento e sessao de diagnostico.
+                </p>
+
+                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  A data sugerida sera gravada em formato ISO, conforme contrato real da rota de riscos.
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => void handleCreatePsychosocialRisk()}
+                  disabled={diagnosisStatus === "saving" || !diagnosisSessionId}
+                  className="mt-5 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
+                >
+                  Gerar risco psicossocial
+                </button>
+
+                {diagnosisRiskId ? (
+                  <p className="mt-3 text-sm text-slate-600">Risco criado: {diagnosisRiskId}</p>
+                ) : null}
+              </div>
             </section>
           ) : null}
 
@@ -1725,3 +2255,4 @@ export default function Nr1WorkspacePage() {
     </main>
   );
 }
+
