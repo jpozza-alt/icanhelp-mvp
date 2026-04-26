@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -326,6 +327,16 @@ function isoDatePlusDays(days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+const supabaseBrowserClient = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || ""
+);
+
+async function getBrowserAccessToken(): Promise<string | null> {
+  const result = await supabaseBrowserClient.auth.getSession();
+  return result.data.session?.access_token || null;
+}
+
 function buildUrl(path: string, params: Record<string, string | null | undefined>): string {
   const search = new URLSearchParams();
 
@@ -439,6 +450,12 @@ async function fetchJson<T = unknown>(
 
   if (options.body && !headers.has("content-type")) {
     headers.set("content-type", "application/json");
+  }
+
+  const accessToken = await getBrowserAccessToken();
+
+  if (accessToken) {
+    headers.set("Authorization", "Bearer " + accessToken);
   }
 
   if (context.tenantId) {
