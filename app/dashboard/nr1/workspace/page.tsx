@@ -142,6 +142,21 @@ type PsychosocialForm = {
   notes: string;
 };
 
+type ActionPlanForm = {
+  risk_id: string;
+  title: string;
+  description: string;
+  measure_type: string;
+  priority: string;
+  status: string;
+  due_date: string;
+  responsible_name: string;
+  monitoring_method: string;
+  evidence_method: string;
+  completion_indicator: string;
+  notes: string;
+};
+
 const SCREEN_KEY = "nr1_workspace";
 const RECORD_TYPE = "workspace_shell";
 const ENTITY_TYPE = "workspace_shell";
@@ -243,6 +258,21 @@ const INITIAL_PSYCHOSOCIAL_FORM: PsychosocialForm = {
   has_remote_isolation: false,
   has_badly_managed_change: false,
   has_report_channel: false,
+  notes: "",
+};
+
+const INITIAL_ACTION_PLAN_FORM: ActionPlanForm = {
+  risk_id: "",
+  title: "",
+  description: "",
+  measure_type: "organizational",
+  priority: "medium",
+  status: "open",
+  due_date: isoDatePlusDays(30),
+  responsible_name: "",
+  monitoring_method: "",
+  evidence_method: "",
+  completion_indicator: "",
   notes: "",
 };
 
@@ -485,6 +515,13 @@ export default function Nr1WorkspacePage() {
   const [diagnosisSuccess, setDiagnosisSuccess] = useState<string | null>(null);
   const [diagnosisContextForm, setDiagnosisContextForm] = useState<DiagnosisContextForm>(INITIAL_DIAGNOSIS_CONTEXT_FORM);
   const [psychosocialForm, setPsychosocialForm] = useState<PsychosocialForm>(INITIAL_PSYCHOSOCIAL_FORM);
+  const [risks, setRisks] = useState<SimpleEntity[]>([]);
+  const [actionPlans, setActionPlans] = useState<SimpleEntity[]>([]);
+  const [selectedRiskId, setSelectedRiskId] = useState<string>("");
+  const [actionPlanForm, setActionPlanForm] = useState<ActionPlanForm>(INITIAL_ACTION_PLAN_FORM);
+  const [actionPlanStatus, setActionPlanStatus] = useState<FormStatus>("idle");
+  const [actionPlanError, setActionPlanError] = useState<string | null>(null);
+  const [actionPlanSuccess, setActionPlanSuccess] = useState<string | null>(null);
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestDraftRef = useRef<WorkspaceDraftPayload>(DEFAULT_DRAFT);
@@ -512,6 +549,10 @@ export default function Nr1WorkspacePage() {
   const selectedEstablishment = useMemo(() => {
     return establishments.find((item) => item.id === context.establishmentId) || null;
   }, [context.establishmentId, establishments]);
+
+  const selectedRisk = useMemo(() => {
+    return risks.find((item) => item.id === selectedRiskId) || null;
+  }, [risks, selectedRiskId]);
 
   const statusLabel = useMemo(() => {
     if (saveStatus === "loading") return "Carregando dados reais";
@@ -1416,6 +1457,152 @@ export default function Nr1WorkspacePage() {
       setDiagnosisError(error instanceof Error ? error.message : "Erro ao gerar risco psicossocial.");
     }
   }
+  const loadRisks = useCallback(async (nextContext: BackendContext): Promise<SimpleEntity[]> => {
+    if (!nextContext.tenantId || !nextContext.establishmentId) return [];
+
+    const path = buildUrl("/api/nr1/risks", {
+      tenantId: nextContext.tenantId,
+      establishmentId: nextContext.establishmentId,
+    });
+
+    const payload = await fetchJson(path, {}, nextContext);
+    return extractArray<SimpleEntity>(payload, ["items", "risks", "data"]);
+  }, []);
+
+  const loadActionPlans = useCallback(
+    async (nextContext: BackendContext, riskId?: string): Promise<SimpleEntity[]> => {
+      if (!nextContext.tenantId || !nextContext.establishmentId) return [];
+
+      const path = buildUrl("/api/nr1/action-plans", {
+        tenantId: nextContext.tenantId,
+        establishmentId: nextContext.establishmentId,
+        riskId: riskId || undefined,
+      });
+
+      const payload = await fetchJson(path, {}, nextContext);
+      return extractArray<SimpleEntity>(payload, ["items", "action_plans", "plans", "data"]);
+    },
+    []
+  );
+
+  const refreshRiskActionData = useCallback(
+    async (riskId?: string): Promise<void> => {
+      const currentContext = contextRef.current;
+
+      if (!currentContext.tenantId || !currentContext.establishmentId) return;
+
+      try {
+        const loadedRisks = await loadRisks(currentContext);
+        const effectiveRiskId = riskId || selectedRiskId || firstString(loadedRisks[0], ["id"]) || "";
+        const loadedActionPlans = await loadActionPlans(currentContext, effectiveRiskId || undefined);
+
+        setRisks(loadedRisks);
+        setActionPlans(loadedActionPlans);
+
+        if (effectiveRiskId) {
+          setSelectedRiskId(effectiveRiskId);
+          setActionPlanForm((prev) => ({
+            ...prev,
+            risk_id: prev.risk_id || effectiveRiskId,
+          }));
+        }
+      } catch (error) {
+        setActionPlanError(error instanceof Error ? error.message : "Erro ao carregar riscos e planos.");
+      }
+    },
+    [loadActionPlans, loadRisks, selectedRiskId]
+  );
+
+  async function handleCreateActionPlan(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setActionPlanStatus("saving");
+    setActionPlanError(null);
+    setActionPlanSuccess(null);
+
+    const currentContext = contextRef.current;
+    const riskId = actionPlanForm.risk_id || selectedRiskId || firstString(risks[0], ["id"]) || "";
+
+    if (!currentContext.tenantId || !currentContext.establishmentId) {
+      setActionPlanStatus("error");
+      setActionPlanError("Selecione um estabelecimento antes.");
+      return;
+    }
+
+    if (!riskId) {
+      setActionPlanStatus("error");
+      setActionPlanError("Selecione um risco antes de criar o plano de acao.");
+      return;
+    }
+
+    if (actionPlanForm.title.trim().length < 3) {
+      setActionPlanStatus("error");
+      setActionPlanError("Informe um titulo com pelo menos 3 caracteres.");
+      return;
+    }
+
+    try {
+      const path = buildUrl("/api/nr1/action-plans", {
+        tenantId: currentContext.tenantId,
+      });
+
+      const response = await fetchJson(
+        path,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            establishment_id: currentContext.establishmentId,
+            risk_id: riskId,
+            title: actionPlanForm.title,
+            description: actionPlanForm.description,
+            measure_type: actionPlanForm.measure_type,
+            priority: actionPlanForm.priority,
+            status: actionPlanForm.status || "open",
+            due_date: actionPlanForm.due_date || isoDatePlusDays(30),
+            responsible_name: actionPlanForm.responsible_name,
+            responsible_user_id: null,
+            monitoring_method: actionPlanForm.monitoring_method,
+            evidence_method: actionPlanForm.evidence_method,
+            completion_indicator: actionPlanForm.completion_indicator,
+            notes: actionPlanForm.notes,
+          }),
+        },
+        currentContext
+      );
+
+      const createdPlanId = firstString(extractFirstEntity(response), ["id"]);
+
+      await recordAuditEvent(
+        "action_plan_created_from_workspace",
+        {
+          action_plan_id: createdPlanId,
+          risk_id: riskId,
+          establishment_id: currentContext.establishmentId,
+          due_date: actionPlanForm.due_date || isoDatePlusDays(30),
+        },
+        "formal"
+      );
+
+      await refreshRiskActionData(riskId);
+      await refreshAuditEvents();
+
+      setActionPlanForm({
+        ...INITIAL_ACTION_PLAN_FORM,
+        risk_id: riskId,
+        due_date: isoDatePlusDays(30),
+      });
+      setActionPlanSuccess("Plano de acao criado e vinculado ao risco.");
+      setActionPlanStatus("saved");
+    } catch (error) {
+      setActionPlanStatus("error");
+      setActionPlanError(error instanceof Error ? error.message : "Erro ao criar plano de acao.");
+    }
+  }
+
+  useEffect(() => {
+    if (context.tenantId && context.establishmentId) {
+      void refreshRiskActionData(selectedRiskId);
+    }
+  }, [context.tenantId, context.establishmentId]);
   useEffect(() => {
     let cancelled = false;
 
@@ -1558,6 +1745,7 @@ export default function Nr1WorkspacePage() {
             {[
               ["cadastros", "Cadastros"],
               ["diagnostico", "Diagnostico"],
+              ["riscos", "Riscos e planos"],
               ["auditoria", "Trilha"],
             ].map(([key, label]) => (
               <button
@@ -2161,6 +2349,250 @@ export default function Nr1WorkspacePage() {
             </section>
           ) : null}
 
+          {draft.activeSection === "riscos" ? (
+            <section className="space-y-6">
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <h2 className="text-xl font-semibold">Inventario de riscos e plano de acao</h2>
+                    <p className="mt-1 max-w-3xl text-sm text-slate-500">
+                      Liste riscos do estabelecimento, selecione um risco psicossocial e crie um plano de acao vinculado ao risk_id.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void refreshRiskActionData(selectedRiskId)}
+                    className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+                  >
+                    Atualizar riscos
+                  </button>
+                </div>
+
+                {actionPlanError ? (
+                  <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                    {actionPlanError}
+                  </div>
+                ) : null}
+
+                {actionPlanSuccess ? (
+                  <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                    {actionPlanSuccess}
+                  </div>
+                ) : null}
+
+                <div className="mt-5 grid gap-4 md:grid-cols-3">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm text-slate-500">Riscos encontrados</p>
+                    <p className="mt-2 text-3xl font-semibold">{risks.length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm text-slate-500">Planos do risco selecionado</p>
+                    <p className="mt-2 text-3xl font-semibold">{actionPlans.length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm text-slate-500">Status</p>
+                    <p className="mt-2 text-lg font-semibold">{actionPlanStatus}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+                <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <h3 className="text-lg font-semibold">1. Selecionar risco</h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    O plano de acao sempre precisa nascer vinculado a um risco.
+                  </p>
+
+                  <select
+                    value={selectedRiskId || firstString(risks[0], ["id"]) || ""}
+                    onChange={(event) => {
+                      setSelectedRiskId(event.target.value);
+                      setActionPlanForm((prev) => ({ ...prev, risk_id: event.target.value }));
+                      void refreshRiskActionData(event.target.value);
+                    }}
+                    className="mt-5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="">Selecione um risco</option>
+                    {risks.map((item, index) => (
+                      <option key={item.id || index} value={item.id || ""}>
+                        {firstString(item, ["title", "hazard_description", "risk_category"]) || `Risco ${index + 1}`}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="mt-5 space-y-3">
+                    {risks.length === 0 ? (
+                      <p className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                        Nenhum risco retornado para este estabelecimento.
+                      </p>
+                    ) : (
+                      risks.map((item, index) => (
+                        <button
+                          key={item.id || index}
+                          type="button"
+                          onClick={() => {
+                            const riskId = item.id || "";
+                            setSelectedRiskId(riskId);
+                            setActionPlanForm((prev) => ({ ...prev, risk_id: riskId }));
+                            void refreshRiskActionData(riskId);
+                          }}
+                          className={`w-full rounded-2xl border p-4 text-left text-sm transition ${
+                            selectedRiskId === item.id
+                              ? "border-cyan-300 bg-cyan-50"
+                              : "border-slate-200 bg-slate-50 hover:bg-slate-100"
+                          }`}
+                        >
+                          <p className="font-medium">
+                            {firstString(item, ["title", "hazard_description"]) || `Risco ${index + 1}`}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Categoria: {firstString(item, ["risk_category"]) || "nao informada"} / Nivel: {firstString(item, ["risk_level"]) || "nao informado"}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            ID: {item.id || "sem id"}
+                          </p>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <form onSubmit={handleCreateActionPlan} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <h3 className="text-lg font-semibold">2. Criar plano de acao</h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Contrato real: establishment_id, risk_id e title sao obrigatorios.
+                  </p>
+
+                  <div className="mt-5 grid gap-3">
+                    <input
+                      value={actionPlanForm.title}
+                      onChange={(event) => setActionPlanForm((prev) => ({ ...prev, title: event.target.value }))}
+                      placeholder="Titulo do plano de acao"
+                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    />
+
+                    <textarea
+                      value={actionPlanForm.description}
+                      onChange={(event) => setActionPlanForm((prev) => ({ ...prev, description: event.target.value }))}
+                      placeholder="Descricao da medida a ser adotada"
+                      rows={4}
+                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    />
+
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <input
+                        value={actionPlanForm.measure_type}
+                        onChange={(event) => setActionPlanForm((prev) => ({ ...prev, measure_type: event.target.value }))}
+                        placeholder="Tipo da medida"
+                        className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                      />
+                      <input
+                        value={actionPlanForm.priority}
+                        onChange={(event) => setActionPlanForm((prev) => ({ ...prev, priority: event.target.value }))}
+                        placeholder="Prioridade"
+                        className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                      />
+                      <input
+                        value={actionPlanForm.status}
+                        onChange={(event) => setActionPlanForm((prev) => ({ ...prev, status: event.target.value }))}
+                        placeholder="Status"
+                        className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                      />
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <input
+                        type="date"
+                        value={actionPlanForm.due_date}
+                        onChange={(event) => setActionPlanForm((prev) => ({ ...prev, due_date: event.target.value }))}
+                        className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                      />
+                      <input
+                        value={actionPlanForm.responsible_name}
+                        onChange={(event) => setActionPlanForm((prev) => ({ ...prev, responsible_name: event.target.value }))}
+                        placeholder="Responsavel"
+                        className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                      />
+                    </div>
+
+                    <textarea
+                      value={actionPlanForm.monitoring_method}
+                      onChange={(event) => setActionPlanForm((prev) => ({ ...prev, monitoring_method: event.target.value }))}
+                      placeholder="Como sera monitorado"
+                      rows={3}
+                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    />
+
+                    <textarea
+                      value={actionPlanForm.evidence_method}
+                      onChange={(event) => setActionPlanForm((prev) => ({ ...prev, evidence_method: event.target.value }))}
+                      placeholder="Qual evidencia comprovara a acao"
+                      rows={3}
+                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    />
+
+                    <textarea
+                      value={actionPlanForm.completion_indicator}
+                      onChange={(event) => setActionPlanForm((prev) => ({ ...prev, completion_indicator: event.target.value }))}
+                      placeholder="Indicador de conclusao"
+                      rows={3}
+                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    />
+
+                    <textarea
+                      value={actionPlanForm.notes}
+                      onChange={(event) => setActionPlanForm((prev) => ({ ...prev, notes: event.target.value }))}
+                      placeholder="Observacoes"
+                      rows={3}
+                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={actionPlanStatus === "saving"}
+                    className="mt-5 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
+                  >
+                    Criar plano vinculado ao risco
+                  </button>
+                </form>
+              </div>
+
+              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h3 className="text-lg font-semibold">Planos do risco selecionado</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                  Lista retornada por /api/nr1/action-plans filtrada por riskId.
+                </p>
+
+                <div className="mt-5 space-y-3">
+                  {actionPlans.length === 0 ? (
+                    <p className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                      Nenhum plano de acao retornado para o risco selecionado.
+                    </p>
+                  ) : (
+                    actionPlans.map((item, index) => (
+                      <div key={item.id || index} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                        <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <p className="font-medium">{firstString(item, ["title", "description"]) || `Plano ${index + 1}`}</p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              Responsavel: {firstString(item, ["responsible_name"]) || "nao informado"}
+                            </p>
+                          </div>
+                          <p className="text-xs text-slate-500">
+                            Prazo: {firstString(item, ["due_date"]) || "sem prazo"}
+                          </p>
+                        </div>
+                        <p className="mt-2 text-xs text-slate-500">
+                          Status: {firstString(item, ["status"]) || "nao informado"} / Prioridade: {firstString(item, ["priority"]) || "nao informada"}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </section>
+          ) : null}
           {draft.activeSection === "auditoria" ? (
             <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between gap-4">
@@ -2255,4 +2687,5 @@ export default function Nr1WorkspacePage() {
     </main>
   );
 }
+
 
