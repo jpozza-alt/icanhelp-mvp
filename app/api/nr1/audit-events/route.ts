@@ -6,6 +6,7 @@ import {
 import {
   createNr1AdminClient,
   resolveNr1Scope,
+  Nr1ScopeError,
 } from "@/lib/server/nr1-scope"
 
 type AuditEventsBody = {
@@ -182,6 +183,16 @@ export async function GET(req: NextRequest) {
       },
     })
   } catch (error) {
+    if (error instanceof Nr1ScopeError) {
+      return jsonResponse(
+        {
+          error: error.code,
+          message: error.message,
+        },
+        error.status,
+      )
+    }
+
     const message = error instanceof Error ? error.message : "Unexpected nr1 audit-events GET error"
     return jsonResponse(
       {
@@ -332,6 +343,16 @@ export async function POST(req: NextRequest) {
       201,
     )
   } catch (error) {
+    if (error instanceof Nr1ScopeError) {
+      return jsonResponse(
+        {
+          error: error.code,
+          message: error.message,
+        },
+        error.status,
+      )
+    }
+
     const message = error instanceof Error ? error.message : "Unexpected nr1 audit-events POST error"
     return jsonResponse(
       {
@@ -342,3 +363,4 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+
