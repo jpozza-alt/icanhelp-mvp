@@ -676,8 +676,6 @@ useEffect(() => {
   const resolveContext = useCallback(async (): Promise<BackendContext> => {
     const paths = [
       "/api/debug/context",
-      "/api/nr1/context",
-      "/api/tenant/context",
       "/api/tenants",
     ];
 
@@ -2842,6 +2840,7 @@ useEffect(() => {
     </main>
   );
 }
+
 
 
 
