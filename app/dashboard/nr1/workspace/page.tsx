@@ -305,6 +305,51 @@ function stringOrNull(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function extractTenantIdFromPayload(payload: unknown): string | null {
+  const direct =
+    firstString(payload, ["tenant_id", "tenantId", "active_tenant_id", "activeTenantId"]) ||
+    firstString(payload, ["id"]);
+
+  if (direct) return direct;
+
+  const asRecord = payload && typeof payload === "object" && !Array.isArray(payload)
+    ? (payload as Record<string, unknown>)
+    : null;
+
+  const candidates: unknown[] = [];
+
+  if (Array.isArray(payload)) {
+    candidates.push(payload[0]);
+  }
+
+  if (asRecord) {
+    candidates.push(asRecord.items);
+    candidates.push(asRecord.data);
+    candidates.push(asRecord.tenant);
+    candidates.push(asRecord.activeTenant);
+    candidates.push(asRecord.active_tenant);
+    candidates.push(asRecord.membership);
+    candidates.push(asRecord.current);
+    candidates.push(asRecord.result);
+  }
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+
+    if (Array.isArray(candidate)) {
+      const fromFirst =
+        firstString(candidate[0], ["tenant_id", "tenantId", "active_tenant_id", "activeTenantId", "id"]);
+      if (fromFirst) return fromFirst;
+      continue;
+    }
+
+    const fromObject =
+      firstString(candidate, ["tenant_id", "tenantId", "active_tenant_id", "activeTenantId", "id"]);
+    if (fromObject) return fromObject;
+  }
+
+  return null;
+}
 function firstString(record: unknown, keys: string[]): string | null {
   if (!isRecord(record)) return null;
 
@@ -637,13 +682,7 @@ useEffect(() => {
       "/api/tenants",
     ]);
 
-    const tenantId =
-      nestedString(payload, ["tenant", "id"]) ||
-      nestedString(payload, ["activeTenant", "id"]) ||
-      nestedString(payload, ["data", "tenant", "id"]) ||
-      nestedString(payload, ["data", "activeTenant", "id"]) ||
-      firstString(payload, ["tenant_id", "tenantId", "active_tenant_id"]) ||
-      firstString(Array.isArray(payload) ? payload[0] : null, ["tenant_id", "id"]);
+    const tenantId = extractTenantIdFromPayload(payload);
 
     const establishmentId =
       nestedString(payload, ["establishment", "id"]) ||
@@ -2778,6 +2817,7 @@ useEffect(() => {
     </main>
   );
 }
+
 
 
 
