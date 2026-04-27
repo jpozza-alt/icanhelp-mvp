@@ -125,3 +125,7 @@ export const NR1_TABLES = {
   thirdParties: "nr1_third_parties",
   workerParticipationLogs: "nr1_worker_participation_logs",
 } as const
+export type Nr1DraftStateInsert = InsertDto<"nr1_draft_state">
+export type Nr1DraftStateUpdate = Partial<Nr1DraftStateInsert>
+export type Nr1AuditEventInsert = InsertDto<"nr1_audit_events">
+export type Nr1AuditEventUpdate = Partial<Nr1AuditEventInsert>
