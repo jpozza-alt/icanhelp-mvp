@@ -674,24 +674,49 @@ useEffect(() => {
   }, [saveStatus]);
 
   const resolveContext = useCallback(async (): Promise<BackendContext> => {
-    const payload = await loadFirstOk([
+    const paths = [
       "/api/debug/context",
       "/api/nr1/context",
       "/api/tenant/context",
       "/api/tenants",
-      "/api/tenants",
-    ]);
+    ];
 
-    const tenantId = extractTenantIdFromPayload(payload);
+    let fallbackEstablishmentId: string | null = null;
 
-    const establishmentId =
-      nestedString(payload, ["establishment", "id"]) ||
-      nestedString(payload, ["activeEstablishment", "id"]) ||
-      nestedString(payload, ["data", "establishment", "id"]) ||
-      nestedString(payload, ["data", "activeEstablishment", "id"]) ||
-      firstString(payload, ["establishment_id", "establishmentId", "active_establishment_id"]);
+    for (const path of paths) {
+      let payload: unknown | null = null;
 
-    return { tenantId, establishmentId };
+      try {
+        payload = await fetchJson(path);
+      } catch {
+        continue;
+      }
+
+      const tenantId = extractTenantIdFromPayload(payload);
+
+      const establishmentId =
+        nestedString(payload, ["establishment", "id"]) ||
+        nestedString(payload, ["activeEstablishment", "id"]) ||
+        nestedString(payload, ["data", "establishment", "id"]) ||
+        nestedString(payload, ["data", "activeEstablishment", "id"]) ||
+        firstString(payload, ["establishment_id", "establishmentId", "active_establishment_id"]);
+
+      if (!fallbackEstablishmentId && establishmentId) {
+        fallbackEstablishmentId = establishmentId;
+      }
+
+      if (tenantId) {
+        return {
+          tenantId,
+          establishmentId: establishmentId || fallbackEstablishmentId,
+        };
+      }
+    }
+
+    return {
+      tenantId: null,
+      establishmentId: fallbackEstablishmentId,
+    };
   }, []);
 
   const loadCompanies = useCallback(async (nextContext: BackendContext): Promise<SimpleEntity[]> => {
