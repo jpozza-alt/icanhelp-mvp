@@ -678,7 +678,7 @@ useEffect(() => {
       "/api/debug/context",
       "/api/nr1/context",
       "/api/tenant/context",
-      "/api/tenants/active",
+      "/api/tenants",
       "/api/tenants",
     ]);
 
@@ -2817,6 +2817,7 @@ useEffect(() => {
     </main>
   );
 }
+
 
 
 
