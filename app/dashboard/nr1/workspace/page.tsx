@@ -8,6 +8,15 @@ type JsonObject = Record<string, unknown>;
 type SaveStatus = "idle" | "loading" | "dirty" | "saving" | "saved" | "save_error";
 type FormStatus = "idle" | "saving" | "saved" | "error";
 
+type SessionDebugState = {
+  checked: boolean;
+  hasSession: boolean;
+  hasAccessToken: boolean;
+  userEmail: string;
+  tokenPreview: string;
+  error: string;
+};
+
 type BackendContext = {
   tenantId: string | null;
   establishmentId: string | null;
@@ -161,6 +170,15 @@ type ActionPlanForm = {
 const SCREEN_KEY = "nr1_workspace";
 const RECORD_TYPE = "workspace_shell";
 const ENTITY_TYPE = "workspace_shell";
+
+const INITIAL_SESSION_DEBUG: SessionDebugState = {
+  checked: false,
+  hasSession: false,
+  hasAccessToken: false,
+  userEmail: "",
+  tokenPreview: "",
+  error: "",
+};
 
 const DEFAULT_DRAFT: WorkspaceDraftPayload = {
   activeSection: "cadastros",
@@ -544,7 +562,37 @@ export default function Nr1WorkspacePage() {
   const latestDraftRef = useRef<WorkspaceDraftPayload>(DEFAULT_DRAFT);
   const contextRef = useRef<BackendContext>({ tenantId: null, establishmentId: null });
 
+      const [sessionDebug, setSessionDebug] = useState<SessionDebugState>(INITIAL_SESSION_DEBUG);
+const refreshSessionDebug = useCallback(async () => {
+    try {
+      const result = await supabaseBrowserClient.auth.getSession();
+      const session = result.data.session;
+      const token = session?.access_token || "";
+
+      setSessionDebug({
+        checked: true,
+        hasSession: Boolean(session),
+        hasAccessToken: Boolean(token),
+        userEmail: session?.user?.email || "",
+        tokenPreview: token ? token.slice(0, 12) + "..." + token.slice(-8) : "",
+        error: result.error?.message || "",
+      });
+    } catch (error) {
+      setSessionDebug({
+        checked: true,
+        hasSession: false,
+        hasAccessToken: false,
+        userEmail: "",
+        tokenPreview: "",
+        error: error instanceof Error ? error.message : "Erro desconhecido ao verificar sessao.",
+      });
+    }
+  }, []);
+
   useEffect(() => {
+    void refreshSessionDebug();
+  }, [refreshSessionDebug]);
+useEffect(() => {
     latestDraftRef.current = draft;
   }, [draft]);
 
@@ -1797,6 +1845,32 @@ export default function Nr1WorkspacePage() {
         </aside>
 
         <section className="min-w-0 space-y-6">
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Diagnostico de sessao</p>
+                <h2 className="mt-2 text-lg font-semibold">
+                  {sessionDebug.hasAccessToken ? "Sessao Supabase detectada" : "Sessao Supabase ausente"}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Checked: {String(sessionDebug.checked)} / Session: {String(sessionDebug.hasSession)} / Token: {String(sessionDebug.hasAccessToken)}
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Email: {sessionDebug.userEmail || "nao identificado"} / Token: {sessionDebug.tokenPreview || "sem token"}
+                </p>
+                {sessionDebug.error ? (
+                  <p className="mt-2 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{sessionDebug.error}</p>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => void refreshSessionDebug()}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+              >
+                Verificar sessao
+              </button>
+            </div>
+          </div>
           {loadError ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
               {loadError}
@@ -2704,5 +2778,7 @@ export default function Nr1WorkspacePage() {
     </main>
   );
 }
+
+
 
 
