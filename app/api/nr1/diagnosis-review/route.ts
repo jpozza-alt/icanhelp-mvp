@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
-import type { Json } from "@/lib/database.types"
+import type { Database, Json } from "@/lib/database.types"
 import type {
   Nr1DiagnosisReviewRow,
   Nr1DiagnosisSessionRow,
 } from "@/lib/nr1-db-types"
 import {
   createNr1UserClientFromBearer,
+  createNr1AdminClient,
   extractBearerToken,
   isTenantAdminRole,
   nr1ErrorToResponsePayload,
@@ -13,6 +14,9 @@ import {
 } from "@/lib/server/nr1-scope"
 
 export const dynamic = "force-dynamic"
+
+type Nr1RiskInsert = Database["public"]["Tables"]["nr1_risks"]["Insert"]
+type Nr1AuditEventInsert = Database["public"]["Tables"]["nr1_audit_events"]["Insert"]
 
 type UpsertDiagnosisReviewBody = {
   establishment_id?: string
@@ -22,6 +26,12 @@ type UpsertDiagnosisReviewBody = {
   preliminary_priority?: string | null
   reviewer_comment?: string | null
   reviewed_at?: string | null
+  generate_risk?: boolean
+  generated_risk_title?: string | null
+  generated_risk_category?: string | null
+  generated_risk_hazard_description?: string | null
+  generated_risk_source_circumstance?: string | null
+  generated_risk_recommended_measure?: string | null
 }
 
 function json(status: number, payload: Record<string, unknown>) {
@@ -59,6 +69,230 @@ function normalizeJson(value: unknown, fallback: Json): Json {
 function resolveReviewedAt(value: unknown): string | null {
   const cleaned = cleanText(value)
   return cleaned
+}
+
+
+type GeneratedRiskResult = {
+  generated: boolean
+  riskId: string | null
+  reason: string
+}
+
+function normalizeGeneratedRiskCategory(value: unknown): string {
+  const category = cleanText(value)
+
+  if (
+    category === "physical" ||
+    category === "chemical" ||
+    category === "biological" ||
+    category === "accident" ||
+    category === "ergonomics" ||
+    category === "psychosocial" ||
+    category === "mixed"
+  ) {
+    return category
+  }
+
+  return "psychosocial"
+}
+
+function normalizeGeneratedRiskLevel(value: unknown): string {
+  const level = cleanText(value)
+
+  if (level === "low" || level === "medium" || level === "high" || level === "critical") {
+    return level
+  }
+
+  return "medium"
+}
+
+function textFromJsonValue(value: unknown): string | null {
+  if (typeof value === "string") {
+    const trimmed = value.trim()
+    return trimmed.length > 0 ? trimmed : null
+  }
+
+  if (Array.isArray(value)) {
+    const parts = value
+      .map((item) => textFromJsonValue(item))
+      .filter((item): item is string => Boolean(item))
+
+    return parts.length > 0 ? parts.join("; ") : null
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>
+    const preferred =
+      textFromJsonValue(record.title) ||
+      textFromJsonValue(record.name) ||
+      textFromJsonValue(record.description) ||
+      textFromJsonValue(record.label) ||
+      textFromJsonValue(record.value)
+
+    if (preferred) {
+      return preferred
+    }
+
+    const parts = Object.values(record)
+      .map((item) => textFromJsonValue(item))
+      .filter((item): item is string => Boolean(item))
+
+    return parts.length > 0 ? parts.join("; ") : null
+  }
+
+  return null
+}
+
+function limitText(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value
+  return value.slice(0, maxLength)
+}
+
+async function maybeGenerateRiskFromReview(params: {
+  body: UpsertDiagnosisReviewBody
+  scope: any
+  userClient: ReturnType<typeof createNr1UserClientFromBearer>
+  reviewRow: Nr1DiagnosisReviewRow
+  sessionRow: Record<string, unknown>
+  establishmentId: string
+  diagnosisSessionId: string
+}): Promise<GeneratedRiskResult | null> {
+  if (params.body.generate_risk !== true) {
+    return null
+  }
+
+  const departmentId = cleanText(params.sessionRow.department_id)
+  const activityId = cleanText(params.sessionRow.activity_id)
+
+  if (!departmentId || !activityId) {
+    return {
+      generated: false,
+      riskId: null,
+      reason: "missing_department_or_activity",
+    }
+  }
+
+  const existingRiskResult = await params.userClient
+    .from("nr1_risks")
+    .select("id")
+    .eq("tenant_id", params.scope.tenantId)
+    .eq("establishment_id", params.establishmentId)
+    .eq("diagnosis_session_id", params.diagnosisSessionId)
+    .limit(1)
+
+  if (existingRiskResult.error) {
+    throw new Error("nr1_generated_risk_existing_lookup_failed: " + existingRiskResult.error.message)
+  }
+
+  const existingRows = (existingRiskResult.data || []) as Array<{ id: string }>
+
+  if (existingRows.length > 0) {
+    return {
+      generated: false,
+      riskId: existingRows[0].id,
+      reason: "already_exists",
+    }
+  }
+
+  const riskCategory = normalizeGeneratedRiskCategory(params.body.generated_risk_category)
+  const riskLevel = normalizeGeneratedRiskLevel(params.reviewRow.preliminary_priority)
+
+  const hazardFromReview =
+    cleanText(params.body.generated_risk_hazard_description) ||
+    textFromJsonValue(params.reviewRow.confirmed_hazards_json) ||
+    "Perigo identificado no diagnostico guiado."
+
+  const exposedGroup =
+    textFromJsonValue(params.reviewRow.confirmed_exposed_group_json) ||
+    "Grupo exposto informado no diagnostico guiado."
+
+  const title =
+    cleanText(params.body.generated_risk_title) ||
+    "Risco gerado pelo diagnostico guiado"
+
+  const riskPayload: Nr1RiskInsert = {
+    tenant_id: params.scope.tenantId,
+    establishment_id: params.establishmentId,
+    department_id: departmentId,
+    activity_id: activityId,
+    diagnosis_session_id: params.diagnosisSessionId,
+    title,
+    risk_category: riskCategory,
+    hazard_description: limitText(hazardFromReview, 1000),
+    source_circumstance:
+      cleanText(params.body.generated_risk_source_circumstance) ||
+      "Diagnostico guiado NR1",
+    exposed_group: limitText(exposedGroup, 1000),
+    possible_harms: "Agravos ocupacionais relacionados ao perigo confirmado no diagnostico guiado.",
+    existing_controls: null,
+    exposure_characterization: "Risco identificado na etapa de revisao do diagnostico guiado.",
+    severity_level: "medium",
+    probability_level: "medium",
+    risk_level: riskLevel,
+    classification: riskLevel,
+    recommended_measure:
+      cleanText(params.body.generated_risk_recommended_measure) ||
+      "Validar o risco com responsavel tecnico e definir plano de acao.",
+    suggested_responsible: "Gestao da empresa",
+    suggested_deadline: null,
+    status: "identified",
+  }
+
+  const riskResult = await params.userClient
+    .from("nr1_risks")
+    .insert(riskPayload)
+    .select("*")
+    .single()
+
+  if (riskResult.error) {
+    throw new Error("nr1_generated_risk_create_failed: " + riskResult.error.message)
+  }
+
+  const riskRow = riskResult.data as { id: string } | null
+  const riskId = riskRow?.id || null
+
+  if (!riskId) {
+    throw new Error("nr1_generated_risk_missing_id")
+  }
+
+  const adminClient = createNr1AdminClient()
+
+  const auditPayload: Nr1AuditEventInsert = {
+    tenant_id: params.scope.tenantId,
+    establishment_id: params.establishmentId,
+    module_name: "nr1",
+    screen_key: "nr1_diagnosis_review",
+    entity_type: "nr1_risk",
+    entity_id: riskId,
+    event_type: "diagnosis_review_risk_generated",
+    old_value_json: null,
+    new_value_json: {
+      risk_id: riskId,
+      diagnosis_session_id: params.diagnosisSessionId,
+      diagnosis_review_id: params.reviewRow.id,
+      department_id: departmentId,
+      activity_id: activityId,
+      risk_category: riskCategory,
+      risk_level: riskLevel,
+    } as Json,
+    persistence_type: "formal_version",
+    reason: "diagnosis_review_generate_risk",
+    user_id: params.scope.membership.user_id,
+  }
+
+  const auditResult = await adminClient
+    .from("nr1_audit_events")
+    .insert(auditPayload)
+
+  if (auditResult.error) {
+    throw new Error("nr1_generated_risk_audit_insert_failed: " + auditResult.error.message)
+  }
+
+  return {
+    generated: true,
+    riskId,
+    reason: "created",
+  }
 }
 
 async function requireDiagnosisSessionInScope(
@@ -426,6 +660,16 @@ export async function POST(req: NextRequest) {
           ? sessionUpdateResult.data[0]
           : sessionCheck.row
 
+      const generatedRisk = await maybeGenerateRiskFromReview({
+        body,
+        scope,
+        userClient,
+        reviewRow: row,
+        sessionRow: refreshedSessionRow,
+        establishmentId,
+        diagnosisSessionId,
+      })
+
       return json(201, {
         ok: true,
         upserted: "created",
@@ -433,6 +677,7 @@ export async function POST(req: NextRequest) {
         establishmentId,
         diagnosisSessionId,
         membershipRole: scope.role,
+        generatedRisk,
         session: {
           id: refreshedSessionRow.id,
           department_id: refreshedSessionRow.department_id,
@@ -512,6 +757,16 @@ export async function POST(req: NextRequest) {
         ? sessionUpdateResult.data[0]
         : sessionCheck.row
 
+      const generatedRisk = await maybeGenerateRiskFromReview({
+        body,
+        scope,
+        userClient,
+        reviewRow: row,
+        sessionRow: refreshedSessionRow,
+        establishmentId,
+        diagnosisSessionId,
+      })
+
     return json(200, {
       ok: true,
       upserted: "updated",
@@ -519,6 +774,7 @@ export async function POST(req: NextRequest) {
       establishmentId,
       diagnosisSessionId,
       membershipRole: scope.role,
+        generatedRisk,
       session: {
         id: refreshedSessionRow.id,
         department_id: refreshedSessionRow.department_id,
@@ -546,3 +802,4 @@ export async function POST(req: NextRequest) {
     return json(response.status, response.body)
   }
 }
+
