@@ -7,11 +7,13 @@ import {
   isTenantAdminRole,
   nr1ErrorToResponsePayload,
   resolveNr1Scope,
+  createNr1AdminClient,
 } from "@/lib/server/nr1-scope"
 
 export const dynamic = "force-dynamic"
 
 type Nr1ActionPlanInsert = Database["public"]["Tables"]["nr1_action_plans"]["Insert"]
+type Nr1AuditEventInsert = Database["public"]["Tables"]["nr1_audit_events"]["Insert"]
 
 type CreateActionPlanBody = {
   establishment_id?: string
@@ -283,6 +285,40 @@ export async function POST(req: NextRequest) {
     }
 
     const row = rows[0]
+    const auditClient = createNr1AdminClient()
+
+    const auditPayload: Nr1AuditEventInsert = {
+      tenant_id: scope.tenantId,
+      establishment_id: establishmentId,
+      module_name: "nr1",
+      screen_key: "nr1_action_plan",
+      entity_type: "nr1_action_plan",
+      entity_id: row.id,
+      event_type: "nr1_action_plan_created",
+      old_value_json: null,
+      new_value_json: {
+        action_plan_id: row.id,
+        risk_id: row.risk_id,
+        title: row.title,
+        priority: row.priority ?? null,
+        status: row.status ?? null,
+      },
+      persistence_type: "formal_version",
+      reason: "nr1_action_plan_create",
+      user_id: scope.membership.user_id,
+    }
+
+    const auditResult = await auditClient
+      .from("nr1_audit_events")
+      .insert(auditPayload)
+
+    if (auditResult.error) {
+      return json(500, {
+        ok: false,
+        error: "nr1_action_plan_audit_insert_failed",
+        message: auditResult.error.message,
+      })
+    }
 
     return json(201, {
       ok: true,

@@ -6,11 +6,13 @@ import {
   extractBearerToken,
   isTenantAdminRole,
   resolveNr1Scope,
+  createNr1AdminClient,
 } from "@/lib/server/nr1-scope"
 
 export const dynamic = "force-dynamic"
 
 type Nr1RiskInsert = Database["public"]["Tables"]["nr1_risks"]["Insert"]
+type Nr1AuditEventInsert = Database["public"]["Tables"]["nr1_audit_events"]["Insert"]
 
 type CreateRiskBody = {
   establishment_id?: string
@@ -306,6 +308,50 @@ export async function POST(req: NextRequest) {
 
     const row = result.data as Nr1RiskRow
 
+
+    const auditEntityId = row.id || null
+
+    if (!auditEntityId) {
+      return json(500, {
+        ok: false,
+        error: "nr1_risk_audit_missing_entity",
+        message: "Created risk id was not returned for audit event",
+      })
+    }
+
+    const auditClient = createNr1AdminClient()
+
+    const auditPayload: Nr1AuditEventInsert = {
+      tenant_id: scope.tenantId,
+      establishment_id: establishmentId,
+      module_name: "nr1",
+      screen_key: "nr1_risk_inventory",
+      entity_type: "nr1_risk",
+      entity_id: auditEntityId,
+      event_type: "nr1_risk_created",
+      old_value_json: null,
+      new_value_json: {
+        risk_id: auditEntityId,
+        risk_category: payload.risk_category ?? null,
+        risk_level: payload.risk_level ?? null,
+        status: payload.status ?? null,
+      },
+      persistence_type: "formal_version",
+      reason: "nr1_risk_inventory_create",
+      user_id: scope.membership.user_id,
+    }
+
+    const auditResult = await auditClient
+      .from("nr1_audit_events")
+      .insert(auditPayload)
+
+    if (auditResult.error) {
+      return json(500, {
+        ok: false,
+        error: "nr1_risk_audit_insert_failed",
+        message: auditResult.error.message,
+      })
+    }
     return json(201, {
       ok: true,
       tenantId: scope.tenantId,
@@ -322,3 +368,4 @@ export async function POST(req: NextRequest) {
     })
   }
 }
+
