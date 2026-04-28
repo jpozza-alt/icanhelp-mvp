@@ -245,9 +245,50 @@ export async function POST(req: NextRequest) {
       throw error
     }
 
+    const insertedEvidence = data as EvidenceRow
+
+    const { data: authData, error: authError } = await userClient.auth.getUser()
+
+    if (authError) {
+      throw authError
+    }
+
+    const userId = authData.user?.id
+
+    if (!userId) {
+      throw new Error("missing_user_id_for_audit")
+    }
+
+    const { error: auditError } = await userClient
+      .from("nr1_audit_events")
+      .insert({
+        tenant_id: scope.tenantId,
+        establishment_id: establishmentId,
+        screen_key: "nr1_evidence_items",
+        entity_type: "nr1_evidence_item",
+        entity_id: insertedEvidence.id,
+        event_type: "nr1_evidence_item_created",
+        old_value_json: null,
+        new_value_json: {
+          evidence_id: insertedEvidence.id,
+          linked_entity_type: insertedEvidence.linked_entity_type,
+          linked_entity_id: insertedEvidence.linked_entity_id,
+          evidence_type: insertedEvidence.evidence_type,
+          title: insertedEvidence.title,
+          validation_status: insertedEvidence.validation_status,
+        },
+        persistence_type: "formal_version",
+        reason: "nr1_evidence_item_create",
+        user_id: userId,
+      })
+
+    if (auditError) {
+      throw auditError
+    }
+
     return NextResponse.json(
       {
-        data: data as EvidenceRow,
+        data: insertedEvidence,
         meta: {
           tenantId: scope.tenantId,
           membershipRole: scope.role,
@@ -259,3 +300,4 @@ export async function POST(req: NextRequest) {
     return toErrorResponse(error)
   }
 }
+
