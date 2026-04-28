@@ -152,6 +152,26 @@ type PsychosocialForm = {
   notes: string;
 };
 
+type RiskForm = {
+  department_id: string;
+  activity_id: string;
+  title: string;
+  risk_category: string;
+  hazard_description: string;
+  source_circumstance: string;
+  exposed_group: string;
+  possible_harms: string;
+  existing_controls: string;
+  exposure_characterization: string;
+  severity_level: string;
+  probability_level: string;
+  risk_level: string;
+  classification: string;
+  recommended_measure: string;
+  suggested_responsible: string;
+  suggested_deadline: string;
+  status: string;
+};
 type ActionPlanForm = {
   risk_id: string;
   title: string;
@@ -280,6 +300,26 @@ const INITIAL_PSYCHOSOCIAL_FORM: PsychosocialForm = {
   notes: "",
 };
 
+const INITIAL_RISK_FORM: RiskForm = {
+  department_id: "",
+  activity_id: "",
+  title: "",
+  risk_category: "psychosocial",
+  hazard_description: "",
+  source_circumstance: "",
+  exposed_group: "",
+  possible_harms: "",
+  existing_controls: "",
+  exposure_characterization: "",
+  severity_level: "medium",
+  probability_level: "medium",
+  risk_level: "medium",
+  classification: "medium",
+  recommended_measure: "",
+  suggested_responsible: "",
+  suggested_deadline: "",
+  status: "identified",
+};
 const INITIAL_ACTION_PLAN_FORM: ActionPlanForm = {
   risk_id: "",
   title: "",
@@ -598,6 +638,10 @@ export default function Nr1WorkspacePage() {
   const [risks, setRisks] = useState<SimpleEntity[]>([]);
   const [actionPlans, setActionPlans] = useState<SimpleEntity[]>([]);
   const [selectedRiskId, setSelectedRiskId] = useState<string>("");
+  const [riskForm, setRiskForm] = useState<RiskForm>(INITIAL_RISK_FORM);
+  const [riskStatus, setRiskStatus] = useState<FormStatus>("idle");
+  const [riskError, setRiskError] = useState<string | null>(null);
+  const [riskSuccess, setRiskSuccess] = useState<string | null>(null);
   const [actionPlanForm, setActionPlanForm] = useState<ActionPlanForm>(INITIAL_ACTION_PLAN_FORM);
   const [actionPlanStatus, setActionPlanStatus] = useState<FormStatus>("idle");
   const [actionPlanError, setActionPlanError] = useState<string | null>(null);
@@ -1640,6 +1684,135 @@ useEffect(() => {
     [loadActionPlans, loadRisks, selectedRiskId]
   );
 
+  async function handleCreateRisk(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setRiskStatus("saving");
+    setRiskError(null);
+    setRiskSuccess(null);
+    setActionPlanError(null);
+    setActionPlanSuccess(null);
+
+    const currentContext = contextRef.current;
+
+    if (!currentContext.tenantId || !currentContext.establishmentId) {
+      setRiskStatus("error");
+      setRiskError("Selecione um estabelecimento antes.");
+      return;
+    }
+
+    const selectedActivityForRisk =
+      activities.find((item) => item.id === riskForm.activity_id) ||
+      activities[0] ||
+      null;
+
+    const activityId = riskForm.activity_id || firstString(selectedActivityForRisk, ["id"]) || "";
+    const departmentId =
+      riskForm.department_id ||
+      firstString(selectedActivityForRisk, ["department_id"]) ||
+      firstString(departments[0], ["id"]) ||
+      "";
+
+    if (!departmentId) {
+      setRiskStatus("error");
+      setRiskError("Cadastre ou selecione um setor antes de criar o risco.");
+      return;
+    }
+
+    if (!activityId) {
+      setRiskStatus("error");
+      setRiskError("Cadastre ou selecione uma atividade antes de criar o risco.");
+      return;
+    }
+
+    if (riskForm.title.trim().length < 3) {
+      setRiskStatus("error");
+      setRiskError("Informe um titulo do risco com pelo menos 3 caracteres.");
+      return;
+    }
+
+    if (riskForm.hazard_description.trim().length < 3) {
+      setRiskStatus("error");
+      setRiskError("Descreva o perigo antes de criar o risco.");
+      return;
+    }
+
+    try {
+      const path = buildUrl("/api/nr1/risks", {
+        tenantId: currentContext.tenantId,
+        establishmentId: currentContext.establishmentId,
+      });
+
+      const response = await fetchJson(
+        path,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            establishment_id: currentContext.establishmentId,
+            department_id: departmentId,
+            activity_id: activityId,
+            title: riskForm.title,
+            risk_category: riskForm.risk_category || "psychosocial",
+            hazard_description: riskForm.hazard_description,
+            source_circumstance: riskForm.source_circumstance,
+            exposed_group: riskForm.exposed_group,
+            possible_harms: riskForm.possible_harms,
+            existing_controls: riskForm.existing_controls,
+            exposure_characterization: riskForm.exposure_characterization,
+            severity_level: riskForm.severity_level,
+            probability_level: riskForm.probability_level,
+            risk_level: riskForm.risk_level,
+            classification: riskForm.classification,
+            recommended_measure: riskForm.recommended_measure,
+            suggested_responsible: riskForm.suggested_responsible,
+            suggested_deadline: riskForm.suggested_deadline || isoDatePlusDays(30),
+            status: riskForm.status || "identified",
+          }),
+        },
+        currentContext
+      );
+
+      const createdRiskId = firstString(extractFirstEntity(response), ["id"]);
+
+      if (!createdRiskId) {
+        throw new Error("Risco criado sem id retornado pela API.");
+      }
+
+      await recordAuditEvent(
+        "manual_risk_created_from_workspace",
+        {
+          risk_id: createdRiskId,
+          establishment_id: currentContext.establishmentId,
+          department_id: departmentId,
+          activity_id: activityId,
+          risk_category: riskForm.risk_category || "psychosocial",
+          risk_level: riskForm.risk_level,
+        },
+        "formal"
+      );
+
+      await refreshRiskActionData(createdRiskId);
+      await refreshAuditEvents();
+
+      setSelectedRiskId(createdRiskId);
+      setActionPlanForm((prev) => ({
+        ...prev,
+        risk_id: createdRiskId,
+      }));
+
+      setRiskForm({
+        ...INITIAL_RISK_FORM,
+        department_id: departmentId,
+        activity_id: activityId,
+        suggested_deadline: isoDatePlusDays(30),
+      });
+
+      setRiskSuccess("Risco criado no inventario e pronto para plano de acao.");
+      setRiskStatus("saved");
+    } catch (error) {
+      setRiskStatus("error");
+      setRiskError(error instanceof Error ? error.message : "Erro ao criar risco.");
+    }
+  }
   async function handleCreateActionPlan(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setActionPlanStatus("saving");
@@ -2521,6 +2694,17 @@ useEffect(() => {
                   </button>
                 </div>
 
+                {riskError ? (
+                  <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                    {riskError}
+                  </div>
+                ) : null}
+
+                {riskSuccess ? (
+                  <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                    {riskSuccess}
+                  </div>
+                ) : null}
                 {actionPlanError ? (
                   <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
                     {actionPlanError}
@@ -2544,14 +2728,173 @@ useEffect(() => {
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-sm text-slate-500">Status</p>
-                    <p className="mt-2 text-lg font-semibold">{actionPlanStatus}</p>
+                    <p className="mt-2 text-lg font-semibold">Risco: {riskStatus} / Plano: {actionPlanStatus}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+              <div className="grid gap-6 xl:grid-cols-[1fr_1fr_1fr]">
+                <form onSubmit={handleCreateRisk} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <h3 className="text-lg font-semibold">1. Criar risco manual</h3>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Contrato real: establishment_id, department_id, activity_id, title, risk_category e hazard_description.
+                  </p>
+
+                  <div className="mt-5 grid gap-3">
+                    <select
+                      value={riskForm.department_id || firstString(departments[0], ["id"]) || ""}
+                      onChange={(event) => setRiskForm((prev) => ({ ...prev, department_id: event.target.value, activity_id: "" }))}
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                    >
+                      <option value="">Selecione o setor</option>
+                      {departments.map((item, index) => (
+                        <option key={item.id || index} value={item.id || ""}>
+                          {displayName(item, `Setor ${index + 1}`)}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={riskForm.activity_id || firstString(activities[0], ["id"]) || ""}
+                      onChange={(event) => {
+                        const selected = activities.find((item) => item.id === event.target.value) || null;
+                        setRiskForm((prev) => ({
+                          ...prev,
+                          activity_id: event.target.value,
+                          department_id: firstString(selected, ["department_id"]) || prev.department_id,
+                        }));
+                      }}
+                      className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                    >
+                      <option value="">Selecione a atividade</option>
+                      {activities.map((item, index) => (
+                        <option key={item.id || index} value={item.id || ""}>
+                          {displayName(item, `Atividade ${index + 1}`)}
+                        </option>
+                      ))}
+                    </select>
+
+                    <input
+                      value={riskForm.title}
+                      onChange={(event) => setRiskForm((prev) => ({ ...prev, title: event.target.value }))}
+                      placeholder="Titulo do risco"
+                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    />
+
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <select
+                        value={riskForm.risk_category}
+                        onChange={(event) => setRiskForm((prev) => ({ ...prev, risk_category: event.target.value }))}
+                        className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                      >
+                        <option value="physical">Fisico</option>
+                        <option value="chemical">Quimico</option>
+                        <option value="biological">Biologico</option>
+                        <option value="accident">Acidente</option>
+                        <option value="ergonomics">Ergonomico</option>
+                        <option value="psychosocial">Psicossocial</option>
+                        <option value="mixed">Misto</option>
+                      </select>
+
+                      <select
+                        value={riskForm.risk_level}
+                        onChange={(event) => setRiskForm((prev) => ({ ...prev, risk_level: event.target.value }))}
+                        className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                      >
+                        <option value="low">Baixo</option>
+                        <option value="medium">Medio</option>
+                        <option value="high">Alto</option>
+                        <option value="critical">Critico</option>
+                      </select>
+
+                      <select
+                        value={riskForm.status}
+                        onChange={(event) => setRiskForm((prev) => ({ ...prev, status: event.target.value }))}
+                        className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                      >
+                        <option value="identified">Identificado</option>
+                        <option value="under_analysis">Em analise</option>
+                        <option value="classified">Classificado</option>
+                        <option value="action_defined">Com acao definida</option>
+                        <option value="controlled">Controlado</option>
+                        <option value="requires_review">Requer revisao</option>
+                      </select>
+                    </div>
+
+                    <textarea
+                      value={riskForm.hazard_description}
+                      onChange={(event) => setRiskForm((prev) => ({ ...prev, hazard_description: event.target.value }))}
+                      placeholder="Descricao do perigo"
+                      rows={3}
+                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    />
+
+                    <textarea
+                      value={riskForm.source_circumstance}
+                      onChange={(event) => setRiskForm((prev) => ({ ...prev, source_circumstance: event.target.value }))}
+                      placeholder="Fonte ou circunstancia"
+                      rows={2}
+                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    />
+
+                    <textarea
+                      value={riskForm.exposed_group}
+                      onChange={(event) => setRiskForm((prev) => ({ ...prev, exposed_group: event.target.value }))}
+                      placeholder="Grupo exposto"
+                      rows={2}
+                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    />
+
+                    <textarea
+                      value={riskForm.possible_harms}
+                      onChange={(event) => setRiskForm((prev) => ({ ...prev, possible_harms: event.target.value }))}
+                      placeholder="Possiveis lesoes ou agravos"
+                      rows={2}
+                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    />
+
+                    <textarea
+                      value={riskForm.existing_controls}
+                      onChange={(event) => setRiskForm((prev) => ({ ...prev, existing_controls: event.target.value }))}
+                      placeholder="Controles existentes"
+                      rows={2}
+                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    />
+
+                    <textarea
+                      value={riskForm.recommended_measure}
+                      onChange={(event) => setRiskForm((prev) => ({ ...prev, recommended_measure: event.target.value }))}
+                      placeholder="Medida recomendada"
+                      rows={2}
+                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    />
+
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <input
+                        value={riskForm.suggested_responsible}
+                        onChange={(event) => setRiskForm((prev) => ({ ...prev, suggested_responsible: event.target.value }))}
+                        placeholder="Responsavel sugerido"
+                        className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                      />
+                      <input
+                        type="date"
+                        value={riskForm.suggested_deadline}
+                        onChange={(event) => setRiskForm((prev) => ({ ...prev, suggested_deadline: event.target.value }))}
+                        className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={riskStatus === "saving"}
+                    className="mt-5 rounded-xl bg-cyan-700 px-4 py-2 text-sm font-semibold text-white hover:bg-cyan-800 disabled:opacity-60"
+                  >
+                    {riskStatus === "saving" ? "Salvando risco..." : "Criar risco manual"}
+                  </button>
+                </form>
                 <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-lg font-semibold">1. Selecionar risco</h3>
+                  <h3 className="text-lg font-semibold">2. Selecionar risco</h3>
                   <p className="mt-1 text-sm text-slate-500">
                     O plano de acao sempre precisa nascer vinculado a um risco.
                   </p>
@@ -2611,7 +2954,7 @@ useEffect(() => {
                 </div>
 
                 <form onSubmit={handleCreateActionPlan} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-lg font-semibold">2. Criar plano de acao</h3>
+                  <h3 className="text-lg font-semibold">3. Criar plano de acao</h3>
                   <p className="mt-1 text-sm text-slate-500">
                     Contrato real: establishment_id, risk_id e title sao obrigatorios.
                   </p>
@@ -2840,6 +3183,7 @@ useEffect(() => {
     </main>
   );
 }
+
 
 
 
