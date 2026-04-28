@@ -38,7 +38,10 @@ function normalizeAuditJson(value: unknown): AuditValueJson {
 }
 
 function getTenantId(req: NextRequest): string {
-  return cleanText(req.nextUrl.searchParams.get("tenantId"))
+  const queryValue = cleanText(req.nextUrl.searchParams.get("tenantId"))
+  const headerValue = cleanText(req.headers.get("x-icanhelp-tenant"))
+
+  return queryValue || headerValue
 }
 
 function getEstablishmentId(req: NextRequest): string {
@@ -96,7 +99,7 @@ export async function GET(req: NextRequest) {
     return jsonResponse(
       {
         error: "missing_tenant_id",
-        message: "tenantId is required",
+        message: "Provide tenantId in querystring or x-icanhelp-tenant header",
       },
       400,
     )
@@ -211,7 +214,7 @@ export async function POST(req: NextRequest) {
     return jsonResponse(
       {
         error: "missing_tenant_id",
-        message: "tenantId is required",
+        message: "Provide tenantId in querystring or x-icanhelp-tenant header",
       },
       400,
     )
@@ -363,4 +366,5 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+
 
