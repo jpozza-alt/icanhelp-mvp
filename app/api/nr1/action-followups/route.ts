@@ -355,6 +355,62 @@ export async function POST(req: NextRequest) {
 
     const row = rows[0]
 
+    const { data: authData, error: authError } = await userClient.auth.getUser()
+
+    if (authError) {
+      return json(500, {
+        ok: false,
+        error: "nr1_action_followup_audit_user_lookup_failed",
+        message: authError.message,
+      })
+    }
+
+    const userId = authData.user?.id
+
+    if (!userId) {
+      return json(500, {
+        ok: false,
+        error: "missing_user_id_for_audit",
+        message: "Could not resolve authenticated user for audit event",
+      })
+    }
+
+    const auditResult = await userClient
+      .from("nr1_audit_events")
+      .insert({
+        tenant_id: scope.tenantId,
+        establishment_id: establishmentId,
+        screen_key: "nr1_action_followups",
+        entity_type: "nr1_action_followup",
+        entity_id: row.id,
+        event_type: "nr1_action_followup_created",
+        old_value_json: null,
+        new_value_json: {
+          followup_id: row.id,
+          action_plan_id: row.action_plan_id,
+          followup_date: row.followup_date,
+          corrective_adjustment_needed: row.corrective_adjustment_needed,
+          execution_check: row.execution_check,
+          continuity_check: row.continuity_check,
+          inspection_result: row.inspection_result,
+          environmental_monitoring_result: row.environmental_monitoring_result,
+          effectiveness_result: row.effectiveness_result,
+          worker_participation_note: row.worker_participation_note,
+          notes: row.notes,
+        },
+        persistence_type: "formal_version",
+        reason: "nr1_action_followup_create",
+        user_id: userId,
+      })
+
+    if (auditResult.error) {
+      return json(500, {
+        ok: false,
+        error: "nr1_action_followup_audit_create_failed",
+        message: auditResult.error.message,
+      })
+    }
+
     return json(201, {
       ok: true,
       tenantId: scope.tenantId,
