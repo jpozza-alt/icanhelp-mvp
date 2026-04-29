@@ -41,19 +41,20 @@ export function Nr1StepGuard(props: Nr1StepGuardProps) {
       return { allowed: true, missing: "" };
     }
 
-    if (props.stepKey === "setores") {
-      if (!diagnosticoCompleted) {
-        return { allowed: false, missing: "diagnostico" };
+                    if (props.stepKey === "setores") {
+      return { allowed: true, missing: "" };
+    }
+
+                    if (props.stepKey === "riscos") {
+      if (!setoresCompleted) {
+        return { allowed: false, missing: "setores" };
       }
       return { allowed: true, missing: "" };
     }
 
-    if (props.stepKey === "riscos") {
-      if (!diagnosticoCompleted) {
-        return { allowed: false, missing: "diagnostico" };
-      }
-      if (!setoresCompleted) {
-        return { allowed: false, missing: "setores" };
+    if (props.stepKey === "plano-de-acao") {
+      if (!riscosCompleted) {
+        return { allowed: false, missing: "riscos" };
       }
       return { allowed: true, missing: "" };
     }
@@ -148,3 +149,7 @@ export function Nr1StepGuard(props: Nr1StepGuardProps) {
 }
 
 export default Nr1StepGuard;
+
+
+
+
