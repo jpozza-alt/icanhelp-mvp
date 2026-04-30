@@ -77,6 +77,11 @@ function cleanText(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null
 }
 
+
+function isNr1TenantMembershipDeniedForRisks(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "")
+  return message.includes("No tenant_memberships row found for tenant_id + user_id")
+}
 export async function GET(req: NextRequest) {
   try {
     const tenantId = getTenantId(req)
@@ -141,6 +146,13 @@ export async function GET(req: NextRequest) {
       items: rows,
     })
   } catch (error) {
+    if (isNr1TenantMembershipDeniedForRisks(error)) {
+      return json(403, {
+        ok: false,
+        error: "tenant_membership_not_found",
+        message: "User is not a member of the requested tenant",
+      })
+    }
     const message = error instanceof Error ? error.message : "Unexpected error"
     return json(500, {
       ok: false,
@@ -360,6 +372,13 @@ export async function POST(req: NextRequest) {
       item: row,
     })
   } catch (error) {
+    if (isNr1TenantMembershipDeniedForRisks(error)) {
+      return json(403, {
+        ok: false,
+        error: "tenant_membership_not_found",
+        message: "User is not a member of the requested tenant",
+      })
+    }
     const message = error instanceof Error ? error.message : "Unexpected error"
     return json(500, {
       ok: false,
@@ -368,4 +387,7 @@ export async function POST(req: NextRequest) {
     })
   }
 }
+
+
+
 
