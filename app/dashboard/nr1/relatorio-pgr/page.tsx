@@ -24,6 +24,11 @@ type EstablishmentOption = {
 };
 
 type LoadStatus = "idle" | "loading" | "loaded" | "error";
+type AnyRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): AnyRecord {
+  return value && typeof value === "object" ? (value as AnyRecord) : {};
+}
 
 function parseTenants(payload: unknown): TenantOption[] {
   const raw = Array.isArray(payload)
@@ -34,7 +39,7 @@ function parseTenants(payload: unknown): TenantOption[] {
 
   return raw
     .map((item) => {
-      const record = item as Record<string, unknown>;
+      const record = item as AnyRecord;
       const id = String(record.id ?? record.tenant_id ?? "").trim();
       const name = String(record.name ?? record.slug ?? "Tenant").trim();
       const role = record.role ? String(record.role) : null;
@@ -54,7 +59,7 @@ function parseEstablishments(payload: unknown): EstablishmentOption[] {
 
   return raw
     .map((item) => {
-      const record = item as Record<string, unknown>;
+      const record = item as AnyRecord;
       const id = String(record.id ?? "").trim();
       const name = String(record.name ?? "Estabelecimento").trim();
       const city = record.city ? String(record.city) : null;
@@ -65,10 +70,71 @@ function parseEstablishments(payload: unknown): EstablishmentOption[] {
     .filter((item) => item.id.length > 0);
 }
 
+function getReport(payload: unknown): AnyRecord | null {
+  const wrapper = asRecord(payload);
+  const report = wrapper.report;
+  return report && typeof report === "object" ? (report as AnyRecord) : null;
+}
+
+function readArray(report: AnyRecord | null, key: string): AnyRecord[] {
+  const value = report?.[key];
+  return Array.isArray(value) ? value.map((item) => asRecord(item)) : [];
+}
+
 function readArrayCount(report: unknown, key: string): number {
-  const record = report as Record<string, unknown>;
+  const record = report as AnyRecord;
   const value = record?.[key];
   return Array.isArray(value) ? value.length : 0;
+}
+
+function text(value: unknown, fallback = "-"): string {
+  if (typeof value === "string" && value.trim().length > 0) {
+    return value.trim();
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "Sim" : "Nao";
+  }
+
+  return fallback;
+}
+
+function dateText(value: unknown): string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return "-";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString("pt-BR");
+}
+
+function SectionTitle(props: { children: React.ReactNode }) {
+  return <h2 className="mt-8 border-b border-slate-300 pb-2 text-xl font-semibold text-slate-950">{props.children}</h2>;
+}
+
+function InfoGrid(props: { items: Array<[string, unknown]> }) {
+  return (
+    <div className="mt-4 grid gap-3 md:grid-cols-2">
+      {props.items.map(([label, value]) => (
+        <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">{label}</p>
+          <p className="mt-1 text-sm font-medium text-slate-900">{text(value)}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState(props: { text: string }) {
+  return <p className="mt-3 rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">{props.text}</p>;
 }
 
 export default function Nr1PgrReportPage() {
@@ -81,7 +147,7 @@ export default function Nr1PgrReportPage() {
   const [selectedEstablishmentId, setSelectedEstablishmentId] = useState("");
   const [reportPayload, setReportPayload] = useState<unknown>(null);
 
-  const report = (reportPayload as { report?: unknown } | null)?.report ?? null;
+  const report = getReport(reportPayload);
 
   const summary = useMemo(() => {
     if (!report) {
@@ -100,6 +166,16 @@ export default function Nr1PgrReportPage() {
       trainingRecords: readArrayCount(report, "trainingRecords"),
     };
   }, [report]);
+
+  const company = asRecord(report?.company);
+  const establishment = asRecord(report?.establishment);
+  const scope = asRecord(report?.scope);
+  const risks = readArray(report, "risks");
+  const actionPlans = readArray(report, "actionPlans");
+  const actionFollowups = readArray(report, "actionFollowups");
+  const evidenceItems = readArray(report, "evidenceItems");
+  const auditEvents = readArray(report, "auditEvents");
+  const generatedAt = text(report?.generatedAt, "");
 
   async function getAccessToken() {
     const sessionResult = await supabase.auth.getSession();
@@ -228,11 +304,20 @@ export default function Nr1PgrReportPage() {
       }
 
       setStatus("loaded");
-      setMessage("Relatorio PGR carregado.");
+      setMessage("Relatorio PGR carregado. Use o botao de impressao para salvar em PDF.");
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Falha ao gerar relatorio PGR.");
     }
+  }
+
+  function handlePrintPdf() {
+    if (!report) {
+      setMessage("Gere o relatorio antes de imprimir ou salvar em PDF.");
+      return;
+    }
+
+    window.print();
   }
 
   useEffect(() => {
@@ -241,23 +326,53 @@ export default function Nr1PgrReportPage() {
 
   return (
     <main className="min-h-screen bg-[#F4F7FB] px-6 py-8 text-[#132238]">
+      <style>{`
+        @media print {
+          body {
+            background: #ffffff !important;
+          }
+
+          .nr1-screen-only {
+            display: none !important;
+          }
+
+          #nr1-pgr-print-area {
+            display: block !important;
+            border: 0 !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          #nr1-pgr-print-area * {
+            color-adjust: exact;
+            print-color-adjust: exact;
+          }
+
+          @page {
+            size: A4;
+            margin: 14mm;
+          }
+        }
+      `}</style>
+
       <div className="mx-auto max-w-[1200px]">
-        <div className="mb-6">
+        <div className="nr1-screen-only mb-6">
           <Link href="/dashboard/nr1/workspace" className="text-sm font-semibold text-[#178A8F]">
             Voltar ao workspace NR1
           </Link>
         </div>
 
-        <section className="rounded-[28px] bg-[linear-gradient(135deg,#0F2337_0%,#13495C_60%,#178A8F_100%)] p-7 text-white shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
+        <section className="nr1-screen-only rounded-[28px] bg-[linear-gradient(135deg,#0F2337_0%,#13495C_60%,#178A8F_100%)] p-7 text-white shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
           <p className="text-[12px] uppercase tracking-[0.08em] text-white/70">documento PGR</p>
           <h1 className="mt-4 text-[38px] font-semibold leading-tight">Relatorio estruturado do PGR</h1>
           <p className="mt-3 max-w-3xl text-base leading-7 text-white/85">
-            Gere a visao JSON consolidada por estabelecimento com inventario, plano de acao,
+            Gere a visao consolidada por estabelecimento com inventario, plano de acao,
             acompanhamentos, evidencias, saude, treinamentos e auditoria.
           </p>
         </section>
 
-        <section className="mt-6 rounded-[24px] border border-[#D9E0E7] bg-white p-6 shadow-[0_18px_50px_rgba(34,49,63,0.08)]">
+        <section className="nr1-screen-only mt-6 rounded-[24px] border border-[#D9E0E7] bg-white p-6 shadow-[0_18px_50px_rgba(34,49,63,0.08)]">
           <div className="grid gap-4 md:grid-cols-2">
             <label className="block">
               <span className="text-sm font-semibold text-[#22313F]">Tenant</span>
@@ -295,20 +410,32 @@ export default function Nr1PgrReportPage() {
 
           <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <p className="text-sm text-[#5B6776]">{message || "Pronto para gerar."}</p>
-            <button
-              id="nr1GeneratePgrReportButton"
-              type="button"
-              onClick={loadReport}
-              disabled={status === "loading" || !selectedTenantId || !selectedEstablishmentId}
-              className="rounded-2xl bg-[#132238] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1D344F] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {status === "loading" ? "Gerando..." : "Gerar relatorio JSON"}
-            </button>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <button
+                id="nr1GeneratePgrReportButton"
+                type="button"
+                onClick={loadReport}
+                disabled={status === "loading" || !selectedTenantId || !selectedEstablishmentId}
+                className="rounded-2xl bg-[#132238] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1D344F] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {status === "loading" ? "Gerando..." : "Gerar relatorio"}
+              </button>
+
+              <button
+                id="nr1PrintPgrReportButton"
+                type="button"
+                onClick={handlePrintPdf}
+                disabled={!report || status === "loading"}
+                className="rounded-2xl border border-[#132238] bg-white px-5 py-3 text-sm font-semibold text-[#132238] transition hover:bg-[#F4F7FB] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Imprimir / salvar PDF
+              </button>
+            </div>
           </div>
         </section>
 
         {summary && (
-          <section className="mt-6 grid gap-4 md:grid-cols-3">
+          <section className="nr1-screen-only mt-6 grid gap-4 md:grid-cols-3">
             {Object.entries(summary).map(([key, value]) => (
               <div key={key} className="rounded-[22px] border border-[#D9E0E7] bg-white p-5">
                 <p className="text-xs uppercase tracking-[0.08em] text-[#5B6776]">{key}</p>
@@ -318,8 +445,143 @@ export default function Nr1PgrReportPage() {
           </section>
         )}
 
+        {report ? (
+          <section id="nr1-pgr-print-area" className="mt-6 rounded-[24px] border border-[#D9E0E7] bg-white p-8 shadow-[0_18px_50px_rgba(34,49,63,0.08)]">
+            <header className="border-b border-slate-300 pb-6">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#178A8F]">Programa de Gerenciamento de Riscos</p>
+              <h1 className="mt-3 text-3xl font-bold text-slate-950">Relatorio estruturado do PGR</h1>
+              <p className="mt-2 text-sm text-slate-600">Documento gerado a partir da base NR1 do icanHelp.</p>
+              <div className="mt-4 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
+                <p><strong>Gerado em:</strong> {generatedAt ? dateText(generatedAt) : "-"}</p>
+                <p><strong>Tenant:</strong> {text(scope.tenantId)}</p>
+                <p><strong>Estabelecimento:</strong> {text(scope.establishmentId)}</p>
+                <p><strong>Perfil:</strong> {text(scope.membershipRole)}</p>
+              </div>
+            </header>
+
+            <SectionTitle>1. Identificacao</SectionTitle>
+            <InfoGrid
+              items={[
+                ["Empresa", company.legal_name ?? company.trade_name],
+                ["Nome fantasia", company.trade_name],
+                ["CNPJ", company.cnpj],
+                ["CNAE principal", company.cnae_main],
+                ["Grau de risco", company.risk_grade],
+                ["Estabelecimento", establishment.name],
+                ["Cidade/UF", `${text(establishment.city)} / ${text(establishment.state)}`],
+                ["Trabalhadores", establishment.employee_count],
+              ]}
+            />
+
+            <SectionTitle>2. Resumo quantitativo</SectionTitle>
+            {summary ? (
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                {Object.entries(summary).map(([key, value]) => (
+                  <div key={key} className="rounded-2xl border border-slate-200 p-4">
+                    <p className="text-[11px] uppercase tracking-[0.08em] text-slate-500">{key}</p>
+                    <p className="mt-1 text-2xl font-semibold text-slate-950">{value}</p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            <SectionTitle>3. Inventario de riscos</SectionTitle>
+            {risks.length > 0 ? (
+              <div className="mt-4 space-y-4">
+                {risks.map((item, index) => (
+                  <article key={String(item.id ?? index)} className="rounded-2xl border border-slate-200 p-4">
+                    <h3 className="text-base font-semibold text-slate-950">{index + 1}. {text(item.title, "Risco sem titulo")}</h3>
+                    <div className="mt-3 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
+                      <p><strong>Categoria:</strong> {text(item.risk_category)}</p>
+                      <p><strong>Nivel:</strong> {text(item.risk_level)}</p>
+                      <p><strong>Classificacao:</strong> {text(item.classification)}</p>
+                      <p><strong>Grupo exposto:</strong> {text(item.exposed_group)}</p>
+                      <p className="md:col-span-2"><strong>Perigo/Fonte:</strong> {text(item.hazard_description ?? item.source_circumstance)}</p>
+                      <p className="md:col-span-2"><strong>Medida recomendada:</strong> {text(item.recommended_measure)}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <EmptyState text="Nenhum risco registrado para este estabelecimento." />
+            )}
+
+            <SectionTitle>4. Plano de acao</SectionTitle>
+            {actionPlans.length > 0 ? (
+              <div className="mt-4 space-y-4">
+                {actionPlans.map((item, index) => (
+                  <article key={String(item.id ?? index)} className="rounded-2xl border border-slate-200 p-4">
+                    <h3 className="text-base font-semibold text-slate-950">{index + 1}. {text(item.title, "Acao sem titulo")}</h3>
+                    <div className="mt-3 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
+                      <p><strong>Prioridade:</strong> {text(item.priority)}</p>
+                      <p><strong>Status:</strong> {text(item.status)}</p>
+                      <p><strong>Responsavel:</strong> {text(item.responsible_name)}</p>
+                      <p><strong>Prazo:</strong> {dateText(item.due_date)}</p>
+                      <p className="md:col-span-2"><strong>Descricao:</strong> {text(item.description)}</p>
+                      <p className="md:col-span-2"><strong>Indicador:</strong> {text(item.completion_indicator)}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <EmptyState text="Nenhum plano de acao registrado para este estabelecimento." />
+            )}
+
+            <SectionTitle>5. Acompanhamentos</SectionTitle>
+            {actionFollowups.length > 0 ? (
+              <div className="mt-4 space-y-3">
+                {actionFollowups.map((item, index) => (
+                  <div key={String(item.id ?? index)} className="rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">
+                    <p><strong>{index + 1}. Status:</strong> {text(item.status)}</p>
+                    <p><strong>Data:</strong> {dateText(item.followup_date ?? item.created_at)}</p>
+                    <p><strong>Descricao:</strong> {text(item.description ?? item.notes)}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState text="Nenhum acompanhamento registrado para os planos deste estabelecimento." />
+            )}
+
+            <SectionTitle>6. Evidencias</SectionTitle>
+            {evidenceItems.length > 0 ? (
+              <div className="mt-4 space-y-3">
+                {evidenceItems.map((item, index) => (
+                  <div key={String(item.id ?? index)} className="rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">
+                    <p><strong>{index + 1}. Titulo:</strong> {text(item.title)}</p>
+                    <p><strong>Tipo:</strong> {text(item.evidence_type)}</p>
+                    <p><strong>Status:</strong> {text(item.validation_status)}</p>
+                    <p><strong>Referencia:</strong> {dateText(item.reference_date)}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState text="Nenhuma evidencia registrada para este estabelecimento." />
+            )}
+
+            <SectionTitle>7. Trilha de auditoria</SectionTitle>
+            {auditEvents.length > 0 ? (
+              <div className="mt-4 space-y-3">
+                {auditEvents.slice(0, 25).map((item, index) => (
+                  <div key={String(item.id ?? index)} className="rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">
+                    <p><strong>{index + 1}. Evento:</strong> {text(item.event_type)}</p>
+                    <p><strong>Entidade:</strong> {text(item.entity_type)}</p>
+                    <p><strong>Data:</strong> {dateText(item.created_at)}</p>
+                    <p><strong>Motivo:</strong> {text(item.reason)}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState text="Nenhum evento de auditoria registrado para este estabelecimento." />
+            )}
+          </section>
+        ) : (
+          <section id="nr1-pgr-print-area" className="mt-6 rounded-[24px] border border-dashed border-[#D9E0E7] bg-white p-8 text-center text-sm text-[#5B6776]">
+            Gere o relatorio para visualizar a versao imprimivel do PGR.
+          </section>
+        )}
+
         {reportPayload ? (
-          <section className="mt-6 rounded-[24px] border border-[#D9E0E7] bg-white p-6 shadow-[0_18px_50px_rgba(34,49,63,0.08)]">
+          <section className="nr1-screen-only mt-6 rounded-[24px] border border-[#D9E0E7] bg-white p-6 shadow-[0_18px_50px_rgba(34,49,63,0.08)]">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-[#132238]">Payload do relatorio</h2>
               <span className="rounded-full bg-[#E8F5F6] px-3 py-1 text-xs font-semibold text-[#178A8F]">
