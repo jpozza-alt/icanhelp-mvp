@@ -275,6 +275,52 @@ export default function Nr1PgrReportPage() {
     }
   }
 
+
+  async function recordPgrDocumentAuditEvent(action: "generated" | "print_requested") {
+    if (!selectedTenantId || !selectedEstablishmentId) {
+      return;
+    }
+
+    try {
+      const accessToken = token || (await getAccessToken());
+      const eventType = action === "generated" ? "pgr_report_generated" : "pgr_report_print_requested";
+      const reason =
+        action === "generated"
+          ? "Relatorio PGR gerado na tela."
+          : "Solicitacao de impressao ou salvamento em PDF do PGR.";
+
+      await fetch("/api/nr1/audit-events", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "x-icanhelp-tenant": selectedTenantId,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          establishment_id: selectedEstablishmentId,
+          module_name: "nr1",
+          screen_key: "dashboard/nr1/relatorio-pgr",
+          entity_type: "pgr_report",
+          entity_id: selectedEstablishmentId,
+          event_type: eventType,
+          persistence_type: "formal_version",
+          reason,
+          old_value_json: null,
+          new_value_json: {
+            tenantId: selectedTenantId,
+            establishmentId: selectedEstablishmentId,
+            source: "dashboard/nr1/relatorio-pgr",
+            action,
+            reportType: "nr1_pgr_json",
+          },
+        }),
+      });
+    } catch {
+      // Audit failure must not block report generation or browser print.
+    }
+  }
+
   async function loadReport() {
     if (!selectedTenantId) {
       setStatus("error");
@@ -312,6 +358,7 @@ export default function Nr1PgrReportPage() {
         throw new Error(payload?.message || payload?.error || "Falha ao gerar relatorio PGR.");
       }
 
+      await recordPgrDocumentAuditEvent("generated");
       setStatus("loaded");
       setMessage("Relatorio PGR carregado. Use o botao de impressao para salvar em PDF.");
     } catch (error) {
@@ -326,6 +373,7 @@ export default function Nr1PgrReportPage() {
       return;
     }
 
+    void recordPgrDocumentAuditEvent("print_requested");
     window.print();
   }
 
@@ -642,4 +690,5 @@ export default function Nr1PgrReportPage() {
     </main>
   );
 }
+
 
