@@ -2,6 +2,7 @@
 
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import Nr1PgrReportShortcut from "@/components/nr1/Nr1PgrReportShortcut";
 
 type JsonObject = Record<string, unknown>;
 
@@ -2011,6 +2012,7 @@ useEffect(() => {
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
+          <Nr1PgrReportShortcut />
       <div className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -3183,6 +3185,7 @@ useEffect(() => {
     </main>
   );
 }
+
 
 
 
