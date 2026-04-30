@@ -117,7 +117,7 @@ function dateText(value: unknown): string {
 }
 
 function SectionTitle(props: { children: React.ReactNode }) {
-  return <h2 className="mt-8 border-b border-slate-300 pb-2 text-xl font-semibold text-slate-950">{props.children}</h2>;
+  return <h2 className="nr1-print-section-title mt-8 border-b border-slate-300 pb-2 text-xl font-semibold text-slate-950">{props.children}</h2>;
 }
 
 function InfoGrid(props: { items: Array<[string, unknown]> }) {
@@ -134,7 +134,16 @@ function InfoGrid(props: { items: Array<[string, unknown]> }) {
 }
 
 function EmptyState(props: { text: string }) {
-  return <p className="mt-3 rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">{props.text}</p>;
+  return <p className="nr1-print-avoid mt-3 rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">{props.text}</p>;
+}
+
+function PrintFooter() {
+  return (
+    <footer id="nr1PrintLayoutVersion" className="mt-10 border-t border-slate-300 pt-4 text-[11px] leading-5 text-slate-500">
+      <p>Documento gerado pelo icanHelp para apoio ao Gerenciamento de Riscos Ocupacionais.</p>
+      <p>Revise os dados tecnicos, responsaveis e evidencias antes da assinatura e arquivamento formal.</p>
+    </footer>
+  );
 }
 
 export default function Nr1PgrReportPage() {
@@ -342,6 +351,8 @@ export default function Nr1PgrReportPage() {
             box-shadow: none !important;
             margin: 0 !important;
             padding: 0 !important;
+            font-size: 11.5pt;
+            line-height: 1.45;
           }
 
           #nr1-pgr-print-area * {
@@ -349,9 +360,34 @@ export default function Nr1PgrReportPage() {
             print-color-adjust: exact;
           }
 
+          .nr1-print-avoid,
+          #nr1-pgr-print-area article,
+          #nr1-pgr-print-area .rounded-2xl {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+
+          .nr1-print-section-title {
+            break-after: avoid;
+            page-break-after: avoid;
+            margin-top: 18pt !important;
+          }
+
+          .nr1-print-cover {
+            border-bottom: 2px solid #0f766e !important;
+            padding-bottom: 18pt !important;
+            margin-bottom: 18pt !important;
+          }
+
+          .nr1-print-badge {
+            border: 1px solid #99f6e4 !important;
+            background: #f0fdfa !important;
+            color: #115e59 !important;
+          }
+
           @page {
             size: A4;
-            margin: 14mm;
+            margin: 13mm;
           }
         }
       `}</style>
@@ -447,10 +483,17 @@ export default function Nr1PgrReportPage() {
 
         {report ? (
           <section id="nr1-pgr-print-area" className="mt-6 rounded-[24px] border border-[#D9E0E7] bg-white p-8 shadow-[0_18px_50px_rgba(34,49,63,0.08)]">
-            <header className="border-b border-slate-300 pb-6">
-              <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#178A8F]">Programa de Gerenciamento de Riscos</p>
-              <h1 className="mt-3 text-3xl font-bold text-slate-950">Relatorio estruturado do PGR</h1>
-              <p className="mt-2 text-sm text-slate-600">Documento gerado a partir da base NR1 do icanHelp.</p>
+            <header className="nr1-print-cover border-b border-slate-300 pb-6">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#178A8F]">Programa de Gerenciamento de Riscos</p>
+                  <h1 className="mt-3 text-3xl font-bold text-slate-950">Relatorio estruturado do PGR</h1>
+                  <p className="mt-2 text-sm text-slate-600">Documento gerado a partir da base NR1 do icanHelp.</p>
+                </div>
+                <div className="nr1-print-badge rounded-2xl px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-[#115e59]">
+                  PGR / GRO
+                </div>
+              </div>
               <div className="mt-4 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
                 <p><strong>Gerado em:</strong> {generatedAt ? dateText(generatedAt) : "-"}</p>
                 <p><strong>Tenant:</strong> {text(scope.tenantId)}</p>
@@ -489,7 +532,7 @@ export default function Nr1PgrReportPage() {
             {risks.length > 0 ? (
               <div className="mt-4 space-y-4">
                 {risks.map((item, index) => (
-                  <article key={String(item.id ?? index)} className="rounded-2xl border border-slate-200 p-4">
+                  <article key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4">
                     <h3 className="text-base font-semibold text-slate-950">{index + 1}. {text(item.title, "Risco sem titulo")}</h3>
                     <div className="mt-3 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
                       <p><strong>Categoria:</strong> {text(item.risk_category)}</p>
@@ -510,7 +553,7 @@ export default function Nr1PgrReportPage() {
             {actionPlans.length > 0 ? (
               <div className="mt-4 space-y-4">
                 {actionPlans.map((item, index) => (
-                  <article key={String(item.id ?? index)} className="rounded-2xl border border-slate-200 p-4">
+                  <article key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4">
                     <h3 className="text-base font-semibold text-slate-950">{index + 1}. {text(item.title, "Acao sem titulo")}</h3>
                     <div className="mt-3 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
                       <p><strong>Prioridade:</strong> {text(item.priority)}</p>
@@ -531,7 +574,7 @@ export default function Nr1PgrReportPage() {
             {actionFollowups.length > 0 ? (
               <div className="mt-4 space-y-3">
                 {actionFollowups.map((item, index) => (
-                  <div key={String(item.id ?? index)} className="rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">
+                  <div key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">
                     <p><strong>{index + 1}. Status:</strong> {text(item.status)}</p>
                     <p><strong>Data:</strong> {dateText(item.followup_date ?? item.created_at)}</p>
                     <p><strong>Descricao:</strong> {text(item.description ?? item.notes)}</p>
@@ -546,7 +589,7 @@ export default function Nr1PgrReportPage() {
             {evidenceItems.length > 0 ? (
               <div className="mt-4 space-y-3">
                 {evidenceItems.map((item, index) => (
-                  <div key={String(item.id ?? index)} className="rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">
+                  <div key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">
                     <p><strong>{index + 1}. Titulo:</strong> {text(item.title)}</p>
                     <p><strong>Tipo:</strong> {text(item.evidence_type)}</p>
                     <p><strong>Status:</strong> {text(item.validation_status)}</p>
@@ -562,7 +605,7 @@ export default function Nr1PgrReportPage() {
             {auditEvents.length > 0 ? (
               <div className="mt-4 space-y-3">
                 {auditEvents.slice(0, 25).map((item, index) => (
-                  <div key={String(item.id ?? index)} className="rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">
+                  <div key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">
                     <p><strong>{index + 1}. Evento:</strong> {text(item.event_type)}</p>
                     <p><strong>Entidade:</strong> {text(item.entity_type)}</p>
                     <p><strong>Data:</strong> {dateText(item.created_at)}</p>
@@ -573,6 +616,8 @@ export default function Nr1PgrReportPage() {
             ) : (
               <EmptyState text="Nenhum evento de auditoria registrado para este estabelecimento." />
             )}
+
+            <PrintFooter />
           </section>
         ) : (
           <section id="nr1-pgr-print-area" className="mt-6 rounded-[24px] border border-dashed border-[#D9E0E7] bg-white p-8 text-center text-sm text-[#5B6776]">
@@ -597,3 +642,4 @@ export default function Nr1PgrReportPage() {
     </main>
   );
 }
+
