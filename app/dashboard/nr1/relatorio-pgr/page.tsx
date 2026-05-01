@@ -395,7 +395,7 @@ export default function Nr1PgrReportPage() {
         body: JSON.stringify({
           establishment_id: selectedEstablishmentId,
           source_snapshot_json: reportPayload,
-          status: "active",
+          status: "generated",
         }),
       });
 
@@ -746,6 +746,7 @@ export default function Nr1PgrReportPage() {
     </main>
   );
 }
+
 
 
 

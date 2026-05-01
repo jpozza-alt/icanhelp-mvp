@@ -70,7 +70,7 @@ function readCounts(snapshot: unknown): AnyRecord {
 
 function normalizeStatus(value: unknown): string {
   const status = cleanText(value)
-  return status || "active"
+  return status || "generated"
 }
 
 function normalizeFileUrl(value: unknown): string | null {
@@ -404,4 +404,5 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+
 
