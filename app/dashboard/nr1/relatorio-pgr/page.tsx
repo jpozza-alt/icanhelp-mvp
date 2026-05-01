@@ -367,6 +367,53 @@ export default function Nr1PgrReportPage() {
     }
   }
 
+
+  async function createFormalPgrSnapshot() {
+    if (!selectedTenantId || !selectedEstablishmentId) {
+      setMessage("Selecione tenant e estabelecimento antes de criar o snapshot formal.");
+      return;
+    }
+
+    if (!reportPayload) {
+      setMessage("Gere o relatorio antes de criar o snapshot formal.");
+      return;
+    }
+
+    try {
+      setStatus("loading");
+      setMessage("Criando snapshot formal do PGR...");
+      const accessToken = token || (await getAccessToken());
+
+      const response = await fetch("/api/nr1/pgr-snapshot", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "x-icanhelp-tenant": selectedTenantId,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          establishment_id: selectedEstablishmentId,
+          source_snapshot_json: reportPayload,
+          status: "active",
+        }),
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload?.message || payload?.error || "Falha ao criar snapshot formal do PGR.");
+      }
+
+      const version = payload?.data?.version ? ` versao ${payload.data.version}` : "";
+      setStatus("loaded");
+      setMessage(`Snapshot formal do PGR criado.${version}`);
+    } catch (error) {
+      setStatus("error");
+      setMessage(error instanceof Error ? error.message : "Falha ao criar snapshot formal do PGR.");
+    }
+  }
+
   function handlePrintPdf() {
     if (!report) {
       setMessage("Gere o relatorio antes de imprimir ou salvar em PDF.");
@@ -513,6 +560,15 @@ export default function Nr1PgrReportPage() {
                 className="rounded-2xl border border-[#132238] bg-white px-5 py-3 text-sm font-semibold text-[#132238] transition hover:bg-[#F4F7FB] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Imprimir / salvar PDF
+              </button>
+              <button
+                id="nr1CreatePgrSnapshotButton"
+                type="button"
+                onClick={createFormalPgrSnapshot}
+                disabled={!reportPayload || status === "loading"}
+                className="rounded-2xl border border-[#178A8F] bg-[#E8F5F6] px-5 py-3 text-sm font-semibold text-[#116B70] transition hover:bg-[#D6F0F2] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Criar snapshot formal
               </button>
             </div>
           </div>
@@ -690,5 +746,6 @@ export default function Nr1PgrReportPage() {
     </main>
   );
 }
+
 
 
