@@ -123,7 +123,7 @@ export async function GET(req: NextRequest) {
       .select("*")
       .eq("tenant_id", scope.tenantId)
       .eq("establishment_id", establishmentId)
-      .eq("document_type", "pgr_report")
+      .eq("document_type", "review_report")
       .order("version", { ascending: false })
       .limit(20)
 
@@ -146,7 +146,7 @@ export async function GET(req: NextRequest) {
       meta: {
         tenantId: scope.tenantId,
         establishmentId,
-        documentType: "pgr_report",
+        documentType: "review_report",
         count: rows.length,
       },
     })
@@ -258,7 +258,7 @@ export async function POST(req: NextRequest) {
       .select("id, version")
       .eq("tenant_id", scope.tenantId)
       .eq("establishment_id", establishmentId)
-      .eq("document_type", "pgr_report")
+      .eq("document_type", "review_report")
       .order("version", { ascending: false })
       .limit(1)
 
@@ -291,7 +291,7 @@ export async function POST(req: NextRequest) {
     const insertPayload = {
       tenant_id: scope.tenantId,
       establishment_id: establishmentId,
-      document_type: "pgr_report",
+      document_type: "review_report",
       source_snapshot_json: sourceSnapshotJson,
       version: nextVersion,
       generated_at: generatedAt,
@@ -333,7 +333,7 @@ export async function POST(req: NextRequest) {
         tenantId: scope.tenantId,
         establishmentId,
         documentVersionId: documentVersion.id,
-        documentType: "pgr_report",
+        documentType: "review_report",
         version: nextVersion,
         reportType: "nr1_pgr_json",
         source: "dashboard/nr1/relatorio-pgr",
@@ -372,7 +372,7 @@ export async function POST(req: NextRequest) {
         meta: {
           tenantId: scope.tenantId,
           establishmentId,
-          documentType: "pgr_report",
+          documentType: "review_report",
           version: nextVersion,
           supersedesDocumentId: previousVersion?.id ?? null,
           action: "pgr_report_formal_snapshot_created",
@@ -404,3 +404,4 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+
