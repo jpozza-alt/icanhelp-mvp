@@ -297,6 +297,7 @@ export async function POST(req: NextRequest) {
       });
     }
     const auditPayload = {
+      tenant_id: tenantId,
       establishment_id: establishmentId,
       module_name: "nr1",
       screen_key: "pgr_report",
@@ -347,6 +348,7 @@ export async function POST(req: NextRequest) {
     });
   }
 }
+
 
 
 
