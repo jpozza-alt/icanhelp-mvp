@@ -167,6 +167,8 @@ function SectionTitle(props: { children: React.ReactNode }) {
 function InfoGrid(props: { items: Array<[string, unknown]> }) {
   return (
     <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <PgrProfessionalApprovalPanel />
+
       {props.items.map(([label, value]) => (
         <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">{label}</p>
@@ -874,7 +876,215 @@ export default function Nr1PgrReportPage() {
   );
 }
 
+function PgrProfessionalApprovalPanel() {
+  const [tenantId, setTenantId] = useState("");
+  const [establishmentId, setEstablishmentId] = useState("");
+  const [documentVersionId, setDocumentVersionId] = useState("");
+  const [professionalName, setProfessionalName] = useState("");
+  const [professionalRole, setProfessionalRole] = useState("");
+  const [professionalCouncil, setProfessionalCouncil] = useState("");
+  const [professionalRegistration, setProfessionalRegistration] = useState("");
+  const [professionalState, setProfessionalState] = useState("");
+  const [approvalStatement, setApprovalStatement] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [feedback, setFeedback] = useState("");
 
+  async function submitApproval() {
+    setFeedback("");
 
+    if (!tenantId.trim()) {
+      setFeedback("Informe o tenant_id antes de registrar a aprovacao.");
+      return;
+    }
 
+    if (!establishmentId.trim()) {
+      setFeedback("Informe o establishment_id antes de registrar a aprovacao.");
+      return;
+    }
+
+    if (!documentVersionId.trim()) {
+      setFeedback("Informe o ID da versao formal do PGR.");
+      return;
+    }
+
+    if (!professionalName.trim()) {
+      setFeedback("Informe o nome do responsavel ou profissional.");
+      return;
+    }
+
+    const token =
+      window.localStorage.getItem("sb-access-token") ||
+      window.localStorage.getItem("access_token") ||
+      "";
+
+    if (!token) {
+      setFeedback("Sessao local nao encontrada. Faca login novamente antes de registrar a aprovacao.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch("/api/nr1/pgr-approvals", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          "x-icanhelp-tenant": tenantId.trim(),
+          "x-icanhelp-establishment": establishmentId.trim(),
+        },
+        body: JSON.stringify({
+          tenant_id: tenantId.trim(),
+          establishment_id: establishmentId.trim(),
+          document_version_id: documentVersionId.trim(),
+          approval_status: "approved",
+          professional_name: professionalName.trim(),
+          professional_role: professionalRole.trim() || null,
+          professional_council: professionalCouncil.trim() || null,
+          professional_registration: professionalRegistration.trim() || null,
+          professional_state: professionalState.trim() || null,
+          approval_statement: approvalStatement.trim() || null,
+        }),
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setFeedback(payload?.error || "Nao foi possivel registrar a aprovacao profissional.");
+        return;
+      }
+
+      setFeedback("Aprovacao profissional registrada com sucesso.");
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Erro inesperado ao registrar aprovacao.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-4">
+        <p className="text-sm font-semibold text-slate-500">Validacao formal</p>
+        <h2 className="text-xl font-bold text-slate-900">Aprovacao profissional do PGR</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Registre o ato formal de validacao sobre uma versao gerada do relatorio PGR. Esta etapa nao substitui analise tecnica quando necessaria.
+        </p>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <label className="text-sm font-medium text-slate-700">
+          Tenant ID
+          <input
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            value={tenantId}
+            onChange={(event) => setTenantId(event.target.value)}
+            placeholder="tenant_id"
+          />
+        </label>
+
+        <label className="text-sm font-medium text-slate-700">
+          Estabelecimento ID
+          <input
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            value={establishmentId}
+            onChange={(event) => setEstablishmentId(event.target.value)}
+            placeholder="establishment_id"
+          />
+        </label>
+
+        <label className="text-sm font-medium text-slate-700 md:col-span-2">
+          ID da versao formal do PGR
+          <input
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            value={documentVersionId}
+            onChange={(event) => setDocumentVersionId(event.target.value)}
+            placeholder="document_version_id"
+          />
+        </label>
+
+        <label className="text-sm font-medium text-slate-700">
+          Nome do responsavel ou profissional
+          <input
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            value={professionalName}
+            onChange={(event) => setProfessionalName(event.target.value)}
+            placeholder="Nome completo"
+          />
+        </label>
+
+        <label className="text-sm font-medium text-slate-700">
+          Funcao
+          <input
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            value={professionalRole}
+            onChange={(event) => setProfessionalRole(event.target.value)}
+            placeholder="Responsavel tecnico, consultor, SST..."
+          />
+        </label>
+
+        <label className="text-sm font-medium text-slate-700">
+          Conselho
+          <input
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            value={professionalCouncil}
+            onChange={(event) => setProfessionalCouncil(event.target.value)}
+            placeholder="CREA, CRP, CRM, outro"
+          />
+        </label>
+
+        <label className="text-sm font-medium text-slate-700">
+          Registro
+          <input
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            value={professionalRegistration}
+            onChange={(event) => setProfessionalRegistration(event.target.value)}
+            placeholder="Numero de registro"
+          />
+        </label>
+
+        <label className="text-sm font-medium text-slate-700">
+          UF
+          <input
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            value={professionalState}
+            onChange={(event) => setProfessionalState(event.target.value)}
+            placeholder="SC"
+          />
+        </label>
+
+        <label className="text-sm font-medium text-slate-700 md:col-span-2">
+          Declaracao de aprovacao
+          <textarea
+            className="mt-1 min-h-24 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            value={approvalStatement}
+            onChange={(event) => setApprovalStatement(event.target.value)}
+            placeholder="Declaro que revisei a versao formal do PGR indicada e registro a validacao profissional nos limites das informacoes disponiveis."
+          />
+        </label>
+      </div>
+
+      <div className="mt-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <p className="text-xs text-slate-500">
+          O registro gera vinculo com a versao formal do PGR e trilha de auditoria.
+        </p>
+
+        <button
+          type="button"
+          onClick={submitApproval}
+          disabled={loading}
+          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          {loading ? "Registrando..." : "Registrar aprovacao"}
+        </button>
+      </div>
+
+      {feedback ? (
+        <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          {feedback}
+        </p>
+      ) : null}
+    </section>
+  );
+}
 
