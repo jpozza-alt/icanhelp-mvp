@@ -296,9 +296,7 @@ export async function POST(req: NextRequest) {
         details: insertError?.message || "Insert returned no data",
       });
     }
-
     const auditPayload = {
-      tenant_id: tenantId,
       establishment_id: establishmentId,
       module_name: "nr1",
       screen_key: "pgr_report",
@@ -308,16 +306,30 @@ export async function POST(req: NextRequest) {
       old_value_json: null,
       new_value_json: insertedApproval,
       persistence_type: "formal_approval",
-      user_id: userResult.user.id,
       reason: "Professional PGR approval created",
     };
 
-    const { error: auditError } = await supabase.from("audit_events").insert(auditPayload);
+    const auditResponse = await fetch(new URL("/api/nr1/audit-events", req.nextUrl.origin), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        "x-icanhelp-tenant": tenantId,
+        "x-icanhelp-establishment": establishmentId,
+      },
+      body: JSON.stringify(auditPayload),
+    });
 
-    if (auditError) {
+    const auditPayloadResponse = await auditResponse.json().catch(() => null);
+
+    if (!auditResponse.ok) {
       return jsonError("PGR approval was created, but audit event failed", 500, {
         approval: insertedApproval,
-        audit_error: auditError.message,
+        audit_status: auditResponse.status,
+        audit_error:
+          auditPayloadResponse?.error ||
+          auditPayloadResponse?.details ||
+          "Audit route rejected the event",
       });
     }
 
@@ -334,3 +346,4 @@ export async function POST(req: NextRequest) {
     });
   }
 }
+
