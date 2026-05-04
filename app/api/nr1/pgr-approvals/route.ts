@@ -307,7 +307,7 @@ export async function POST(req: NextRequest) {
       action: "inserted",
       old_value_json: null,
       new_value_json: insertedApproval,
-      persistence_type: "formal_approval",
+      persistence_type: insertedApproval.approval_status === "approved" ? "formal" : "draft",
       reason: "Professional PGR approval created",
     };
 
@@ -348,6 +348,7 @@ export async function POST(req: NextRequest) {
     });
   }
 }
+
 
 
 
