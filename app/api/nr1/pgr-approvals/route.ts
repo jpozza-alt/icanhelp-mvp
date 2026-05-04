@@ -303,7 +303,7 @@ export async function POST(req: NextRequest) {
       entity_type: "pgr_professional_approval",
       entity_id: insertedApproval.id,
       event_type: "pgr_professional_approval_created",
-      action: "pgr_professional_approval_created",
+      action: "inserted",
       old_value_json: null,
       new_value_json: insertedApproval,
       persistence_type: "formal_approval",
@@ -347,5 +347,6 @@ export async function POST(req: NextRequest) {
     });
   }
 }
+
 
 
