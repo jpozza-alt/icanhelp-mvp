@@ -937,7 +937,7 @@ function PgrProfessionalApprovalPanel() {
           tenant_id: tenantId.trim(),
           establishment_id: establishmentId.trim(),
           document_version_id: documentVersionId.trim(),
-          approval_status: "approved",
+          approval_status: "draft",
           professional_name: professionalName.trim(),
           professional_role: professionalRole.trim() || null,
           professional_council: professionalCouncil.trim() || null,
@@ -950,11 +950,11 @@ function PgrProfessionalApprovalPanel() {
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        setFeedback(payload?.error || "Nao foi possivel registrar a aprovacao profissional.");
+        setFeedback(payload?.error || "Nao foi possivel registrar o rascunho de aprovacao profissional.");
         return;
       }
 
-      setFeedback("Aprovacao profissional registrada com sucesso.");
+      setFeedback("Rascunho de aprovacao profissional registrado com sucesso.");
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Erro inesperado ao registrar aprovacao.");
     } finally {
@@ -1087,4 +1087,5 @@ function PgrProfessionalApprovalPanel() {
     </section>
   );
 }
+
 
