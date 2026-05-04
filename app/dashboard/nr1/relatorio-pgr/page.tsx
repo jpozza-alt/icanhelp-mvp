@@ -23,6 +23,15 @@ type EstablishmentOption = {
   status?: string | null;
 };
 
+type PgrSnapshotVersion = {
+  id: string;
+  version: number;
+  document_type: string;
+  status: string;
+  generated_at: string;
+  generated_by?: string | null;
+  supersedes_document_id?: string | null;
+};
 type LoadStatus = "idle" | "loading" | "loaded" | "error";
 type AnyRecord = Record<string, unknown>;
 
@@ -70,6 +79,41 @@ function parseEstablishments(payload: unknown): EstablishmentOption[] {
     .filter((item) => item.id.length > 0);
 }
 
+function parseSnapshotVersions(payload: unknown): PgrSnapshotVersion[] {
+  const wrapper = asRecord(payload);
+  const raw = Array.isArray(wrapper.data)
+    ? wrapper.data
+    : Array.isArray(wrapper.items)
+      ? wrapper.items
+      : Array.isArray(payload)
+        ? payload
+        : [];
+
+  return raw
+    .map((item) => {
+      const record = asRecord(item);
+      const id = String(record.id ?? "").trim();
+      const versionNumber = Number(record.version ?? 0);
+      const version = Number.isFinite(versionNumber) ? versionNumber : 0;
+      const documentType = String(record.document_type ?? "").trim();
+      const status = String(record.status ?? "").trim();
+      const generatedAt = String(record.generated_at ?? "").trim();
+      const generatedBy = record.generated_by ? String(record.generated_by) : null;
+      const supersedesDocumentId = record.supersedes_document_id ? String(record.supersedes_document_id) : null;
+
+      return {
+        id,
+        version,
+        document_type: documentType,
+        status,
+        generated_at: generatedAt,
+        generated_by: generatedBy,
+        supersedes_document_id: supersedesDocumentId,
+      };
+    })
+    .filter((item) => item.id.length > 0)
+    .sort((a, b) => b.version - a.version);
+}
 function getReport(payload: unknown): AnyRecord | null {
   const wrapper = asRecord(payload);
   const report = wrapper.report;
@@ -155,6 +199,7 @@ export default function Nr1PgrReportPage() {
   const [selectedTenantId, setSelectedTenantId] = useState("");
   const [selectedEstablishmentId, setSelectedEstablishmentId] = useState("");
   const [reportPayload, setReportPayload] = useState<unknown>(null);
+  const [snapshotVersions, setSnapshotVersions] = useState<PgrSnapshotVersion[]>([]);
 
   const report = getReport(reportPayload);
 
@@ -358,6 +403,7 @@ export default function Nr1PgrReportPage() {
         throw new Error(payload?.message || payload?.error || "Falha ao gerar relatorio PGR.");
       }
 
+      await loadFormalPgrSnapshots(accessToken);
       await recordPgrDocumentAuditEvent("generated");
       setStatus("loaded");
       setMessage("Relatorio PGR carregado. Use o botao de impressao para salvar em PDF.");
@@ -367,6 +413,36 @@ export default function Nr1PgrReportPage() {
     }
   }
 
+
+
+  async function loadFormalPgrSnapshots(accessTokenOverride?: string) {
+    if (!selectedTenantId || !selectedEstablishmentId) {
+      setSnapshotVersions([]);
+      return;
+    }
+
+    try {
+      const accessToken = accessTokenOverride || token || (await getAccessToken());
+      const response = await fetch(`/api/nr1/pgr-snapshot?establishmentId=${selectedEstablishmentId}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "x-icanhelp-tenant": selectedTenantId,
+          Accept: "application/json",
+        },
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        setSnapshotVersions([]);
+        return;
+      }
+
+      setSnapshotVersions(parseSnapshotVersions(payload));
+    } catch {
+      setSnapshotVersions([]);
+    }
+  }
 
   async function createFormalPgrSnapshot() {
     if (!selectedTenantId || !selectedEstablishmentId) {
@@ -404,6 +480,8 @@ export default function Nr1PgrReportPage() {
       if (!response.ok) {
         throw new Error(payload?.message || payload?.error || "Falha ao criar snapshot formal do PGR.");
       }
+
+      await loadFormalPgrSnapshots(accessToken);
 
       const version = payload?.data?.version ? ` versao ${payload.data.version}` : "";
       setStatus("loaded");
@@ -585,6 +663,55 @@ export default function Nr1PgrReportPage() {
           </section>
         )}
 
+        <section id="nr1SnapshotVersionsPanel" className="nr1-screen-only mt-6 rounded-[24px] border border-[#D9E0E7] bg-white p-6 shadow-[0_18px_50px_rgba(34,49,63,0.08)]">
+          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#178A8F]">versionamento formal</p>
+              <h2 className="mt-1 text-xl font-semibold text-[#132238]">Versoes formais do PGR</h2>
+              <p className="mt-1 text-sm text-[#5B6776]">Snapshots congelados em nr1_document_versions para rastreabilidade documental.</p>
+            </div>
+            <button
+              id="nr1RefreshPgrSnapshotsButton"
+              type="button"
+              onClick={() => void loadFormalPgrSnapshots()}
+              disabled={!selectedTenantId || !selectedEstablishmentId || status === "loading"}
+              className="rounded-2xl border border-[#D9E0E7] bg-white px-4 py-2 text-sm font-semibold text-[#132238] transition hover:bg-[#F4F7FB] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Atualizar versoes
+            </button>
+          </div>
+
+          {snapshotVersions.length === 0 ? (
+            <p className="mt-4 rounded-2xl border border-dashed border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm text-[#5B6776]">
+              Nenhum snapshot formal listado para o estabelecimento selecionado.
+            </p>
+          ) : (
+            <div className="mt-4 overflow-hidden rounded-2xl border border-[#D9E0E7]">
+              <table className="w-full border-collapse text-left text-sm">
+                <thead className="bg-[#F4F7FB] text-xs uppercase tracking-[0.08em] text-[#5B6776]">
+                  <tr>
+                    <th className="px-4 py-3">Versao</th>
+                    <th className="px-4 py-3">Tipo</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Gerado em</th>
+                    <th className="px-4 py-3">Substitui</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {snapshotVersions.map((snapshot) => (
+                    <tr key={snapshot.id} className="border-t border-[#D9E0E7]">
+                      <td className="px-4 py-3 font-semibold text-[#132238]">v{snapshot.version}</td>
+                      <td className="px-4 py-3 text-[#22313F]">{snapshot.document_type}</td>
+                      <td className="px-4 py-3 text-[#22313F]">{snapshot.status}</td>
+                      <td className="px-4 py-3 text-[#22313F]">{dateText(snapshot.generated_at)}</td>
+                      <td className="px-4 py-3 text-[#5B6776]">{snapshot.supersedes_document_id ? "Sim" : "Nao"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
         {report ? (
           <section id="nr1-pgr-print-area" className="mt-6 rounded-[24px] border border-[#D9E0E7] bg-white p-8 shadow-[0_18px_50px_rgba(34,49,63,0.08)]">
             <header className="nr1-print-cover border-b border-slate-300 pb-6">
@@ -746,6 +873,7 @@ export default function Nr1PgrReportPage() {
     </main>
   );
 }
+
 
 
 
