@@ -13,12 +13,8 @@ export function PgrSectionCard({
   children,
   className = "",
 }: PgrSectionCardProps) {
-  const classes = [
-    "rounded-2xl border border-slate-200 bg-white p-6 shadow-sm",
-    className,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const defaultClasses = "rounded-2xl border border-slate-200 bg-white p-6 shadow-sm";
+  const classes = className || defaultClasses;
 
   return (
     <section className={classes}>

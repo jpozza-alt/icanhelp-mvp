@@ -1,5 +1,7 @@
 "use client";
 
+import { PgrSectionCard } from "@/components/nr1/relatorio-pgr/PgrSectionCard";
+
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
@@ -574,14 +576,14 @@ export default function Nr1PgrReportPage() {
           </Link>
         </div>
 
-        <section className="nr1-screen-only rounded-[28px] bg-[linear-gradient(135deg,#0F2337_0%,#13495C_60%,#178A8F_100%)] p-7 text-white shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
+        <PgrSectionCard className="nr1-screen-only rounded-[28px] bg-[linear-gradient(135deg,#0F2337_0%,#13495C_60%,#178A8F_100%)] p-7 text-white shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
           <p className="text-[12px] uppercase tracking-[0.08em] text-white/70">documento PGR</p>
           <h1 className="mt-4 text-[38px] font-semibold leading-tight">Relatorio estruturado do PGR</h1>
           <p className="mt-3 max-w-3xl text-base leading-7 text-white/85">
             Gere a visao consolidada por estabelecimento com inventario, plano de acao,
             acompanhamentos, evidencias, saude, treinamentos e auditoria.
           </p>
-        </section>
+        </PgrSectionCard>
 
         <section className="nr1-screen-only mt-6 rounded-[24px] border border-[#D9E0E7] bg-white p-6 shadow-[0_18px_50px_rgba(34,49,63,0.08)]">
           <div className="grid gap-4 md:grid-cols-2">
@@ -859,7 +861,7 @@ export default function Nr1PgrReportPage() {
         )}
 
         {reportPayload ? (
-          <section className="nr1-screen-only mt-6 rounded-[24px] border border-[#D9E0E7] bg-white p-6 shadow-[0_18px_50px_rgba(34,49,63,0.08)]">
+          <PgrSectionCard className="nr1-screen-only mt-6 rounded-[24px] border border-[#D9E0E7] bg-white p-6 shadow-[0_18px_50px_rgba(34,49,63,0.08)]">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-[#132238]">Payload do relatorio</h2>
               <span className="rounded-full bg-[#E8F5F6] px-3 py-1 text-xs font-semibold text-[#178A8F]">
@@ -869,7 +871,7 @@ export default function Nr1PgrReportPage() {
             <pre className="max-h-[520px] overflow-auto rounded-2xl bg-[#0F172A] p-4 text-xs leading-5 text-white">
               {JSON.stringify(reportPayload, null, 2)}
             </pre>
-          </section>
+          </PgrSectionCard>
         ) : null}
       </div>
     </main>
@@ -1087,5 +1089,6 @@ function PgrProfessionalApprovalPanel() {
     </section>
   );
 }
+
 
 
