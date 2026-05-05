@@ -966,7 +966,7 @@ function PgrProfessionalApprovalPanel() {
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4">
+      <div className="print:hidden mb-4">
         <p className="text-sm font-semibold text-slate-500">Validacao formal</p>
         <h2 className="text-xl font-bold text-slate-900">Aprovacao profissional do PGR</h2>
         <p className="mt-1 text-sm text-slate-600">
@@ -1089,6 +1089,7 @@ function PgrProfessionalApprovalPanel() {
     </section>
   );
 }
+
 
 
 
