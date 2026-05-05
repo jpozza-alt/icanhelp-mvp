@@ -150,8 +150,7 @@ export async function GET(req: NextRequest) {
         ].join(",")
       )
       .eq("tenant_id", tenantId)
-.is("deleted_at", null)
-.order("created_at", { ascending: false });
+      .order("created_at", { ascending: false });
 
     if (establishmentId) {
       query = query.eq("establishment_id", establishmentId);
@@ -349,7 +348,6 @@ export async function POST(req: NextRequest) {
     });
   }
 }
-
 
 
 
