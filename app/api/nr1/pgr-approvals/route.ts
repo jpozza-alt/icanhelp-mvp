@@ -205,7 +205,7 @@ export async function POST(req: NextRequest) {
     const professionalName =
       typeof body.professional_name === "string" ? body.professional_name.trim() : "";
 
-    const approvalStatusRaw = body.approval_status || "approved";
+    const approvalStatusRaw = body.approval_status || "draft";
 
     if (!tenantId) {
       return jsonError("Missing tenant context", 400);
@@ -225,6 +225,14 @@ export async function POST(req: NextRequest) {
 
     if (!isAllowedApprovalStatus(approvalStatusRaw)) {
       return jsonError("Invalid approval_status. Allowed: draft, approved", 400);
+    }
+
+    if (approvalStatusRaw === "approved") {
+      return jsonError("Final PGR approval is not available in this draft route yet", 409, {
+        code: "final_approval_requires_explicit_workflow",
+        message:
+          "Use approval_status=draft here. Final professional approval must use a dedicated explicit finalization workflow with responsibility confirmation and audit trail.",
+      });
     }
 
     const { data: documentVersion, error: documentVersionError } = await supabase
@@ -262,8 +270,8 @@ export async function POST(req: NextRequest) {
         typeof body.professional_state === "string" ? body.professional_state.trim() : null,
       approval_statement:
         typeof body.approval_statement === "string" ? body.approval_statement.trim() : null,
-      approved_at: approvalStatus === "approved" ? now : null,
-      approved_by: approvalStatus === "approved" ? userResult.user.id : null,
+      approved_at: null,
+      approved_by: null,
       created_by: userResult.user.id,
       updated_by: userResult.user.id,
       source_snapshot_json: {
@@ -348,6 +356,7 @@ export async function POST(req: NextRequest) {
     });
   }
 }
+
 
 
 
