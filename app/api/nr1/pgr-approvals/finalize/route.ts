@@ -302,7 +302,7 @@ export async function POST(req: NextRequest) {
         final_confirmation: true,
       },
       persistence_type: "formal_version",
-      created_by: userResult.user.id,
+      user_id: userResult.user.id,
     };
 
     const { data: insertedAuditEvent, error: auditError } = await supabase
@@ -344,3 +344,4 @@ export async function POST(req: NextRequest) {
     });
   }
 }
+
