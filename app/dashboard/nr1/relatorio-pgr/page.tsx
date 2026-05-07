@@ -166,10 +166,10 @@ function SectionTitle(props: { children: React.ReactNode }) {
   return <h2 className="nr1-print-section-title mt-8 border-b border-slate-300 pb-2 text-xl font-semibold text-slate-950">{props.children}</h2>;
 }
 
-function InfoGrid(props: { items: Array<[string, unknown]> }) {
+function InfoGrid(props: { items: Array<[string, unknown]>; selectedTenantId?: string; selectedEstablishmentId?: string }) {
   return (
     <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <PgrProfessionalApprovalPanel />
+        <PgrProfessionalApprovalPanel selectedTenantId={props.selectedTenantId} selectedEstablishmentId={props.selectedEstablishmentId} />
 
       {props.items.map(([label, value]) => (
         <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -738,7 +738,7 @@ export default function Nr1PgrReportPage() {
             </header>
 
             <SectionTitle>1. Identificacao</SectionTitle>
-            <InfoGrid
+            <InfoGrid selectedTenantId={selectedTenantId} selectedEstablishmentId={selectedEstablishmentId}
               items={[
                 ["Empresa", company.legal_name ?? company.trade_name],
                 ["Nome fantasia", company.trade_name],
@@ -878,7 +878,15 @@ export default function Nr1PgrReportPage() {
   );
 }
 
-function PgrProfessionalApprovalPanel() {
+type PgrProfessionalApprovalPanelProps = {
+  selectedTenantId?: string;
+  selectedEstablishmentId?: string;
+};
+
+function PgrProfessionalApprovalPanel({
+  selectedTenantId = "",
+  selectedEstablishmentId = "",
+}: PgrProfessionalApprovalPanelProps) {
   const [tenantId, setTenantId] = useState("");
   const [establishmentId, setEstablishmentId] = useState("");
   const [documentVersionId, setDocumentVersionId] = useState("");
@@ -898,12 +906,15 @@ function PgrProfessionalApprovalPanel() {
   async function submitApproval() {
     setFeedback("");
 
-    if (!tenantId.trim()) {
+    const effectiveTenantId = tenantId.trim() || selectedTenantId.trim();
+    const effectiveEstablishmentId = establishmentId.trim() || selectedEstablishmentId.trim();
+
+    if (!effectiveTenantId) {
       setFeedback("Informe o tenant_id antes de registrar a aprovacao.");
       return;
     }
 
-    if (!establishmentId.trim()) {
+    if (!effectiveEstablishmentId) {
       setFeedback("Informe o establishment_id antes de registrar a aprovacao.");
       return;
     }
@@ -971,12 +982,12 @@ function PgrProfessionalApprovalPanel() {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
-          "x-icanhelp-tenant": tenantId.trim(),
-          "x-icanhelp-establishment": establishmentId.trim(),
+          "x-icanhelp-tenant": effectiveTenantId,
+          "x-icanhelp-establishment": effectiveEstablishmentId,
         },
         body: JSON.stringify({
-          tenant_id: tenantId.trim(),
-          establishment_id: establishmentId.trim(),
+          tenant_id: effectiveTenantId,
+          establishment_id: effectiveEstablishmentId,
           document_version_id: documentVersionId.trim(),
           professional_name: professionalName.trim(),
           professional_role: professionalRole.trim(),
@@ -1164,6 +1175,9 @@ function PgrProfessionalApprovalPanel() {
     </section>
   );
 }
+
+
+
 
 
 
