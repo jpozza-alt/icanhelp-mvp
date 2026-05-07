@@ -888,6 +888,10 @@ function PgrProfessionalApprovalPanel() {
   const [professionalRegistration, setProfessionalRegistration] = useState("");
   const [professionalState, setProfessionalState] = useState("");
   const [approvalStatement, setApprovalStatement] = useState("");
+  const [responsibilityConfirmation, setResponsibilityConfirmation] = useState(false);
+  const [finalConfirmation, setFinalConfirmation] = useState(false);
+  const [approvalId, setApprovalId] = useState("");
+  const [auditEventId, setAuditEventId] = useState("");
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState("");
 
@@ -914,6 +918,41 @@ function PgrProfessionalApprovalPanel() {
       return;
     }
 
+    if (!professionalRole.trim()) {
+      setFeedback("Informe a funcao do responsavel tecnico.");
+      return;
+    }
+
+    if (!professionalCouncil.trim()) {
+      setFeedback("Informe o conselho profissional ou identificador aplicavel.");
+      return;
+    }
+
+    if (!professionalRegistration.trim()) {
+      setFeedback("Informe o numero de registro profissional.");
+      return;
+    }
+
+    if (!professionalState.trim()) {
+      setFeedback("Informe a UF do registro profissional.");
+      return;
+    }
+
+    if (!approvalStatement.trim()) {
+      setFeedback("Informe a declaracao de aprovacao final.");
+      return;
+    }
+
+    if (!responsibilityConfirmation) {
+      setFeedback("Confirme a responsabilidade tecnica antes de finalizar o PGR.");
+      return;
+    }
+
+    if (!finalConfirmation) {
+      setFeedback("Confirme que esta e uma aprovacao final do PGR.");
+      return;
+    }
+
     const token =
       window.localStorage.getItem("sb-access-token") ||
       window.localStorage.getItem("access_token") ||
@@ -927,7 +966,7 @@ function PgrProfessionalApprovalPanel() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/nr1/pgr-approvals", {
+      const response = await fetch("/api/nr1/pgr-approvals/finalize", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -939,26 +978,29 @@ function PgrProfessionalApprovalPanel() {
           tenant_id: tenantId.trim(),
           establishment_id: establishmentId.trim(),
           document_version_id: documentVersionId.trim(),
-          approval_status: "draft",
           professional_name: professionalName.trim(),
-          professional_role: professionalRole.trim() || null,
-          professional_council: professionalCouncil.trim() || null,
-          professional_registration: professionalRegistration.trim() || null,
-          professional_state: professionalState.trim() || null,
-          approval_statement: approvalStatement.trim() || null,
+          professional_role: professionalRole.trim(),
+          professional_council: professionalCouncil.trim(),
+          professional_registration: professionalRegistration.trim(),
+          professional_state: professionalState.trim(),
+          approval_statement: approvalStatement.trim(),
+          responsibility_confirmation: responsibilityConfirmation,
+          final_confirmation: finalConfirmation,
         }),
       });
 
       const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        setFeedback(payload?.error || "Nao foi possivel registrar o rascunho de aprovacao profissional.");
+        setFeedback(payload?.message || payload?.error || "Nao foi possivel finalizar a aprovacao profissional do PGR.");
         return;
       }
 
-      setFeedback("Rascunho de aprovacao profissional registrado com sucesso.");
+      setApprovalId(String(payload?.approval?.id || ""));
+      setAuditEventId(String(payload?.audit_event?.id || ""));
+      setFeedback("Aprovacao final profissional registrada com sucesso.");
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Erro inesperado ao registrar aprovacao.");
+      setFeedback(error instanceof Error ? error.message : "Erro inesperado ao finalizar aprovacao.");
     } finally {
       setLoading(false);
     }
@@ -968,9 +1010,9 @@ function PgrProfessionalApprovalPanel() {
     <section className="print:hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="print:hidden mb-4">
         <p className="text-sm font-semibold text-slate-500">Validacao formal</p>
-        <h2 className="text-xl font-bold text-slate-900">Aprovacao profissional do PGR</h2>
+        <h2 className="text-xl font-bold text-slate-900">Aprovacao final profissional do PGR</h2>
         <p className="mt-1 text-sm text-slate-600">
-          Registre o ato formal de validacao sobre uma versao gerada do relatorio PGR. Esta etapa nao substitui analise tecnica quando necessaria.
+          Registre a aprovacao final sobre uma versao formal do PGR. Esta etapa exige responsabilidade tecnica explicita e gera trilha de auditoria.
         </p>
       </div>
 
@@ -1064,20 +1106,46 @@ function PgrProfessionalApprovalPanel() {
             placeholder="Declaro que revisei a versao formal do PGR indicada e registro a validacao profissional nos limites das informacoes disponiveis."
           />
         </label>
+
+        <div className="md:col-span-2 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+          <p className="font-semibold">Confirmacoes obrigatorias para aprovacao final</p>
+          <label className="mt-3 flex gap-3">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4"
+              checked={responsibilityConfirmation}
+              onChange={(event) => setResponsibilityConfirmation(event.target.checked)}
+            />
+            <span>
+              Confirmo que a aprovacao final representa ato formal de responsabilidade tecnica sobre a versao do PGR indicada.
+            </span>
+          </label>
+          <label className="mt-3 flex gap-3">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4"
+              checked={finalConfirmation}
+              onChange={(event) => setFinalConfirmation(event.target.checked)}
+            />
+            <span>
+              Confirmo que desejo finalizar a aprovacao profissional do PGR e gerar registro de auditoria.
+            </span>
+          </label>
+        </div>
       </div>
 
       <div className="mt-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <p className="text-xs text-slate-500">
-          O registro gera vinculo com a versao formal do PGR e trilha de auditoria.
+          A finalizacao gera vinculo com a versao formal do PGR, aprovacao ativa e trilha de auditoria.
         </p>
 
         <button
           type="button"
           onClick={submitApproval}
-          disabled={loading}
+          disabled={loading || !responsibilityConfirmation || !finalConfirmation}
           className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
         >
-          {loading ? "Registrando..." : "Registrar aprovacao"}
+          {loading ? "Finalizando..." : "Finalizar aprovacao do PGR"}
         </button>
       </div>
 
@@ -1086,9 +1154,17 @@ function PgrProfessionalApprovalPanel() {
           {feedback}
         </p>
       ) : null}
+
+      {approvalId || auditEventId ? (
+        <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+          {approvalId ? <p><strong>Approval ID:</strong> {approvalId}</p> : null}
+          {auditEventId ? <p><strong>Audit Event ID:</strong> {auditEventId}</p> : null}
+        </div>
+      ) : null}
     </section>
   );
 }
+
 
 
 
