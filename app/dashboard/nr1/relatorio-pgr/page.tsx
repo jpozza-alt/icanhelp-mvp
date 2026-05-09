@@ -738,7 +738,7 @@ export default function Nr1PgrReportPage() {
             </header>
 
             <SectionTitle>1. Identificacao</SectionTitle>
-            <InfoGrid selectedTenantId={selectedTenantId} selectedEstablishmentId={selectedEstablishmentId}
+            <InfoGrid selectedTenantId={String(scope.tenantId ?? selectedTenantId ?? "")} selectedEstablishmentId={String(scope.establishmentId ?? selectedEstablishmentId ?? "")}
               items={[
                 ["Empresa", company.legal_name ?? company.trade_name],
                 ["Nome fantasia", company.trade_name],
@@ -1175,6 +1175,7 @@ function PgrProfessionalApprovalPanel({
     </section>
   );
 }
+
 
 
 
