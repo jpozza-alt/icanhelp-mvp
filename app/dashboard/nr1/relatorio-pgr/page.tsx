@@ -902,6 +902,23 @@ function PgrProfessionalApprovalPanel({
   const [auditEventId, setAuditEventId] = useState("");
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState("");
+  useEffect(() => {
+    if (!tenantId.trim() && selectedTenantId.trim()) {
+      setTenantId(selectedTenantId.trim());
+    }
+
+    if (!establishmentId.trim() && selectedEstablishmentId.trim()) {
+      setEstablishmentId(selectedEstablishmentId.trim());
+    }
+
+    if (!documentVersionId.trim() && typeof window !== "undefined") {
+      const queryDocumentVersionId = new URLSearchParams(window.location.search).get("documentVersionId")?.trim() ?? "";
+
+      if (queryDocumentVersionId) {
+        setDocumentVersionId(queryDocumentVersionId);
+      }
+    }
+  }, [documentVersionId, establishmentId, selectedEstablishmentId, selectedTenantId, tenantId]);
 
   async function submitApproval() {
     setFeedback("");
@@ -1175,14 +1192,4 @@ function PgrProfessionalApprovalPanel({
     </section>
   );
 }
-
-
-
-
-
-
-
-
-
-
 
