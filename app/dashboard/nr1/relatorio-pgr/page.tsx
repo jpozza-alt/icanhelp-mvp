@@ -166,10 +166,10 @@ function SectionTitle(props: { children: React.ReactNode }) {
   return <h2 className="nr1-print-section-title mt-8 border-b border-slate-300 pb-2 text-xl font-semibold text-slate-950">{props.children}</h2>;
 }
 
-function InfoGrid(props: { items: Array<[string, unknown]>; selectedTenantId?: string; selectedEstablishmentId?: string }) {
+function InfoGrid(props: { items: Array<[string, unknown]>; selectedTenantId?: string; selectedEstablishmentId?: string; selectedDocumentVersionId?: string }) {
   return (
     <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <PgrProfessionalApprovalPanel selectedTenantId={props.selectedTenantId} selectedEstablishmentId={props.selectedEstablishmentId} />
+        <PgrProfessionalApprovalPanel selectedTenantId={props.selectedTenantId} selectedEstablishmentId={props.selectedEstablishmentId} selectedDocumentVersionId={props.selectedDocumentVersionId} />
 
       {props.items.map(([label, value]) => (
         <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -206,6 +206,7 @@ export default function Nr1PgrReportPage() {
   const [snapshotVersions, setSnapshotVersions] = useState<PgrSnapshotVersion[]>([]);
 
   const report = getReport(reportPayload);
+  const latestFormalDocumentVersionId = snapshotVersions[0]?.id ?? "";
 
   const summary = useMemo(() => {
     if (!report) {
@@ -739,6 +740,7 @@ export default function Nr1PgrReportPage() {
 
             <SectionTitle>1. Identificacao</SectionTitle>
             <InfoGrid selectedTenantId={String(scope.tenantId ?? scope.tenant_id ?? selectedTenantId ?? "")} selectedEstablishmentId={String(scope.establishmentId ?? scope.establishment_id ?? selectedEstablishmentId ?? "")}
+              selectedDocumentVersionId={latestFormalDocumentVersionId}
               items={[
                 ["Empresa", company.legal_name ?? company.trade_name],
                 ["Nome fantasia", company.trade_name],
@@ -881,11 +883,13 @@ export default function Nr1PgrReportPage() {
 type PgrProfessionalApprovalPanelProps = {
   selectedTenantId?: string;
   selectedEstablishmentId?: string;
+  selectedDocumentVersionId?: string;
 };
 
 function PgrProfessionalApprovalPanel({
   selectedTenantId = "",
   selectedEstablishmentId = "",
+  selectedDocumentVersionId = "",
 }: PgrProfessionalApprovalPanelProps) {
   const [tenantId, setTenantId] = useState("");
   const [establishmentId, setEstablishmentId] = useState("");
@@ -911,6 +915,11 @@ function PgrProfessionalApprovalPanel({
       setEstablishmentId(selectedEstablishmentId.trim());
     }
 
+    if (!documentVersionId.trim() && selectedDocumentVersionId.trim()) {
+      setDocumentVersionId(selectedDocumentVersionId.trim());
+      return;
+    }
+
     if (!documentVersionId.trim() && typeof window !== "undefined") {
       const queryDocumentVersionId = new URLSearchParams(window.location.search).get("documentVersionId")?.trim() ?? "";
 
@@ -918,7 +927,7 @@ function PgrProfessionalApprovalPanel({
         setDocumentVersionId(queryDocumentVersionId);
       }
     }
-  }, [documentVersionId, establishmentId, selectedEstablishmentId, selectedTenantId, tenantId]);
+  }, [documentVersionId, establishmentId, selectedDocumentVersionId, selectedEstablishmentId, selectedTenantId, tenantId]);
   const queryDocumentVersionId =
     typeof window !== "undefined"
       ? new URLSearchParams(window.location.search).get("documentVersionId")?.trim() ?? ""
@@ -926,7 +935,7 @@ function PgrProfessionalApprovalPanel({
 
   const effectiveTenantIdForInput = tenantId.trim() || selectedTenantId.trim();
   const effectiveEstablishmentIdForInput = establishmentId.trim() || selectedEstablishmentId.trim();
-  const effectiveDocumentVersionIdForInput = documentVersionId.trim() || queryDocumentVersionId;
+  const effectiveDocumentVersionIdForInput = documentVersionId.trim() || selectedDocumentVersionId.trim() || queryDocumentVersionId;
 
   async function submitApproval() {
     setFeedback("");
