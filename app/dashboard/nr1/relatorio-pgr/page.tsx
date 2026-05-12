@@ -919,12 +919,20 @@ function PgrProfessionalApprovalPanel({
       }
     }
   }, [documentVersionId, establishmentId, selectedEstablishmentId, selectedTenantId, tenantId]);
+  const queryDocumentVersionId =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("documentVersionId")?.trim() ?? ""
+      : "";
+
+  const effectiveTenantIdForInput = tenantId.trim() || selectedTenantId.trim();
+  const effectiveEstablishmentIdForInput = establishmentId.trim() || selectedEstablishmentId.trim();
+  const effectiveDocumentVersionIdForInput = documentVersionId.trim() || queryDocumentVersionId;
 
   async function submitApproval() {
     setFeedback("");
 
-    const effectiveTenantId = tenantId.trim() || selectedTenantId.trim();
-    const effectiveEstablishmentId = establishmentId.trim() || selectedEstablishmentId.trim();
+    const effectiveTenantId = effectiveTenantIdForInput;
+    const effectiveEstablishmentId = effectiveEstablishmentIdForInput;
 
     if (!effectiveTenantId) {
       setFeedback("Informe o tenant_id antes de registrar a aprovacao.");
@@ -936,7 +944,7 @@ function PgrProfessionalApprovalPanel({
       return;
     }
 
-    if (!documentVersionId.trim()) {
+    if (!effectiveDocumentVersionIdForInput) {
       setFeedback("Informe o ID da versao formal do PGR.");
       return;
     }
@@ -1005,7 +1013,7 @@ function PgrProfessionalApprovalPanel({
         body: JSON.stringify({
           tenant_id: effectiveTenantId,
           establishment_id: effectiveEstablishmentId,
-          document_version_id: documentVersionId.trim(),
+          document_version_id: effectiveDocumentVersionIdForInput,
           professional_name: professionalName.trim(),
           professional_role: professionalRole.trim(),
           professional_council: professionalCouncil.trim(),
@@ -1049,7 +1057,7 @@ function PgrProfessionalApprovalPanel({
           Tenant ID
           <input
             className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            value={tenantId}
+            value={effectiveTenantIdForInput}
             onChange={(event) => setTenantId(event.target.value)}
             placeholder="tenant_id"
           />
@@ -1059,7 +1067,7 @@ function PgrProfessionalApprovalPanel({
           Estabelecimento ID
           <input
             className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            value={establishmentId}
+            value={effectiveEstablishmentIdForInput}
             onChange={(event) => setEstablishmentId(event.target.value)}
             placeholder="establishment_id"
           />
@@ -1069,7 +1077,7 @@ function PgrProfessionalApprovalPanel({
           ID da versao formal do PGR
           <input
             className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            value={documentVersionId}
+            value={effectiveDocumentVersionIdForInput}
             onChange={(event) => setDocumentVersionId(event.target.value)}
             placeholder="document_version_id"
           />
