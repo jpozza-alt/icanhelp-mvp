@@ -245,6 +245,9 @@ export default function Nr1PgrReportPage() {
 
   const report = getReport(reportPayload);
   const latestFormalDocumentVersionId = snapshotVersions[0]?.id ?? "";
+  const selectedTenant = tenants.find((tenantItem) => tenantItem.id === selectedTenantId);
+  const selectedEstablishment = establishments.find((item) => item.id === selectedEstablishmentId);
+  const topSelectorScopeReady = Boolean(selectedTenantId && selectedEstablishmentId);
 
   const summary = useMemo(() => {
     if (!report) {
@@ -349,6 +352,7 @@ export default function Nr1PgrReportPage() {
   async function handleTenantChange(nextTenantId: string) {
     setSelectedTenantId(nextTenantId);
     setReportPayload(null);
+    setSnapshotVersions([]);
 
     try {
       setStatus("loading");
@@ -648,6 +652,7 @@ export default function Nr1PgrReportPage() {
                 onChange={(event) => {
                   setSelectedEstablishmentId(event.target.value);
                   setReportPayload(null);
+                  setSnapshotVersions([]);
                 }}
                 className="mt-2 w-full rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] px-4 py-3 text-sm outline-none"
               >
@@ -660,6 +665,39 @@ export default function Nr1PgrReportPage() {
             </label>
           </div>
 
+          <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+            <div className="flex flex-col gap-1">
+              <strong>Escopo ativo do relatorio PGR</strong>
+              <span>Confira o tenant e o estabelecimento antes de gerar relatorio, snapshot ou aprovacao final.</span>
+            </div>
+
+            <dl className="mt-3 grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl bg-white/75 p-3">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-amber-700">Tenant selecionado</dt>
+                <dd className="mt-1 font-semibold text-slate-900">{selectedTenant?.name || "Nenhum tenant selecionado"}</dd>
+                <dd className="mt-1 break-all font-mono text-xs text-slate-600">{selectedTenantId || "tenant_id ausente"}</dd>
+              </div>
+              <div className="rounded-xl bg-white/75 p-3">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-amber-700">Estabelecimento selecionado</dt>
+                <dd className="mt-1 font-semibold text-slate-900">{selectedEstablishment?.name || "Nenhum estabelecimento selecionado"}</dd>
+                <dd className="mt-1 text-xs text-slate-600">
+                  {selectedEstablishment?.city ? `${selectedEstablishment.city}/${selectedEstablishment.state ?? ""}` : "Cidade/UF nao informada"}
+                </dd>
+                <dd className="mt-1 break-all font-mono text-xs text-slate-600">{selectedEstablishmentId || "establishment_id ausente"}</dd>
+              </div>
+            </dl>
+
+            {!topSelectorScopeReady ? (
+              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800">
+                Selecione tenant e estabelecimento antes de gerar o relatorio PGR.
+              </p>
+            ) : (
+              <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
+                Escopo pronto. O relatorio PGR sera gerado para o tenant e estabelecimento acima.
+              </p>
+            )}
+          </div>
+
           <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <p className="text-sm text-[#5B6776]">{message || "Pronto para gerar."}</p>
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -667,7 +705,7 @@ export default function Nr1PgrReportPage() {
                 id="nr1GeneratePgrReportButton"
                 type="button"
                 onClick={loadReport}
-                disabled={status === "loading" || !selectedTenantId || !selectedEstablishmentId}
+                disabled={status === "loading" || !topSelectorScopeReady}
                 className="rounded-2xl bg-[#132238] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1D344F] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {status === "loading" ? "Gerando..." : "Gerar relatorio"}
