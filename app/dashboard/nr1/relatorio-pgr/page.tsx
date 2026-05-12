@@ -974,6 +974,10 @@ function PgrProfessionalApprovalPanel({
   const effectiveTenantIdForInput = tenantId.trim() || selectedTenantId.trim();
   const effectiveEstablishmentIdForInput = establishmentId.trim() || selectedEstablishmentId.trim();
   const effectiveDocumentVersionIdForInput = documentVersionId.trim() || selectedDocumentVersionId.trim() || queryDocumentVersionId;
+  const approvalScopeReady =
+    Boolean(effectiveTenantIdForInput) &&
+    Boolean(effectiveEstablishmentIdForInput) &&
+    Boolean(effectiveDocumentVersionIdForInput);
 
   async function submitApproval() {
     setFeedback("");
@@ -1247,6 +1251,38 @@ function PgrProfessionalApprovalPanel({
         </div>
       </div>
 
+      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+        <div className="flex flex-col gap-1">
+          <strong>Escopo da aprovacao final do PGR</strong>
+          <span>Confira estes dados antes de finalizar. A aprovacao sera vinculada exatamente a este tenant, estabelecimento e versao formal.</span>
+        </div>
+
+        <dl className="mt-3 grid gap-2 md:grid-cols-3">
+          <div className="rounded-lg bg-white/70 p-3">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-amber-700">Tenant ID</dt>
+            <dd className="mt-1 break-all font-mono text-xs">{effectiveTenantIdForInput || "Nao preenchido"}</dd>
+          </div>
+          <div className="rounded-lg bg-white/70 p-3">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-amber-700">Establishment ID</dt>
+            <dd className="mt-1 break-all font-mono text-xs">{effectiveEstablishmentIdForInput || "Nao preenchido"}</dd>
+          </div>
+          <div className="rounded-lg bg-white/70 p-3">
+            <dt className="text-xs font-semibold uppercase tracking-wide text-amber-700">Document Version ID</dt>
+            <dd className="mt-1 break-all font-mono text-xs">{effectiveDocumentVersionIdForInput || "Nao preenchido"}</dd>
+          </div>
+        </dl>
+
+        {!approvalScopeReady ? (
+          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800">
+            A aprovacao final esta bloqueada ate tenant, estabelecimento e versao formal estarem preenchidos.
+          </p>
+        ) : (
+          <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
+            Escopo pronto para aprovacao final. Prossiga somente se os dados acima estiverem corretos.
+          </p>
+        )}
+      </div>
+
       <div className="mt-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <p className="text-xs text-slate-500">
           A finalizacao gera vinculo com a versao formal do PGR, aprovacao ativa e trilha de auditoria.
@@ -1255,7 +1291,7 @@ function PgrProfessionalApprovalPanel({
         <button
           type="button"
           onClick={submitApproval}
-          disabled={loading || !responsibilityConfirmation || !finalConfirmation}
+          disabled={loading || !approvalScopeReady || !responsibilityConfirmation || !finalConfirmation}
           className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
         >
           {loading ? "Finalizando..." : "Finalizar aprovacao do PGR"}
