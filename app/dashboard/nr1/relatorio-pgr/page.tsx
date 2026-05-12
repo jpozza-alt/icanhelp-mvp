@@ -162,6 +162,44 @@ function dateText(value: unknown): string {
   return date.toLocaleDateString("pt-BR");
 }
 
+async function resolvePgrApprovalAccessToken() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const directToken =
+    window.localStorage.getItem("sb-access-token") ||
+    window.localStorage.getItem("access_token") ||
+    "";
+
+  if (directToken) {
+    return directToken;
+  }
+
+  const authStorageKey = Object.keys(window.localStorage).find((key) => key.startsWith("sb-") && key.endsWith("-auth-token"));
+
+  if (!authStorageKey) {
+    return "";
+  }
+
+  const storedAuth = window.localStorage.getItem(authStorageKey);
+
+  if (!storedAuth) {
+    return "";
+  }
+
+  try {
+    const parsedAuth = JSON.parse(storedAuth) as {
+      access_token?: string;
+      currentSession?: { access_token?: string };
+      session?: { access_token?: string };
+    };
+
+    return parsedAuth.access_token || parsedAuth.currentSession?.access_token || parsedAuth.session?.access_token || "";
+  } catch {
+    return "";
+  }
+}
 function SectionTitle(props: { children: React.ReactNode }) {
   return <h2 className="nr1-print-section-title mt-8 border-b border-slate-300 pb-2 text-xl font-semibold text-slate-950">{props.children}</h2>;
 }
@@ -998,10 +1036,40 @@ function PgrProfessionalApprovalPanel({
       return;
     }
 
-    const token =
-      window.localStorage.getItem("sb-access-token") ||
-      window.localStorage.getItem("access_token") ||
-      "";
+    let token = "";
+
+    try {
+      token = await resolvePgrApprovalAccessToken();
+    } catch {
+      const directToken =
+        window.localStorage.getItem("sb-access-token") ||
+        window.localStorage.getItem("access_token") ||
+        "";
+
+      if (directToken) {
+        token = directToken;
+      } else {
+        const authStorageKey = Object.keys(window.localStorage).find((key) => key.startsWith("sb-") && key.endsWith("-auth-token"));
+
+        if (authStorageKey) {
+          const storedAuth = window.localStorage.getItem(authStorageKey);
+
+          if (storedAuth) {
+            try {
+              const parsedAuth = JSON.parse(storedAuth) as {
+                access_token?: string;
+                currentSession?: { access_token?: string };
+                session?: { access_token?: string };
+              };
+
+              token = parsedAuth.access_token || parsedAuth.currentSession?.access_token || parsedAuth.session?.access_token || "";
+            } catch {
+              token = "";
+            }
+          }
+        }
+      }
+    }
 
     if (!token) {
       setFeedback("Sessao local nao encontrada. Faca login novamente antes de registrar a aprovacao.");
