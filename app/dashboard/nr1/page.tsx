@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { Nr1JourneyStatusBar } from "../../../components/nr1/Nr1JourneyStatusBar";
+
 const executionHref = "/login?next=%2Fdashboard%2Fnr1%2Fworkspace";
 const demoHref = "/dashboard/nr1/demonstracao";
 
@@ -103,6 +105,21 @@ export default function Nr1LandingPage() {
               <Link href={demoHref} className="rounded-[14px] border border-[#DBE5F0] bg-white px-4 py-3 text-sm font-semibold transition hover:bg-[#F8FBFF]">Ajuda visual</Link>
               <Link href={executionHref} className="rounded-[14px] bg-[linear-gradient(135deg,#0F7B83,#13A3A8)] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(19,163,168,0.24)] transition hover:-translate-y-[1px]">Entrar para executar</Link>
             </div>
+          </div>
+
+          <div className="px-6 pt-6">
+            <Nr1JourneyStatusBar
+              mode="parceiro_sst"
+              partnerName="Pasini Consultoria"
+              clientName="Cliente atendido"
+              establishmentName="Estabelecimento ativo"
+              technicalResponsibleName="Responsavel tecnico a definir"
+              pgrStatus="PGR formal em hardening de UX"
+              formalVersionStatus="Versao formal validada no ciclo atual"
+              finalApprovalStatus="Aprovacao final validada com bloqueio de duplicidade"
+              pendingCount={3}
+              completionPercent={62}
+            />
           </div>
 
           <div className="grid gap-[18px] p-6">
@@ -225,4 +242,5 @@ export default function Nr1LandingPage() {
     </main>
   );
 }
+
 
