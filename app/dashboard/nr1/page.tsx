@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { Nr1JourneyStatusBar } from "../../../components/nr1/Nr1JourneyStatusBar";
+import { Nr1JourneyStatusBarLive } from "../../../components/nr1/Nr1JourneyStatusBarLive";
 
 const executionHref = "/login?next=%2Fdashboard%2Fnr1%2Fworkspace";
 const demoHref = "/dashboard/nr1/demonstracao";
@@ -108,7 +108,9 @@ export default function Nr1LandingPage() {
           </div>
 
           <div className="px-6 pt-6">
-            <Nr1JourneyStatusBar
+            <Nr1JourneyStatusBarLive
+                                          tenantId="0705b95a-8c81-461e-93dd-bc4ac8c7a298"
+              establishmentId="0cf21631-f4db-40b6-b6d3-7dbc9d3f731e"
               mode="parceiro_sst"
               partnerName="Pasini Consultoria"
               clientName="Cliente atendido"
@@ -242,5 +244,7 @@ export default function Nr1LandingPage() {
     </main>
   );
 }
+
+
 
 
