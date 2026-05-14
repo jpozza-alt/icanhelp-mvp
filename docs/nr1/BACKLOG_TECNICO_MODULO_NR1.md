@@ -117,3 +117,114 @@ A regra estara implementada quando:
 - a trilha de auditoria registrar mudancas relevantes.
 
 <!-- END BACKLOG_REGRA_GATILHO_NAO_E_RISCO -->
+
+<!-- BEGIN BACKLOG_MATRIZ_PERGUNTAS_APROFUNDAMENTO_GATILHOS -->
+
+## Backlog tecnico - Matriz de perguntas de aprofundamento dos gatilhos
+
+Fonte vinculada:
+
+docs/nr1/MATRIZ_PERGUNTAS_APROFUNDAMENTO_GATILHOS.md
+
+### Objetivo tecnico
+
+Implementar no Diagnostico Guiado a matriz de perguntas de aprofundamento para todos os gatilhos que nao devem gerar risco automaticamente.
+
+### Regra de negocio
+
+Quando o usuario marcar SIM para um gatilho, o sistema deve:
+
+1. nao criar risco automaticamente;
+2. mostrar a mensagem oficial;
+3. abrir perguntas de aprofundamento;
+4. salvar as respostas como investigacao;
+5. gerar sugestao somente apos o aprofundamento;
+6. exigir validacao tecnica nos casos sensiveis.
+
+### Mensagem oficial de interface
+
+"Este ponto nao e automaticamente um risco. Vamos entender melhor a situacao antes de classificar."
+
+### Gatilhos cobertos
+
+- metas e cobranca por prazo;
+- atendimento ao publico;
+- trabalho remoto ou hibrido;
+- terceirizados;
+- trabalho repetitivo;
+- trabalho sentado prolongado;
+- lideranca intermediaria;
+- mudancas frequentes;
+- acumulo de tarefas;
+- conflitos frequentes;
+- assedio ou violencia.
+
+### Campos tecnicos derivados
+
+As respostas da matriz devem alimentar:
+
+- trigger_type;
+- investigation_status;
+- intensity;
+- frequency;
+- duration;
+- exposed_people_count;
+- existing_controls;
+- controls_effectiveness;
+- evidence_status;
+- possible_harms;
+- suggested_severity;
+- suggested_probability;
+- suggested_priority;
+- technical_validation_required;
+- critical_alert_required.
+
+### Eventos tecnicos sugeridos
+
+- trigger_question_answered;
+- trigger_investigation_started;
+- trigger_investigation_saved;
+- trigger_investigation_completed;
+- trigger_result_suggested;
+- technical_validation_required;
+- critical_alert_generated.
+
+### Estados sugeridos
+
+- not_started;
+- in_investigation;
+- no_relevant_indication;
+- attention_point;
+- possible_risk_factor;
+- suggested_risk;
+- pending_technical_validation;
+- critical_alert.
+
+### Impacto nas telas
+
+Aplicar em:
+
+- triagem inicial;
+- cadastro de setores;
+- cadastro de atividades;
+- diagnostico guiado;
+- resultado do diagnostico;
+- tela de riscos;
+- plano de acao;
+- alertas tecnicos;
+- evidencias.
+
+### Definition of Done
+
+A matriz estara implementada quando:
+
+- cada gatilho abrir perguntas especificas;
+- nenhum gatilho criar risco automaticamente;
+- a mensagem oficial aparecer antes do aprofundamento;
+- o sistema salvar as respostas como investigacao;
+- o sistema gerar classificacao somente apos aprofundamento;
+- casos criticos forem bloqueados ou marcados como pendentes de validacao tecnica;
+- eventos relevantes forem registrados em trilha;
+- os resultados puderem alimentar inventario e plano de acao somente quando validados conforme a regra.
+
+<!-- END BACKLOG_MATRIZ_PERGUNTAS_APROFUNDAMENTO_GATILHOS -->
