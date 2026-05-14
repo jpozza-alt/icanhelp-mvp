@@ -109,3 +109,70 @@ Investigacao gera sugestao.
 Sugestao sensivel exige validacao tecnica.
 
 <!-- END MATRIZ_PERGUNTAS_APROFUNDAMENTO_GATILHOS -->
+
+<!-- BEGIN MODELAGEM_TECNICA_INVESTIGACAO_GATILHOS -->
+
+## Modelagem tecnica da investigacao de gatilhos
+
+Fonte vinculada:
+
+docs/nr1/MODELAGEM_TECNICA_INVESTIGACAO_GATILHOS.md
+
+### Decisao funcional
+
+A investigacao de gatilhos passa a ter modelagem tecnica propria para armazenar respostas, estados, sugestoes, validacoes e vinculos futuros com inventario de riscos e plano de acao.
+
+### Regra funcional
+
+Gatilho nao fecha risco.
+
+Gatilho abre investigacao.
+
+Investigacao gera sugestao.
+
+Sugestao sensivel exige validacao tecnica.
+
+### Entidade principal sugerida
+
+nr1_trigger_investigations
+
+### Entidade auxiliar sugerida
+
+nr1_trigger_investigation_answers
+
+### Campos funcionais obrigatorios
+
+A modelagem deve permitir registrar:
+
+- tipo do gatilho;
+- status da investigacao;
+- respostas do aprofundamento;
+- intensidade;
+- frequencia;
+- duracao;
+- quantidade de pessoas expostas;
+- controles existentes;
+- eficacia dos controles;
+- evidencias;
+- possiveis lesoes ou agravos;
+- severidade sugerida;
+- probabilidade sugerida;
+- prioridade sugerida;
+- necessidade de validacao tecnica;
+- necessidade de alerta critico;
+- vinculo futuro com risco gerado;
+- vinculo futuro com item de plano de acao gerado.
+
+### Regra de seguranca
+
+A investigacao nao deve criar automaticamente risco no inventario.
+
+A investigacao nao deve criar automaticamente item definitivo no plano de acao.
+
+Casos sensiveis, graves, complexos ou com dados insuficientes devem ficar pendentes de validacao tecnica.
+
+### Regra tecnica obrigatoria
+
+Antes de criar tabela real no banco, executar Data Discovery para confirmar schema existente, padroes de RLS e nomes ja usados no projeto.
+
+<!-- END MODELAGEM_TECNICA_INVESTIGACAO_GATILHOS -->

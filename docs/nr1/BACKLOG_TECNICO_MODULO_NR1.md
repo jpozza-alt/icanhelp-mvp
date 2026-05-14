@@ -228,3 +228,177 @@ A matriz estara implementada quando:
 - os resultados puderem alimentar inventario e plano de acao somente quando validados conforme a regra.
 
 <!-- END BACKLOG_MATRIZ_PERGUNTAS_APROFUNDAMENTO_GATILHOS -->
+
+<!-- BEGIN BACKLOG_MODELAGEM_TECNICA_INVESTIGACAO_GATILHOS -->
+
+## Backlog tecnico - Modelagem tecnica da investigacao de gatilhos
+
+Fonte vinculada:
+
+docs/nr1/MODELAGEM_TECNICA_INVESTIGACAO_GATILHOS.md
+
+### Objetivo tecnico
+
+Preparar a futura implementacao da investigacao de gatilhos do Diagnostico Guiado, garantindo que gatilhos sejam armazenados como investigacoes antes de qualquer conversao em risco, inventario ou plano de acao.
+
+### Regra de negocio
+
+Gatilho nao fecha risco.
+
+Gatilho abre investigacao.
+
+Investigacao gera sugestao.
+
+Sugestao sensivel exige validacao tecnica.
+
+### Entidade principal sugerida
+
+nr1_trigger_investigations
+
+### Entidade auxiliar sugerida
+
+nr1_trigger_investigation_answers
+
+### Campos minimos da entidade principal
+
+- id;
+- tenant_id;
+- establishment_id;
+- department_id;
+- work_activity_id;
+- diagnosis_session_id;
+- trigger_type;
+- trigger_label;
+- investigation_status;
+- initial_answer;
+- official_message_shown;
+- answers_json;
+- intensity;
+- frequency;
+- duration;
+- exposed_people_count;
+- existing_controls;
+- controls_effectiveness;
+- evidence_status;
+- possible_harms;
+- suggested_result;
+- suggested_severity;
+- suggested_probability;
+- suggested_priority;
+- technical_validation_required;
+- critical_alert_required;
+- generated_risk_id;
+- generated_action_plan_item_id;
+- created_by;
+- created_at;
+- updated_by;
+- updated_at;
+- completed_by;
+- completed_at;
+- reviewed_by;
+- reviewed_at;
+- review_notes.
+
+### Tipos de gatilho
+
+- deadline_pressure;
+- public_service;
+- remote_or_hybrid_work;
+- third_parties;
+- repetitive_work;
+- prolonged_sitting;
+- intermediate_leadership;
+- frequent_changes;
+- task_accumulation;
+- frequent_conflicts;
+- harassment_or_violence.
+
+### Estados
+
+- not_started;
+- in_investigation;
+- saved_draft;
+- completed;
+- no_relevant_indication;
+- attention_point;
+- possible_risk_factor;
+- suggested_risk;
+- pending_technical_validation;
+- critical_alert;
+- converted_to_risk;
+- archived.
+
+### Eventos tecnicos
+
+- trigger_marked_yes;
+- official_message_shown;
+- trigger_investigation_started;
+- trigger_question_answered;
+- trigger_investigation_saved;
+- trigger_investigation_completed;
+- trigger_result_suggested;
+- technical_validation_required;
+- critical_alert_generated;
+- investigation_converted_to_risk;
+- investigation_archived;
+- investigation_reopened.
+
+### Relacao com inventario
+
+A investigacao nao deve criar automaticamente item no inventario.
+
+Somente pode gerar ou atualizar risco apos:
+
+1. investigacao concluida;
+2. sugestao gerada;
+3. validacao do usuario;
+4. validacao tecnica quando obrigatoria.
+
+### Relacao com plano de acao
+
+A investigacao nao deve criar automaticamente item definitivo no plano de acao.
+
+Somente pode gerar item de plano apos:
+
+1. sugestao de necessidade de acao;
+2. revisao do usuario;
+3. validacao tecnica quando obrigatoria.
+
+### Regra RLS e tenant_id
+
+Toda futura tabela real deve conter tenant_id.
+
+Requisitos obrigatorios:
+
+- RLS habilitado;
+- acesso apenas por membro do tenant;
+- escrita apenas por usuario autorizado do tenant;
+- sem service_role no client;
+- sem bypass de tenant_id;
+- trilha com usuario e timestamp.
+
+### Bloqueio tecnico antes de DDL
+
+Antes de criar tabela real no banco, executar Data Discovery para confirmar:
+
+- schema existente;
+- nomes de tabelas ja usados;
+- padroes de RLS;
+- padroes de tenant_id;
+- padroes de auditoria;
+- relacao com diagnostico, inventario, plano de acao e evidencias.
+
+### Definition of Done
+
+Esta frente estara pronta para implementacao quando:
+
+- Data Discovery for executado;
+- schema real for confirmado;
+- DDL for desenhado com tenant_id;
+- politicas RLS forem especificadas;
+- eventos de auditoria forem especificados;
+- vinculos com diagnostico, inventario e plano forem definidos;
+- validacao tecnica obrigatoria estiver prevista;
+- nenhum gatilho criar risco automaticamente.
+
+<!-- END BACKLOG_MODELAGEM_TECNICA_INVESTIGACAO_GATILHOS -->
