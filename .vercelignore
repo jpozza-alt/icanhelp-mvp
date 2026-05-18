@@ -1,0 +1,22 @@
+# Local debug and generated artifacts
+_debug/
+logs/
+.tmp/
+# Build/runtime artifacts
+.next/
+node_modules/
+coverage/
+playwright-report/
+test-results/
+# Playwright runtime downloaded during probes
+**/playwright_runtime/
+**/playwright_browsers/
+**/.cache/
+# Local screenshots/html evidence
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.html
+*.log
+
