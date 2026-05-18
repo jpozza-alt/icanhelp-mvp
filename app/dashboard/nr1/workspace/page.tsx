@@ -2172,6 +2172,49 @@ useEffect(() => {
               </button>
             </div>
           </div>
+          <div
+            className={
+              planFeatures?.featureFlags.iso45003_engine
+                ? "rounded-3xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-950 shadow-sm"
+                : "rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950 shadow-sm"
+            }
+          >
+            <p className="text-xs font-semibold uppercase tracking-[0.25em]">
+              Recursos inteligentes
+            </p>
+            <h3 className="mt-2 text-lg font-semibold">
+              {planFeatures?.featureFlags.iso45003_engine
+                ? "Motor inteligente liberado"
+                : "Disponivel no plano Inteligente"}
+            </h3>
+            <p className="mt-2 max-w-3xl">
+              O plano atual mantem o registro psicossocial basico. A analise avancada libera Motor ISO 45003,
+              radar psicossocial, score psicossocial e alertas inteligentes.
+            </p>
+
+            <div className="mt-4 grid gap-2 md:grid-cols-2">
+              {[
+                ["iso45003_engine", "Motor ISO 45003"],
+                ["psychosocial_radar", "Radar psicossocial"],
+                ["psychosocial_scoring", "Score psicossocial"],
+                ["smart_alerts", "Alertas inteligentes"],
+              ].map(([featureKey, label]) => {
+                const enabled = planFeatures?.featureFlags[featureKey] === true;
+
+                return (
+                  <div
+                    key={featureKey}
+                    className="flex items-center justify-between rounded-2xl border border-white/70 bg-white/70 px-3 py-2"
+                  >
+                    <span>{label}</span>
+                    <span className={enabled ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>
+                      {enabled ? "liberado" : "bloqueado"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
           {loadError ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
               {loadError}
@@ -3249,5 +3292,6 @@ useEffect(() => {
     </main>
   );
 }
+
 
 
