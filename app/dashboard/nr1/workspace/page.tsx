@@ -15,7 +15,6 @@ type SessionDebugState = {
   hasSession: boolean;
   hasAccessToken: boolean;
   userEmail: string;
-  tokenPreview: string;
   error: string;
 };
 
@@ -198,7 +197,6 @@ const INITIAL_SESSION_DEBUG: SessionDebugState = {
   hasSession: false,
   hasAccessToken: false,
   userEmail: "",
-  tokenPreview: "",
   error: "",
 };
 
@@ -667,7 +665,6 @@ const refreshSessionDebug = useCallback(async () => {
         hasSession: Boolean(session),
         hasAccessToken: Boolean(token),
         userEmail: session?.user?.email || "",
-        tokenPreview: token ? token.slice(0, 12) + "..." + token.slice(-8) : "",
         error: result.error?.message || "",
       });
     } catch (error) {
@@ -676,7 +673,6 @@ const refreshSessionDebug = useCallback(async () => {
         hasSession: false,
         hasAccessToken: false,
         userEmail: "",
-        tokenPreview: "",
         error: error instanceof Error ? error.message : "Erro desconhecido ao verificar sessao.",
       });
     }
@@ -2140,10 +2136,10 @@ useEffect(() => {
                   {sessionDebug.hasAccessToken ? "Sessao Supabase detectada" : "Sessao Supabase ausente"}
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
-                  Checked: {String(sessionDebug.checked)} / Session: {String(sessionDebug.hasSession)} / Token: {String(sessionDebug.hasAccessToken)}
+                  Checked: {String(sessionDebug.checked)} / Session: {String(sessionDebug.hasSession)} / Token: protegido
                 </p>
                 <p className="mt-1 text-sm text-slate-500">
-                  Email: {sessionDebug.userEmail || "nao identificado"} / Token: {sessionDebug.tokenPreview || "sem token"}
+                  Email: {sessionDebug.userEmail || "nao identificado"} / Token: protegido
                 </p>
                 {sessionDebug.error ? (
                   <p className="mt-2 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{sessionDebug.error}</p>
@@ -3292,6 +3288,4 @@ useEffect(() => {
     </main>
   );
 }
-
-
 
