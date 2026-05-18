@@ -2,6 +2,7 @@
 
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { getNr1PlanFeatures, type Nr1PlanFeaturesResponse } from "@/lib/nr1-plan-features-client";
 import Nr1PgrReportShortcut from "@/components/nr1/Nr1PgrReportShortcut";
 
 type JsonObject = Record<string, unknown>;
@@ -651,8 +652,10 @@ export default function Nr1WorkspacePage() {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestDraftRef = useRef<WorkspaceDraftPayload>(DEFAULT_DRAFT);
   const contextRef = useRef<BackendContext>({ tenantId: null, establishmentId: null });
-
-      const [sessionDebug, setSessionDebug] = useState<SessionDebugState>(INITIAL_SESSION_DEBUG);
+  const [sessionDebug, setSessionDebug] = useState<SessionDebugState>(INITIAL_SESSION_DEBUG);
+  const [planFeatures, setPlanFeatures] = useState<Nr1PlanFeaturesResponse | null>(null);
+  const [planFeaturesLoading, setPlanFeaturesLoading] = useState<boolean>(false);
+  const [planFeaturesError, setPlanFeaturesError] = useState<string | null>(null);
 const refreshSessionDebug = useCallback(async () => {
     try {
       const result = await supabaseBrowserClient.auth.getSession();
@@ -689,6 +692,53 @@ useEffect(() => {
   useEffect(() => {
     contextRef.current = context;
   }, [context]);
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPlanFeatures(): Promise<void> {
+      if (!context.tenantId) {
+        setPlanFeatures(null);
+        setPlanFeaturesError(null);
+        setPlanFeaturesLoading(false);
+        return;
+      }
+
+      setPlanFeaturesLoading(true);
+      setPlanFeaturesError(null);
+
+      try {
+        const accessToken = await getBrowserAccessToken();
+
+        if (!accessToken) {
+          throw new Error("Sessao Supabase ausente para carregar plano NR1.");
+        }
+
+        const result = await getNr1PlanFeatures({
+          tenantId: context.tenantId,
+          accessToken,
+        });
+
+        if (!cancelled) {
+          setPlanFeatures(result);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setPlanFeatures(null);
+          setPlanFeaturesError(error instanceof Error ? error.message : "Erro ao carregar plano NR1.");
+        }
+      } finally {
+        if (!cancelled) {
+          setPlanFeaturesLoading(false);
+        }
+      }
+    }
+
+    void loadPlanFeatures();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [context.tenantId]);
 
   const progressPercent = useMemo(() => {
     const values = Object.values(draft.checklist);
@@ -2098,6 +2148,20 @@ useEffect(() => {
                 {sessionDebug.error ? (
                   <p className="mt-2 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{sessionDebug.error}</p>
                 ) : null}
+                <div className="mt-3 rounded-2xl border border-cyan-200 bg-cyan-50 p-3 text-sm text-cyan-950">
+                  <p className="font-semibold">
+                    Plano NR1: {planFeaturesLoading ? "carregando" : planFeatures?.plan?.name || "nao carregado"}
+                  </p>
+                  <p className="mt-1">
+                    Fonte: {planFeatures?.subscriptionSource || "indisponivel"} / Features: {planFeatures?.featureKeys.length ?? 0}
+                  </p>
+                  <p className="mt-1">
+                    Motor inteligente: {planFeatures?.featureFlags.iso45003_engine ? "liberado" : "bloqueado"}
+                  </p>
+                  {planFeaturesError ? (
+                    <p className="mt-2 rounded-xl border border-red-200 bg-white p-2 text-red-800">{planFeaturesError}</p>
+                  ) : null}
+                </div>
               </div>
               <button
                 type="button"
@@ -3185,12 +3249,4 @@ useEffect(() => {
     </main>
   );
 }
-
-
-
-
-
-
-
-
 
