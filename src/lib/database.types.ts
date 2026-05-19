@@ -7,33 +7,448 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.5"
   }
   public: {
     Tables: {
+      audit_events: {
+        Row: {
+          action: string
+          actor_user_id: string
+          created_at: string
+          id: string
+          payload: Json
+          tenant_id: string
+        }
+        Insert: {
+          action: string
+          actor_user_id: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          tenant_id: string
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          tenant_id?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_user_id: string | null
+          after_data: Json | null
+          before_data: Json | null
+          created_at: string
+          id: string
+          occurred_at: string
+          record_id: string | null
+          table_name: string
+          tenant_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_user_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          id?: string
+          occurred_at?: string
+          record_id?: string | null
+          table_name: string
+          tenant_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_user_id?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          created_at?: string
+          id?: string
+          occurred_at?: string
+          record_id?: string | null
+          table_name?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
+      consultas: {
+        Row: {
+          conteudo: string | null
+          created_at: string
+          created_by: string
+          id: string
+          status: string
+          tenant_id: string
+          titulo: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          conteudo?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          status?: string
+          tenant_id: string
+          titulo: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          conteudo?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          status?: string
+          tenant_id?: string
+          titulo?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultas_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consultations: {
+        Row: {
+          action_block: string | null
+          answer_block: string | null
+          archived_at: string | null
+          archived_by: string | null
+          body: string | null
+          checks_block: string | null
+          content_kind: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          foundation_block: string | null
+          id: string
+          origin_ticket_id: string | null
+          published_at: string | null
+          published_by: string | null
+          status: string
+          summary: string | null
+          supersedes_id: string | null
+          tenant_id: string
+          title: string
+          updated_at: string
+          updated_by: string | null
+          version_no: number
+        }
+        Insert: {
+          action_block?: string | null
+          answer_block?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
+          body?: string | null
+          checks_block?: string | null
+          content_kind?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          foundation_block?: string | null
+          id?: string
+          origin_ticket_id?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          status?: string
+          summary?: string | null
+          supersedes_id?: string | null
+          tenant_id: string
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+          version_no?: number
+        }
+        Update: {
+          action_block?: string | null
+          answer_block?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
+          body?: string | null
+          checks_block?: string | null
+          content_kind?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          foundation_block?: string | null
+          id?: string
+          origin_ticket_id?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          status?: string
+          summary?: string | null
+          supersedes_id?: string | null
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+          version_no?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultations_supersedes_id_fkey"
+            columns: ["supersedes_id"]
+            isOneToOne: false
+            referencedRelation: "consultations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_references: {
+        Row: {
+          consultation_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          id: string
+          reference_label: string
+          reference_type: string
+          reference_value: string
+          sort_order: number
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          consultation_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          reference_label: string
+          reference_type?: string
+          reference_value: string
+          sort_order?: number
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          consultation_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          reference_label?: string
+          reference_type?: string
+          reference_value?: string
+          sort_order?: number
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_references_consultation_id_fkey"
+            columns: ["consultation_id"]
+            isOneToOne: false
+            referencedRelation: "consultations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      features: {
+        Row: {
+          created_at: string
+          description: string | null
+          feature_key: string
+          id: string
+          is_active: boolean
+          module: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          feature_key: string
+          id?: string
+          is_active?: boolean
+          module?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          feature_key?: string
+          id?: string
+          is_active?: boolean
+          module?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      history_events: {
+        Row: {
+          action: string
+          actor_user_id: string
+          created_at: string
+          id: string
+          payload: Json
+          tenant_id: string
+        }
+        Insert: {
+          action: string
+          actor_user_id: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          tenant_id: string
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          tenant_id?: string
+        }
+        Relationships: []
+      }
+      knowledge_articles: {
+        Row: {
+          content: string
+          created_at: string | null
+          created_by: string
+          id: string
+          is_published: boolean
+          municipality_id: string
+          tags: string[] | null
+          tenant_id: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          created_by: string
+          id?: string
+          is_published?: boolean
+          municipality_id: string
+          tags?: string[] | null
+          tenant_id: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          created_by?: string
+          id?: string
+          is_published?: boolean
+          municipality_id?: string
+          tags?: string[] | null
+          tenant_id?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_articles_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_articles_municipality_id_fkey"
+            columns: ["municipality_id"]
+            isOneToOne: false
+            referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_articles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      knowledge_entries: {
+        Row: {
+          audience: string | null
+          checklist: Json | null
+          created_at: string | null
+          created_by: string | null
+          documents: Json | null
+          id: string
+          legal_basis: Json | null
+          sector: string | null
+          summary: string | null
+          tags: string[] | null
+          tenant_id: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          audience?: string | null
+          checklist?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          documents?: Json | null
+          id?: string
+          legal_basis?: Json | null
+          sector?: string | null
+          summary?: string | null
+          tags?: string[] | null
+          tenant_id: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          audience?: string | null
+          checklist?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          documents?: Json | null
+          id?: string
+          legal_basis?: Json | null
+          sector?: string | null
+          summary?: string | null
+          tags?: string[] | null
+          tenant_id?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_entries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_items: {
         Row: {
           body: string
@@ -101,6 +516,113 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      legal_articles: {
+        Row: {
+          article_number: string | null
+          article_text: string | null
+          article_title: string | null
+          created_at: string | null
+          id: string
+          keywords: string[] | null
+          law_id: string | null
+        }
+        Insert: {
+          article_number?: string | null
+          article_text?: string | null
+          article_title?: string | null
+          created_at?: string | null
+          id?: string
+          keywords?: string[] | null
+          law_id?: string | null
+        }
+        Update: {
+          article_number?: string | null
+          article_text?: string | null
+          article_title?: string | null
+          created_at?: string | null
+          id?: string
+          keywords?: string[] | null
+          law_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_articles_law_id_fkey"
+            columns: ["law_id"]
+            isOneToOne: false
+            referencedRelation: "legal_bases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      legal_bases: {
+        Row: {
+          category: string | null
+          content: string | null
+          created_at: string | null
+          date: string | null
+          id: string
+          municipality: string | null
+          number: string | null
+          source_url: string | null
+          summary: string | null
+          title: string | null
+        }
+        Insert: {
+          category?: string | null
+          content?: string | null
+          created_at?: string | null
+          date?: string | null
+          id?: string
+          municipality?: string | null
+          number?: string | null
+          source_url?: string | null
+          summary?: string | null
+          title?: string | null
+        }
+        Update: {
+          category?: string | null
+          content?: string | null
+          created_at?: string | null
+          date?: string | null
+          id?: string
+          municipality?: string | null
+          number?: string | null
+          source_url?: string | null
+          summary?: string | null
+          title?: string | null
+        }
+        Relationships: []
+      }
+      municipalities: {
+        Row: {
+          cnpj: string | null
+          created_at: string | null
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          uf: string | null
+        }
+        Insert: {
+          cnpj?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          uf?: string | null
+        }
+        Update: {
+          cnpj?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          uf?: string | null
+        }
+        Relationships: []
       }
       nr1_action_followups: {
         Row: {
@@ -1964,6 +2486,93 @@ export type Database = {
           },
         ]
       }
+      nr1_pgr_approvals: {
+        Row: {
+          approval_statement: string | null
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          created_by: string | null
+          document_version_id: string
+          establishment_id: string
+          id: string
+          professional_council: string | null
+          professional_name: string
+          professional_registration: string | null
+          professional_role: string | null
+          professional_state: string | null
+          revocation_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          source_snapshot_json: Json
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          approval_statement?: string | null
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          document_version_id: string
+          establishment_id: string
+          id?: string
+          professional_council?: string | null
+          professional_name: string
+          professional_registration?: string | null
+          professional_role?: string | null
+          professional_state?: string | null
+          revocation_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          source_snapshot_json?: Json
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          approval_statement?: string | null
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          document_version_id?: string
+          establishment_id?: string
+          id?: string
+          professional_council?: string | null
+          professional_name?: string
+          professional_registration?: string | null
+          professional_role?: string | null
+          professional_state?: string | null
+          revocation_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          source_snapshot_json?: Json
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nr1_pgr_approvals_document_version_id_fkey"
+            columns: ["document_version_id"]
+            isOneToOne: false
+            referencedRelation: "nr1_document_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nr1_pgr_approvals_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nr1_review_cycles: {
         Row: {
           affected_documents_json: Json
@@ -2330,6 +2939,251 @@ export type Database = {
           },
         ]
       }
+      nr1_trigger_investigation_answers: {
+        Row: {
+          answer_json: Json
+          answer_order: number
+          answer_value: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          id: string
+          is_required: boolean
+          question_key: string
+          question_label: string
+          tenant_id: string
+          trigger_investigation_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          answer_json?: Json
+          answer_order?: number
+          answer_value?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          is_required?: boolean
+          question_key: string
+          question_label: string
+          tenant_id: string
+          trigger_investigation_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          answer_json?: Json
+          answer_order?: number
+          answer_value?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          is_required?: boolean
+          question_key?: string
+          question_label?: string
+          tenant_id?: string
+          trigger_investigation_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nr1_trigger_investigation_answers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nr1_trigger_investigation_answers_trigger_investigation_id_fkey"
+            columns: ["trigger_investigation_id"]
+            isOneToOne: false
+            referencedRelation: "nr1_trigger_investigations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nr1_trigger_investigations: {
+        Row: {
+          activity_id: string | null
+          answers_json: Json
+          completed_at: string | null
+          completed_by: string | null
+          controls_effectiveness: string | null
+          created_at: string
+          created_by: string | null
+          critical_alert_required: boolean
+          deleted_at: string | null
+          deleted_by: string | null
+          department_id: string | null
+          diagnosis_session_id: string | null
+          duration: string | null
+          establishment_id: string
+          evidence_status: string | null
+          existing_controls: string | null
+          exposed_people_count: number | null
+          frequency: string | null
+          generated_action_plan_id: string | null
+          generated_risk_id: string | null
+          id: string
+          initial_answer: string | null
+          intensity: string | null
+          investigation_status: string
+          official_message_shown: boolean
+          possible_harms: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          suggested_priority: string | null
+          suggested_probability: string | null
+          suggested_result: string | null
+          suggested_severity: string | null
+          technical_validation_required: boolean
+          tenant_id: string
+          trigger_label: string
+          trigger_type: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          activity_id?: string | null
+          answers_json?: Json
+          completed_at?: string | null
+          completed_by?: string | null
+          controls_effectiveness?: string | null
+          created_at?: string
+          created_by?: string | null
+          critical_alert_required?: boolean
+          deleted_at?: string | null
+          deleted_by?: string | null
+          department_id?: string | null
+          diagnosis_session_id?: string | null
+          duration?: string | null
+          establishment_id: string
+          evidence_status?: string | null
+          existing_controls?: string | null
+          exposed_people_count?: number | null
+          frequency?: string | null
+          generated_action_plan_id?: string | null
+          generated_risk_id?: string | null
+          id?: string
+          initial_answer?: string | null
+          intensity?: string | null
+          investigation_status?: string
+          official_message_shown?: boolean
+          possible_harms?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          suggested_priority?: string | null
+          suggested_probability?: string | null
+          suggested_result?: string | null
+          suggested_severity?: string | null
+          technical_validation_required?: boolean
+          tenant_id: string
+          trigger_label: string
+          trigger_type: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          activity_id?: string | null
+          answers_json?: Json
+          completed_at?: string | null
+          completed_by?: string | null
+          controls_effectiveness?: string | null
+          created_at?: string
+          created_by?: string | null
+          critical_alert_required?: boolean
+          deleted_at?: string | null
+          deleted_by?: string | null
+          department_id?: string | null
+          diagnosis_session_id?: string | null
+          duration?: string | null
+          establishment_id?: string
+          evidence_status?: string | null
+          existing_controls?: string | null
+          exposed_people_count?: number | null
+          frequency?: string | null
+          generated_action_plan_id?: string | null
+          generated_risk_id?: string | null
+          id?: string
+          initial_answer?: string | null
+          intensity?: string | null
+          investigation_status?: string
+          official_message_shown?: boolean
+          possible_harms?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          suggested_priority?: string | null
+          suggested_probability?: string | null
+          suggested_result?: string | null
+          suggested_severity?: string | null
+          technical_validation_required?: boolean
+          tenant_id?: string
+          trigger_label?: string
+          trigger_type?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nr1_trigger_investigations_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "nr1_activities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nr1_trigger_investigations_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "nr1_departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nr1_trigger_investigations_diagnosis_session_id_fkey"
+            columns: ["diagnosis_session_id"]
+            isOneToOne: false
+            referencedRelation: "nr1_diagnosis_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nr1_trigger_investigations_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "nr1_establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nr1_trigger_investigations_generated_action_plan_id_fkey"
+            columns: ["generated_action_plan_id"]
+            isOneToOne: false
+            referencedRelation: "nr1_action_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nr1_trigger_investigations_generated_risk_id_fkey"
+            columns: ["generated_risk_id"]
+            isOneToOne: false
+            referencedRelation: "nr1_risks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nr1_trigger_investigations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nr1_worker_participation_logs: {
         Row: {
           channel: string | null
@@ -2396,35 +3250,283 @@ export type Database = {
           },
         ]
       }
-      tenant_memberships: {
+      plan_features: {
         Row: {
           created_at: string
-          created_by: string | null
+          feature_id: string
           id: string
-          role: string
-          tenant_id: string
+          is_enabled: boolean
+          subscription_plan_id: string
           updated_at: string
-          updated_by: string | null
-          user_id: string
         }
         Insert: {
           created_at?: string
-          created_by?: string | null
+          feature_id: string
           id?: string
-          role: string
-          tenant_id: string
+          is_enabled?: boolean
+          subscription_plan_id: string
           updated_at?: string
-          updated_by?: string | null
-          user_id: string
         }
         Update: {
           created_at?: string
-          created_by?: string | null
+          feature_id?: string
+          id?: string
+          is_enabled?: boolean
+          subscription_plan_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_features_feature_id_fkey"
+            columns: ["feature_id"]
+            isOneToOne: false
+            referencedRelation: "features"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "plan_features_subscription_plan_id_fkey"
+            columns: ["subscription_plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prefeituras: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          uf: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          uf: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          uf?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          municipality_id: string | null
+          prefeitura_id: string | null
+          role: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          municipality_id?: string | null
+          prefeitura_id?: string | null
+          role?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          municipality_id?: string | null
+          prefeitura_id?: string | null
+          role?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_municipality_id_fkey"
+            columns: ["municipality_id"]
+            isOneToOne: false
+            referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_prefeitura_id_fkey"
+            columns: ["prefeitura_id"]
+            isOneToOne: false
+            referencedRelation: "prefeituras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      role_permissions: {
+        Row: {
+          can_approve: boolean
+          can_create: boolean
+          can_delete: boolean
+          can_edit: boolean
+          can_view: boolean
+          created_at: string
+          feature_id: string
+          id: string
+          role_key: string
+          updated_at: string
+        }
+        Insert: {
+          can_approve?: boolean
+          can_create?: boolean
+          can_delete?: boolean
+          can_edit?: boolean
+          can_view?: boolean
+          created_at?: string
+          feature_id: string
+          id?: string
+          role_key: string
+          updated_at?: string
+        }
+        Update: {
+          can_approve?: boolean
+          can_create?: boolean
+          can_delete?: boolean
+          can_edit?: boolean
+          can_view?: boolean
+          created_at?: string
+          feature_id?: string
+          id?: string
+          role_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_feature_id_fkey"
+            columns: ["feature_id"]
+            isOneToOne: false
+            referencedRelation: "features"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      search_events: {
+        Row: {
+          created_at: string | null
+          id: number
+          results_count: number
+          term: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          results_count?: number
+          term: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          results_count?: number
+          term?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      search_logs: {
+        Row: {
+          created_at: string | null
+          id: string
+          municipality_id: string
+          query: string
+          results_count: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          municipality_id: string
+          query: string
+          results_count?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          municipality_id?: string
+          query?: string
+          results_count?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "search_logs_municipality_id_fkey"
+            columns: ["municipality_id"]
+            isOneToOne: false
+            referencedRelation: "municipalities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "search_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_plans: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tenant_memberships: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: string
+          tenant_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: string
+          tenant_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
           id?: string
           role?: string
           tenant_id?: string
-          updated_at?: string
-          updated_by?: string | null
           user_id?: string
         }
         Relationships: [
@@ -2437,33 +3539,193 @@ export type Database = {
           },
         ]
       }
+      tenant_subscriptions: {
+        Row: {
+          billing_cycle: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          starts_at: string
+          status: string
+          subscription_plan_id: string
+          tenant_id: string
+          trial_ends_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          billing_cycle?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          starts_at?: string
+          status?: string
+          subscription_plan_id: string
+          tenant_id: string
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          billing_cycle?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          starts_at?: string
+          status?: string
+          subscription_plan_id?: string
+          tenant_id?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_subscriptions_subscription_plan_id_fkey"
+            columns: ["subscription_plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tenant_subscriptions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tenants: {
         Row: {
-          created_at: string
-          created_by: string | null
+          created_at: string | null
           id: string
           name: string
           slug: string | null
-          updated_at: string
-          updated_by: string | null
         }
         Insert: {
-          created_at?: string
-          created_by?: string | null
+          created_at?: string | null
           id?: string
           name: string
           slug?: string | null
-          updated_at?: string
-          updated_by?: string | null
         }
         Update: {
-          created_at?: string
-          created_by?: string | null
+          created_at?: string | null
           id?: string
           name?: string
           slug?: string | null
+        }
+        Relationships: []
+      }
+      tickets: {
+        Row: {
+          assigned_to: string | null
+          created_at: string
+          created_by: string
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          id: string
+          status: string
+          tenant_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          created_at?: string
+          created_by: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          id?: string
+          status?: string
+          tenant_id: string
+          title: string
           updated_at?: string
-          updated_by?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          created_at?: string
+          created_by?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          id?: string
+          status?: string
+          tenant_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_access_scope: {
+        Row: {
+          access_scope: string
+          created_at: string
+          department_id: string | null
+          establishment_id: string | null
+          id: string
+          role_key: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_scope?: string
+          created_at?: string
+          department_id?: string | null
+          establishment_id?: string | null
+          id?: string
+          role_key: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_scope?: string
+          created_at?: string
+          department_id?: string | null
+          establishment_id?: string | null
+          id?: string
+          role_key?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_access_scope_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "nr1_departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_access_scope_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "nr1_establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_access_scope_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          role: string
+          user_id: string
+        }
+        Insert: {
+          role: string
+          user_id: string
+        }
+        Update: {
+          role?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -2472,6 +3734,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      current_municipality_id: { Args: never; Returns: string }
+      debug_get_tenant_memberships_role_constraint: {
+        Args: never
+        Returns: Json
+      }
+      debug_tickets_schema: { Args: never; Returns: Json }
+      get_active_tenant_id: { Args: never; Returns: string }
+      icanhelp_bootstrap_user_tenant: {
+        Args: { p_email: string; p_user_id: string }
+        Returns: undefined
+      }
       icanhelp_nr1_is_tenant_admin: {
         Args: { p_tenant_id: string }
         Returns: boolean
@@ -2480,11 +3753,18 @@ export type Database = {
         Args: { p_tenant_id: string }
         Returns: boolean
       }
-      is_tenant_admin: { Args: { p_tenant_id: string }; Returns: boolean }
-      is_tenant_member: { Args: { p_tenant_id: string }; Returns: boolean }
+      is_admin: { Args: { uid: string }; Returns: boolean }
+      is_current_tenant_admin: {
+        Args: { p_tenant_id: string }
+        Returns: boolean
+      }
+      is_tenant_admin: { Args: { p_tenant: string }; Returns: boolean }
+      is_tenant_member: { Args: { p_tenant: string }; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      tenant_role: "owner" | "admin" | "member" | "viewer"
+      ticket_status: "open" | "in_progress" | "closed"
+      user_role: "server" | "admin" | "superadmin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2610,11 +3890,12 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
-    Enums: {},
+    Enums: {
+      tenant_role: ["owner", "admin", "member", "viewer"],
+      ticket_status: ["open", "in_progress", "closed"],
+      user_role: ["server", "admin", "superadmin"],
+    },
   },
 } as const
 

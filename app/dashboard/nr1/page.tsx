@@ -1,7 +1,5 @@
 import Link from "next/link";
 
-import { Nr1JourneyStatusBarLive } from "../../../components/nr1/Nr1JourneyStatusBarLive";
-
 const executionHref = "/login?next=%2Fdashboard%2Fnr1%2Fworkspace";
 const demoHref = "/dashboard/nr1/demonstracao";
 
@@ -108,20 +106,21 @@ export default function Nr1LandingPage() {
           </div>
 
           <div className="px-6 pt-6">
-            <Nr1JourneyStatusBarLive
-                                          tenantId="0705b95a-8c81-461e-93dd-bc4ac8c7a298"
-              establishmentId="0cf21631-f4db-40b6-b6d3-7dbc9d3f731e"
-              mode="parceiro_sst"
-              partnerName="Pasini Consultoria"
-              clientName="Cliente atendido"
-              establishmentName="Estabelecimento ativo"
-              technicalResponsibleName="Responsavel tecnico a definir"
-              pgrStatus="PGR formal em hardening de UX"
-              formalVersionStatus="Versao formal validada no ciclo atual"
-              finalApprovalStatus="Aprovacao final validada com bloqueio de duplicidade"
-              pendingCount={3}
-              completionPercent={62}
-            />
+            <section className="rounded-[24px] border border-[#DBE5F0] bg-white p-5 shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <div className="text-[12px] uppercase tracking-[0.08em] text-[#60718A]">status da jornada</div>
+                  <h2 className="mt-2 text-xl font-semibold text-[#132238]">Ambiente publico de apresentacao</h2>
+                  <p className="mt-2 max-w-[760px] text-sm leading-6 text-[#60718A]">
+                    O status operacional aparece somente apos autenticacao, com tenant e estabelecimento resolvidos pela sessao.
+                  </p>
+                </div>
+                <div className="grid gap-2 rounded-[18px] border border-[#DBE5F0] bg-[#F8FBFF] px-4 py-3 text-sm text-[#60718A]">
+                  <span className="font-semibold text-[#132238]">Sem contexto real carregado</span>
+                  <span>Use demonstracao ou entrada autenticada para continuar.</span>
+                </div>
+              </div>
+            </section>
           </div>
 
           <div className="grid gap-[18px] p-6">

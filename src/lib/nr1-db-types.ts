@@ -129,3 +129,39 @@ export type Nr1DraftStateInsert = InsertDto<"nr1_draft_state">
 export type Nr1DraftStateUpdate = Partial<Nr1DraftStateInsert>
 export type Nr1AuditEventInsert = InsertDto<"nr1_audit_events">
 export type Nr1AuditEventUpdate = Partial<Nr1AuditEventInsert>
+
+// BEGIN NR1 DB TYPES COMPATIBILITY PATCH
+
+export type SubscriptionPlanRow = PublicTables['subscription_plans']['Row']
+export type SubscriptionPlanInsert = PublicTables['subscription_plans']['Insert']
+export type SubscriptionPlanUpdate = PublicTables['subscription_plans']['Update']
+
+export type PlanFeatureRow = PublicTables['plan_features']['Row']
+export type PlanFeatureInsert = PublicTables['plan_features']['Insert']
+export type PlanFeatureUpdate = PublicTables['plan_features']['Update']
+
+export type FeatureRow = PublicTables['features']['Row']
+export type FeatureInsert = PublicTables['features']['Insert']
+export type FeatureUpdate = PublicTables['features']['Update']
+
+export type TenantSubscriptionRow = PublicTables['tenant_subscriptions']['Row']
+export type TenantSubscriptionInsert = PublicTables['tenant_subscriptions']['Insert']
+export type TenantSubscriptionUpdate = PublicTables['tenant_subscriptions']['Update']
+
+export type RolePermissionRow = PublicTables['role_permissions']['Row']
+export type RolePermissionInsert = PublicTables['role_permissions']['Insert']
+export type RolePermissionUpdate = PublicTables['role_permissions']['Update']
+
+export type Nr1PgrApprovalRow = PublicTables['nr1_pgr_approvals']['Row']
+export type Nr1PgrApprovalInsert = PublicTables['nr1_pgr_approvals']['Insert']
+export type Nr1PgrApprovalUpdate = PublicTables['nr1_pgr_approvals']['Update']
+
+export type Nr1TriggerInvestigationRow = PublicTables['nr1_trigger_investigations']['Row']
+export type Nr1TriggerInvestigationInsert = PublicTables['nr1_trigger_investigations']['Insert']
+export type Nr1TriggerInvestigationUpdate = PublicTables['nr1_trigger_investigations']['Update']
+
+export type Nr1TriggerInvestigationAnswerRow = PublicTables['nr1_trigger_investigation_answers']['Row']
+export type Nr1TriggerInvestigationAnswerInsert = PublicTables['nr1_trigger_investigation_answers']['Insert']
+export type Nr1TriggerInvestigationAnswerUpdate = PublicTables['nr1_trigger_investigation_answers']['Update']
+
+// END NR1 DB TYPES COMPATIBILITY PATCH
