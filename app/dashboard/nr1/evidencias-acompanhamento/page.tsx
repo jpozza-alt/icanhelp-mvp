@@ -838,7 +838,7 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
 
             <div className="flex flex-wrap gap-3">
               <Link
-                href="/dashboard/nr1/plano-acao"
+                href="/dashboard/nr1/plano-de-acao"
                 className="rounded-xl border border-[#D9E0E7] bg-[#FAFBFC] px-5 py-3 text-sm font-semibold text-[#22313F]"
               >
                 Voltar para plano de acao
@@ -857,6 +857,3 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
     </AppShell>
   );
 }
-
-
-
