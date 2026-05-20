@@ -153,6 +153,69 @@ type PsychosocialForm = {
   notes: string;
 };
 
+
+type DiagnosisFqbForm = {
+  has_noise: boolean;
+  has_heat_or_cold: boolean;
+  has_vibration: boolean;
+  has_dust_fume_gas_vapor_mist: boolean;
+  has_chemical_contact: boolean;
+  has_biological_agent: boolean;
+  has_environmental_monitoring: boolean;
+  has_existing_control: boolean;
+  notes: string;
+};
+
+type DiagnosisAccidentsForm = {
+  has_same_level_fall: boolean;
+  has_height_fall: boolean;
+  has_electricity: boolean;
+  has_moving_parts_machine: boolean;
+  has_vehicle_flow: boolean;
+  has_hot_surfaces: boolean;
+  has_fire_explosion: boolean;
+  has_sharps: boolean;
+  has_confined_space: boolean;
+  has_obvious_risk: boolean;
+  obvious_risk_description: string;
+  immediate_measure: string;
+  immediate_responsible: string;
+  immediate_date: string;
+  notes: string;
+};
+
+type DiagnosisErgonomicsForm = {
+  has_prolonged_sitting: boolean;
+  has_prolonged_standing: boolean;
+  has_forced_posture: boolean;
+  has_repetitive_movements: boolean;
+  has_manual_handling: boolean;
+  furniture_adequacy: string;
+  lighting_adequacy: string;
+  thermal_discomfort: boolean;
+  acoustic_discomfort: boolean;
+  has_existing_aep: boolean;
+  notes: string;
+};
+
+type DiagnosisControlsForm = {
+  has_collective_controls: boolean;
+  collective_controls_description: string;
+  has_administrative_controls: boolean;
+  administrative_controls_description: string;
+  has_written_procedure: boolean;
+  has_worker_guidance: boolean;
+  has_epi: boolean;
+  controls_effectiveness: string;
+  controls_maintenance: string;
+  notes: string;
+};
+
+type DiagnosisReviewForm = {
+  preliminary_priority: string;
+  reviewer_comment: string;
+  reviewed_at: string;
+};
 type RiskForm = {
   department_id: string;
   activity_id: string;
@@ -300,6 +363,69 @@ const INITIAL_PSYCHOSOCIAL_FORM: PsychosocialForm = {
   notes: "",
 };
 
+
+const INITIAL_DIAGNOSIS_FQB_FORM: DiagnosisFqbForm = {
+  has_noise: false,
+  has_heat_or_cold: false,
+  has_vibration: false,
+  has_dust_fume_gas_vapor_mist: false,
+  has_chemical_contact: false,
+  has_biological_agent: false,
+  has_environmental_monitoring: false,
+  has_existing_control: false,
+  notes: "",
+};
+
+const INITIAL_DIAGNOSIS_ACCIDENTS_FORM: DiagnosisAccidentsForm = {
+  has_same_level_fall: false,
+  has_height_fall: false,
+  has_electricity: false,
+  has_moving_parts_machine: false,
+  has_vehicle_flow: false,
+  has_hot_surfaces: false,
+  has_fire_explosion: false,
+  has_sharps: false,
+  has_confined_space: false,
+  has_obvious_risk: false,
+  obvious_risk_description: "",
+  immediate_measure: "",
+  immediate_responsible: "",
+  immediate_date: "",
+  notes: "",
+};
+
+const INITIAL_DIAGNOSIS_ERGONOMICS_FORM: DiagnosisErgonomicsForm = {
+  has_prolonged_sitting: false,
+  has_prolonged_standing: false,
+  has_forced_posture: false,
+  has_repetitive_movements: false,
+  has_manual_handling: false,
+  furniture_adequacy: "",
+  lighting_adequacy: "",
+  thermal_discomfort: false,
+  acoustic_discomfort: false,
+  has_existing_aep: false,
+  notes: "",
+};
+
+const INITIAL_DIAGNOSIS_CONTROLS_FORM: DiagnosisControlsForm = {
+  has_collective_controls: false,
+  collective_controls_description: "",
+  has_administrative_controls: false,
+  administrative_controls_description: "",
+  has_written_procedure: false,
+  has_worker_guidance: false,
+  has_epi: false,
+  controls_effectiveness: "",
+  controls_maintenance: "",
+  notes: "",
+};
+
+const INITIAL_DIAGNOSIS_REVIEW_FORM: DiagnosisReviewForm = {
+  preliminary_priority: "medium",
+  reviewer_comment: "",
+  reviewed_at: "",
+};
 const INITIAL_RISK_FORM: RiskForm = {
   department_id: "",
   activity_id: "",
@@ -635,6 +761,11 @@ export default function Nr1WorkspacePage() {
   const [diagnosisSuccess, setDiagnosisSuccess] = useState<string | null>(null);
   const [diagnosisContextForm, setDiagnosisContextForm] = useState<DiagnosisContextForm>(INITIAL_DIAGNOSIS_CONTEXT_FORM);
   const [psychosocialForm, setPsychosocialForm] = useState<PsychosocialForm>(INITIAL_PSYCHOSOCIAL_FORM);
+  const [fqbForm, setFqbForm] = useState<DiagnosisFqbForm>(INITIAL_DIAGNOSIS_FQB_FORM);
+  const [accidentsForm, setAccidentsForm] = useState<DiagnosisAccidentsForm>(INITIAL_DIAGNOSIS_ACCIDENTS_FORM);
+  const [ergonomicsForm, setErgonomicsForm] = useState<DiagnosisErgonomicsForm>(INITIAL_DIAGNOSIS_ERGONOMICS_FORM);
+  const [controlsForm, setControlsForm] = useState<DiagnosisControlsForm>(INITIAL_DIAGNOSIS_CONTROLS_FORM);
+  const [reviewForm, setReviewForm] = useState<DiagnosisReviewForm>(INITIAL_DIAGNOSIS_REVIEW_FORM);
   const [risks, setRisks] = useState<SimpleEntity[]>([]);
   const [actionPlans, setActionPlans] = useState<SimpleEntity[]>([]);
   const [selectedRiskId, setSelectedRiskId] = useState<string>("");
@@ -1595,6 +1726,239 @@ useEffect(() => {
     }
   }
 
+  async function handleSaveDiagnosisFqb(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setDiagnosisStatus("saving");
+    setDiagnosisError(null);
+    setDiagnosisSuccess(null);
+
+    const currentContext = contextRef.current;
+
+    if (!currentContext.tenantId || !currentContext.establishmentId || !diagnosisSessionId) {
+      setDiagnosisStatus("error");
+      setDiagnosisError("Inicie uma sessao de diagnostico antes.");
+      return;
+    }
+
+    try {
+      const path = buildUrl("/api/nr1/diagnosis-fqb", {
+        tenantId: currentContext.tenantId,
+      });
+
+      await fetchJson(
+        path,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            establishment_id: currentContext.establishmentId,
+            diagnosis_session_id: diagnosisSessionId,
+            ...fqbForm,
+          }),
+        },
+        currentContext
+      );
+
+      await recordAuditEvent("diagnosis_fqb_saved_from_workspace", {
+        diagnosis_session_id: diagnosisSessionId,
+      }, "formal");
+
+      await refreshAuditEvents();
+
+      setDiagnosisSuccess("Diagnostico FQB salvo.");
+      setDiagnosisStatus("saved");
+    } catch (error) {
+      setDiagnosisStatus("error");
+      setDiagnosisError(error instanceof Error ? error.message : "Erro ao salvar diagnostico FQB.");
+    }
+  }
+
+  async function handleSaveDiagnosisAccidents(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setDiagnosisStatus("saving");
+    setDiagnosisError(null);
+    setDiagnosisSuccess(null);
+
+    const currentContext = contextRef.current;
+
+    if (!currentContext.tenantId || !currentContext.establishmentId || !diagnosisSessionId) {
+      setDiagnosisStatus("error");
+      setDiagnosisError("Inicie uma sessao de diagnostico antes.");
+      return;
+    }
+
+    try {
+      const path = buildUrl("/api/nr1/diagnosis-accidents", {
+        tenantId: currentContext.tenantId,
+      });
+
+      await fetchJson(
+        path,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            establishment_id: currentContext.establishmentId,
+            diagnosis_session_id: diagnosisSessionId,
+            ...accidentsForm,
+          }),
+        },
+        currentContext
+      );
+
+      await recordAuditEvent("diagnosis_accidents_saved_from_workspace", {
+        diagnosis_session_id: diagnosisSessionId,
+      }, "formal");
+
+      await refreshAuditEvents();
+
+      setDiagnosisSuccess("Diagnostico de acidentes salvo.");
+      setDiagnosisStatus("saved");
+    } catch (error) {
+      setDiagnosisStatus("error");
+      setDiagnosisError(error instanceof Error ? error.message : "Erro ao salvar diagnostico de acidentes.");
+    }
+  }
+
+  async function handleSaveDiagnosisErgonomics(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setDiagnosisStatus("saving");
+    setDiagnosisError(null);
+    setDiagnosisSuccess(null);
+
+    const currentContext = contextRef.current;
+
+    if (!currentContext.tenantId || !currentContext.establishmentId || !diagnosisSessionId) {
+      setDiagnosisStatus("error");
+      setDiagnosisError("Inicie uma sessao de diagnostico antes.");
+      return;
+    }
+
+    try {
+      const path = buildUrl("/api/nr1/diagnosis-ergonomics", {
+        tenantId: currentContext.tenantId,
+      });
+
+      await fetchJson(
+        path,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            establishment_id: currentContext.establishmentId,
+            diagnosis_session_id: diagnosisSessionId,
+            ...ergonomicsForm,
+          }),
+        },
+        currentContext
+      );
+
+      await recordAuditEvent("diagnosis_ergonomics_saved_from_workspace", {
+        diagnosis_session_id: diagnosisSessionId,
+      }, "formal");
+
+      await refreshAuditEvents();
+
+      setDiagnosisSuccess("Diagnostico ergonomico salvo.");
+      setDiagnosisStatus("saved");
+    } catch (error) {
+      setDiagnosisStatus("error");
+      setDiagnosisError(error instanceof Error ? error.message : "Erro ao salvar diagnostico ergonomico.");
+    }
+  }
+
+  async function handleSaveDiagnosisControls(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setDiagnosisStatus("saving");
+    setDiagnosisError(null);
+    setDiagnosisSuccess(null);
+
+    const currentContext = contextRef.current;
+
+    if (!currentContext.tenantId || !currentContext.establishmentId || !diagnosisSessionId) {
+      setDiagnosisStatus("error");
+      setDiagnosisError("Inicie uma sessao de diagnostico antes.");
+      return;
+    }
+
+    try {
+      const path = buildUrl("/api/nr1/diagnosis-controls", {
+        tenantId: currentContext.tenantId,
+      });
+
+      await fetchJson(
+        path,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            establishment_id: currentContext.establishmentId,
+            diagnosis_session_id: diagnosisSessionId,
+            ...controlsForm,
+          }),
+        },
+        currentContext
+      );
+
+      await recordAuditEvent("diagnosis_controls_saved_from_workspace", {
+        diagnosis_session_id: diagnosisSessionId,
+      }, "formal");
+
+      await refreshAuditEvents();
+
+      setDiagnosisSuccess("Controles existentes salvos.");
+      setDiagnosisStatus("saved");
+    } catch (error) {
+      setDiagnosisStatus("error");
+      setDiagnosisError(error instanceof Error ? error.message : "Erro ao salvar controles existentes.");
+    }
+  }
+
+  async function handleSaveDiagnosisReview(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setDiagnosisStatus("saving");
+    setDiagnosisError(null);
+    setDiagnosisSuccess(null);
+
+    const currentContext = contextRef.current;
+
+    if (!currentContext.tenantId || !currentContext.establishmentId || !diagnosisSessionId) {
+      setDiagnosisStatus("error");
+      setDiagnosisError("Inicie uma sessao de diagnostico antes.");
+      return;
+    }
+
+    try {
+      const path = buildUrl("/api/nr1/diagnosis-review", {
+        tenantId: currentContext.tenantId,
+      });
+
+      await fetchJson(
+        path,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            establishment_id: currentContext.establishmentId,
+            diagnosis_session_id: diagnosisSessionId,
+            confirmed_exposed_group_json: [],
+            confirmed_hazards_json: [],
+            preliminary_priority: reviewForm.preliminary_priority,
+            reviewer_comment: reviewForm.reviewer_comment,
+            reviewed_at: reviewForm.reviewed_at,
+          }),
+        },
+        currentContext
+      );
+
+      await recordAuditEvent("diagnosis_review_saved_from_workspace", {
+        diagnosis_session_id: diagnosisSessionId,
+      }, "formal");
+
+      await refreshAuditEvents();
+
+      setDiagnosisSuccess("Revisao tecnica do diagnostico salva.");
+      setDiagnosisStatus("saved");
+    } catch (error) {
+      setDiagnosisStatus("error");
+      setDiagnosisError(error instanceof Error ? error.message : "Erro ao salvar revisao tecnica.");
+    }
+  }
   async function handleCreatePsychosocialRisk(): Promise<void> {
     setDiagnosisStatus("saving");
     setDiagnosisError(null);
