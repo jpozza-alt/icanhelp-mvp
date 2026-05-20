@@ -69,11 +69,36 @@ async function readJsonSafe(response: Response) {
   }
 }
 
-function parseTenants(payload: any): TenantOption[] {
-  const raw = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload) ? payload : [];
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonRecord {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as JsonRecord;
+  }
+
+  return {};
+}
+
+function asArray(value: unknown): JsonRecord[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.map(asRecord);
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
+function parseTenants(payload: unknown): TenantOption[] {
+  const raw = Array.isArray(payload) ? asArray(payload) : asArray(asRecord(payload).items);
 
   return raw
-    .map((item: any) => ({
+    .map((item) => ({
       id: String(item?.id ?? "").trim(),
       name: String(item?.name ?? item?.slug ?? "Tenant").trim(),
       slug: item?.slug ? String(item.slug) : null,
@@ -81,11 +106,11 @@ function parseTenants(payload: any): TenantOption[] {
     .filter((item: TenantOption) => item.id);
 }
 
-function parseEstablishments(payload: any): EstablishmentItem[] {
-  const raw = Array.isArray(payload?.items) ? payload.items : [];
+function parseEstablishments(payload: unknown): EstablishmentItem[] {
+  const raw = asArray(asRecord(payload).items);
 
   return raw
-    .map((item: any) => ({
+    .map((item) => ({
       id: String(item?.id ?? "").trim(),
       name: String(item?.name ?? "Estabelecimento").trim(),
       city: item?.city ? String(item.city) : null,
@@ -95,11 +120,11 @@ function parseEstablishments(payload: any): EstablishmentItem[] {
     .filter((item: EstablishmentItem) => item.id);
 }
 
-function parseActionPlans(payload: any): ActionPlanItem[] {
-  const raw = Array.isArray(payload?.items) ? payload.items : [];
+function parseActionPlans(payload: unknown): ActionPlanItem[] {
+  const raw = asArray(asRecord(payload).items);
 
   return raw
-    .map((item: any) => ({
+    .map((item) => ({
       id: String(item?.id ?? "").trim(),
       title: item?.title ? String(item.title) : null,
       status: item?.status ? String(item.status) : null,
@@ -110,11 +135,11 @@ function parseActionPlans(payload: any): ActionPlanItem[] {
     .filter((item: ActionPlanItem) => item.id);
 }
 
-function parseFollowups(payload: any): FollowupItem[] {
-  const raw = Array.isArray(payload?.items) ? payload.items : [];
+function parseFollowups(payload: unknown): FollowupItem[] {
+  const raw = asArray(asRecord(payload).items);
 
   return raw
-    .map((item: any) => ({
+    .map((item) => ({
       id: String(item?.id ?? "").trim(),
       action_plan_id: item?.action_plan_id ? String(item.action_plan_id) : null,
       followup_date: item?.followup_date ? String(item.followup_date) : null,
@@ -274,8 +299,8 @@ export default function Nr1TrilhaAcompanhamentoPage() {
         }
 
         setTenantId(parsedTenants[0].id);
-      } catch (e: any) {
-        setError(e?.message || "Falha ao carregar sessao.");
+      } catch (error: unknown) {
+        setError(getErrorMessage(error, "Falha ao carregar sessao."));
       } finally {
         setLoadingSession(false);
       }
@@ -321,9 +346,18 @@ export default function Nr1TrilhaAcompanhamentoPage() {
           return;
         }
 
-        setSelectedEstablishmentId(parsedEstablishments[0].id);
-      } catch (e: any) {
-        setError(e?.message || "Falha ao carregar estabelecimentos.");
+        const queryParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+        const queryEstablishmentId =
+          queryParams?.get("establishmentId")?.trim() ||
+          queryParams?.get("establishment_id")?.trim() ||
+          "";
+
+        const nextSelectedEstablishmentId =
+          parsedEstablishments.find((item) => item.id === queryEstablishmentId)?.id ?? parsedEstablishments[0].id;
+
+        setSelectedEstablishmentId(nextSelectedEstablishmentId);
+      } catch (error: unknown) {
+        setError(getErrorMessage(error, "Falha ao carregar estabelecimentos."));
       } finally {
         setLoadingEstablishments(false);
       }
@@ -379,11 +413,11 @@ export default function Nr1TrilhaAcompanhamentoPage() {
 
         setSelectedActionPlanId(parsedItems[0].id);
         setInfo("Tela ligada ao backend real de action-followups por action-plan.");
-      } catch (e: any) {
+      } catch (error: unknown) {
         setActionPlans([]);
         setSelectedActionPlanId("");
         setFollowups([]);
-        setError(e?.message || "Falha ao carregar action-plans.");
+        setError(getErrorMessage(error, "Falha ao carregar action-plans."));
       } finally {
         setLoadingActionPlans(false);
         setLoadingFollowups(false);
@@ -429,9 +463,9 @@ export default function Nr1TrilhaAcompanhamentoPage() {
 
         const parsedItems = parseFollowups(payload);
         setFollowups(parsedItems);
-      } catch (e: any) {
+      } catch (error: unknown) {
         setFollowups([]);
-        setError(e?.message || "Falha ao carregar followups.");
+        setError(getErrorMessage(error, "Falha ao carregar followups."));
       } finally {
         setLoadingFollowups(false);
       }
@@ -525,8 +559,8 @@ export default function Nr1TrilhaAcompanhamentoPage() {
         notes: "",
       });
       setInfo("Followup gravado com sucesso no backend real.");
-    } catch (e: any) {
-      setError(e?.message || "Falha ao gravar followup.");
+    } catch (error: unknown) {
+      setError(getErrorMessage(error, "Falha ao gravar followup."));
     } finally {
       setSaving(false);
     }

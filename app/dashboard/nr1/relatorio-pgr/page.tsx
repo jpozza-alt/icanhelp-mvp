@@ -342,11 +342,16 @@ export default function Nr1PgrReportPage() {
 
     setEstablishments(items);
 
-    if (items.length > 0) {
-      setSelectedEstablishmentId(items[0].id);
-    } else {
-      setSelectedEstablishmentId("");
-    }
+    const queryParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+    const queryEstablishmentId =
+      queryParams?.get("establishmentId")?.trim() ||
+      queryParams?.get("establishment_id")?.trim() ||
+      "";
+
+    const nextSelectedEstablishmentId =
+      items.find((item) => item.id === queryEstablishmentId)?.id ?? items[0]?.id ?? "";
+
+    setSelectedEstablishmentId(nextSelectedEstablishmentId);
   }
 
   async function handleTenantChange(nextTenantId: string) {
