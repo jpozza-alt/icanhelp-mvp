@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import AppShell from "@/components/AppShell";
 
@@ -190,8 +190,17 @@ function getValidationBadgeClass(value: string | null | undefined) {
 }
 
 export default function Nr1EvidenciasAcompanhamentoPage() {
+  return (
+    <Suspense fallback={null}>
+      <Nr1EvidenciasAcompanhamentoContent />
+    </Suspense>
+  );
+}
+
+function Nr1EvidenciasAcompanhamentoContent() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const [jwt, setJwt] = useState("");
   const [tenantId, setTenantId] = useState("");
@@ -221,6 +230,10 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
   const selectedEstablishment = useMemo(() => {
     return establishments.find((item) => item.id === selectedEstablishmentId) || null;
   }, [establishments, selectedEstablishmentId]);
+
+  const urlEstablishmentId = useMemo(() => {
+    return (searchParams.get("establishmentId") || searchParams.get("establishment_id") || "").trim();
+  }, [searchParams]);
 
   const pendingValidationCount = useMemo(() => {
     return items.filter((item) => String(item.validation_status || "").trim().toLowerCase() === "pending_validation").length;
@@ -320,14 +333,15 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
           return;
         }
 
-        setSelectedEstablishmentId(parsedEstablishments[0].id);
+        const urlEstablishment = parsedEstablishments.find((item) => item.id === urlEstablishmentId);
+        setSelectedEstablishmentId(urlEstablishment?.id || parsedEstablishments[0].id);
       } catch (e: unknown) {
         setError(getExceptionMessage(e, "Falha ao carregar estabelecimentos."));
       } finally {
         setLoadingEstablishments(false);
       }
     })();
-  }, [jwt, tenantId]);
+  }, [jwt, tenantId, urlEstablishmentId]);
 
   useEffect(() => {
     if (!jwt || !tenantId || !selectedEstablishmentId) {
