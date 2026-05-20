@@ -45,12 +45,14 @@ type EvidenceItem = {
   deleted_at?: string | null;
 };
 
+type ApiRecord = Record<string, unknown>;
+
 const sectionClassName =
   "rounded-3xl border border-[#D9E0E7] bg-white p-6 shadow-[0_18px_50px_rgba(34,49,63,0.08)]";
 const inputClassName =
   "mt-2 w-full rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] px-4 py-3 text-sm text-[#22313F] outline-none transition focus:border-[#5E7A96]";
 
-async function readJsonSafe(response: Response) {
+async function readJsonSafe(response: Response): Promise<unknown> {
   const text = await response.text();
   if (!text.trim()) {
     return null;
@@ -63,64 +65,97 @@ async function readJsonSafe(response: Response) {
   }
 }
 
-function parseTenants(payload: any): TenantOption[] {
-  const raw = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload) ? payload : [];
+function asApiRecord(value: unknown): ApiRecord {
+  return value !== null && typeof value === "object" ? (value as ApiRecord) : {};
+}
+
+function nullableString(value: unknown): string | null {
+  return value ? String(value) : null;
+}
+
+function getPayloadItems(payload: unknown): unknown[] {
+  const record = asApiRecord(payload);
+  return Array.isArray(record.items) ? record.items : Array.isArray(payload) ? payload : [];
+}
+
+function getErrorMessage(payload: unknown, fallback: string): string {
+  const record = asApiRecord(payload);
+  return String(record.message || record.error || fallback);
+}
+
+function getExceptionMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function parseTenants(payload: unknown): TenantOption[] {
+  const raw = getPayloadItems(payload);
 
   return raw
-    .map((item: any) => ({
-      id: String(item?.id ?? "").trim(),
-      name: String(item?.name ?? item?.slug ?? "Tenant").trim(),
-      slug: item?.slug ? String(item.slug) : null,
-    }))
+    .map((item) => {
+      const record = asApiRecord(item);
+      return {
+        id: String(record.id ?? "").trim(),
+        name: String(record.name ?? record.slug ?? "Tenant").trim(),
+        slug: nullableString(record.slug),
+      };
+    })
     .filter((item: TenantOption) => item.id);
 }
 
-function parseEstablishments(payload: any): EstablishmentItem[] {
-  const raw = Array.isArray(payload?.items) ? payload.items : [];
+function parseEstablishments(payload: unknown): EstablishmentItem[] {
+  const record = asApiRecord(payload);
+  const raw = Array.isArray(record.items) ? record.items : [];
 
   return raw
-    .map((item: any) => ({
-      id: String(item?.id ?? "").trim(),
-      name: String(item?.name ?? "Estabelecimento").trim(),
-      city: item?.city ? String(item.city) : null,
-      state: item?.state ? String(item.state) : null,
-      employee_count:
-        typeof item?.employee_count === "number" && Number.isFinite(item.employee_count)
-          ? item.employee_count
-          : null,
-      status: item?.status ? String(item.status) : null,
-    }))
+    .map((item) => {
+      const itemRecord = asApiRecord(item);
+      return {
+        id: String(itemRecord.id ?? "").trim(),
+        name: String(itemRecord.name ?? "Estabelecimento").trim(),
+        city: nullableString(itemRecord.city),
+        state: nullableString(itemRecord.state),
+        employee_count:
+          typeof itemRecord.employee_count === "number" && Number.isFinite(itemRecord.employee_count)
+            ? itemRecord.employee_count
+            : null,
+        status: nullableString(itemRecord.status),
+      };
+    })
     .filter((item: EstablishmentItem) => item.id);
 }
 
-function parseEvidenceItems(payload: any): EvidenceItem[] {
-  const raw = Array.isArray(payload?.data)
-    ? payload.data
-    : Array.isArray(payload?.items)
-      ? payload.items
+function parseEvidenceItems(payload: unknown): EvidenceItem[] {
+  const record = asApiRecord(payload);
+  const raw = Array.isArray(record.data)
+    ? record.data
+    : Array.isArray(record.items)
+      ? record.items
       : Array.isArray(payload)
         ? payload
         : [];
 
   return raw
-    .map((item: any) => ({
-      id: String(item?.id ?? "").trim(),
-      tenant_id: item?.tenant_id ? String(item.tenant_id) : null,
-      establishment_id: item?.establishment_id ? String(item.establishment_id) : null,
-      title: item?.title ? String(item.title) : null,
-      evidence_type: item?.evidence_type ? String(item.evidence_type) : null,
-      description: item?.description ? String(item.description) : null,
-      linked_entity_type: item?.linked_entity_type ? String(item.linked_entity_type) : null,
-      linked_entity_id: item?.linked_entity_id ? String(item.linked_entity_id) : null,
-      reference_date: item?.reference_date ? String(item.reference_date) : null,
-      file_name: item?.file_name ? String(item.file_name) : null,
-      file_url: item?.file_url ? String(item.file_url) : null,
-      validation_status: item?.validation_status ? String(item.validation_status) : null,
-      responsible_name: item?.responsible_name ? String(item.responsible_name) : null,
-      created_at: item?.created_at ? String(item.created_at) : null,
-      updated_at: item?.updated_at ? String(item.updated_at) : null,
-      deleted_at: item?.deleted_at ? String(item.deleted_at) : null,
-    }))
+    .map((item) => {
+      const itemRecord = asApiRecord(item);
+      return {
+        id: String(itemRecord.id ?? "").trim(),
+        tenant_id: nullableString(itemRecord.tenant_id),
+        establishment_id: nullableString(itemRecord.establishment_id),
+        title: nullableString(itemRecord.title),
+        evidence_type: nullableString(itemRecord.evidence_type),
+        description: nullableString(itemRecord.description),
+        linked_entity_type: nullableString(itemRecord.linked_entity_type),
+        linked_entity_id: nullableString(itemRecord.linked_entity_id),
+        reference_date: nullableString(itemRecord.reference_date),
+        file_name: nullableString(itemRecord.file_name),
+        file_url: nullableString(itemRecord.file_url),
+        validation_status: nullableString(itemRecord.validation_status),
+        responsible_name: nullableString(itemRecord.responsible_name),
+        created_at: nullableString(itemRecord.created_at),
+        updated_at: nullableString(itemRecord.updated_at),
+        deleted_at: nullableString(itemRecord.deleted_at),
+      };
+    })
     .filter((item: EvidenceItem) => item.id);
 }
 
@@ -231,11 +266,7 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
         const tenantsPayload = await readJsonSafe(tenantsResponse);
 
         if (!tenantsResponse.ok) {
-          const message =
-            tenantsPayload?.message ||
-            tenantsPayload?.error ||
-            "Falha ao carregar tenants.";
-          throw new Error(String(message));
+          throw new Error(getErrorMessage(tenantsPayload, "Falha ao carregar tenants."));
         }
 
         const parsedTenants = parseTenants(tenantsPayload);
@@ -246,13 +277,13 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
         }
 
         setTenantId(parsedTenants[0].id);
-      } catch (e: any) {
-        setError(e?.message || "Falha ao carregar sessao.");
+      } catch (e: unknown) {
+        setError(getExceptionMessage(e, "Falha ao carregar sessao."));
       } finally {
         setLoadingSession(false);
       }
     })();
-  }, [router]);
+  }, [pathname, router]);
 
   useEffect(() => {
     if (!jwt || !tenantId) {
@@ -277,11 +308,7 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
         const payload = await readJsonSafe(response);
 
         if (!response.ok) {
-          const message =
-            payload?.message ||
-            payload?.error ||
-            "Falha ao carregar estabelecimentos.";
-          throw new Error(String(message));
+          throw new Error(getErrorMessage(payload, "Falha ao carregar estabelecimentos."));
         }
 
         const parsedEstablishments = parseEstablishments(payload);
@@ -294,8 +321,8 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
         }
 
         setSelectedEstablishmentId(parsedEstablishments[0].id);
-      } catch (e: any) {
-        setError(e?.message || "Falha ao carregar estabelecimentos.");
+      } catch (e: unknown) {
+        setError(getExceptionMessage(e, "Falha ao carregar estabelecimentos."));
       } finally {
         setLoadingEstablishments(false);
       }
@@ -329,11 +356,7 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
         const payload = await readJsonSafe(response);
 
         if (!response.ok) {
-          const message =
-            payload?.message ||
-            payload?.error ||
-            "Falha ao carregar evidencias do estabelecimento.";
-          throw new Error(String(message));
+          throw new Error(getErrorMessage(payload, "Falha ao carregar evidencias do estabelecimento."));
         }
 
         const parsedItems = parseEvidenceItems(payload);
@@ -344,9 +367,9 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
         } else {
           setInfo("Tela ligada ao backend real de evidence-items por estabelecimento.");
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         setItems([]);
-        setError(e?.message || "Falha ao carregar evidencias.");
+        setError(getExceptionMessage(e, "Falha ao carregar evidencias."));
       } finally {
         setLoadingItems(false);
       }
@@ -400,11 +423,7 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
       const createPayload = await readJsonSafe(createResponse);
 
       if (!createResponse.ok) {
-        const message =
-          createPayload?.message ||
-          createPayload?.error ||
-          "Falha ao gravar evidencia no backend real.";
-        throw new Error(String(message));
+        throw new Error(getErrorMessage(createPayload, "Falha ao gravar evidencia no backend real."));
       }
 
       const refreshResponse = await fetch(
@@ -422,11 +441,7 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
       const refreshPayload = await readJsonSafe(refreshResponse);
 
       if (!refreshResponse.ok) {
-        const message =
-          refreshPayload?.message ||
-          refreshPayload?.error ||
-          "A evidencia foi criada, mas a releitura da lista falhou.";
-        throw new Error(String(message));
+        throw new Error(getErrorMessage(refreshPayload, "A evidencia foi criada, mas a releitura da lista falhou."));
       }
 
       setItems(parseEvidenceItems(refreshPayload));
@@ -443,8 +458,8 @@ export default function Nr1EvidenciasAcompanhamentoPage() {
         responsible_name: "",
       });
       setInfo("Evidencia gravada com sucesso no backend real.");
-    } catch (e: any) {
-      setError(e?.message || "Falha ao gravar evidencia.");
+    } catch (e: unknown) {
+      setError(getExceptionMessage(e, "Falha ao gravar evidencia."));
     } finally {
       setSaving(false);
     }
