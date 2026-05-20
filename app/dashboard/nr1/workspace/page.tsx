@@ -2657,7 +2657,7 @@ useEffect(() => {
             <section className="grid gap-6 xl:grid-cols-2">
               <form onSubmit={handleCreateCompany} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 className="text-xl font-semibold">1. Empresa</h2>
-                <p className="mt-1 text-sm text-slate-500">Contrato: POST /api/nr1/companies?tenantId=...</p>
+                <p className="mt-1 text-sm text-slate-500">Cadastre ou revise os dados principais da empresa para iniciar a jornada NR-1.</p>
 
                 <div className="mt-5 grid gap-3">
                   <input
@@ -2730,7 +2730,7 @@ useEffect(() => {
 
               <form onSubmit={handleCreateEstablishment} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 className="text-xl font-semibold">2. Estabelecimento</h2>
-                <p className="mt-1 text-sm text-slate-500">Contrato: POST /api/nr1/establishments?tenantId=...</p>
+                <p className="mt-1 text-sm text-slate-500">Organize a unidade onde as atividades acontecem e onde o PGR sera estruturado.</p>
 
                 <div className="mt-5 grid gap-3">
                   <select
@@ -2791,7 +2791,7 @@ useEffect(() => {
 
               <form onSubmit={handleCreateDepartment} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 className="text-xl font-semibold">3. Setor</h2>
-                <p className="mt-1 text-sm text-slate-500">Contrato: POST /api/nr1/departments?tenantId=...</p>
+                <p className="mt-1 text-sm text-slate-500">Mapeie os setores reais de trabalho antes de vincular atividades e riscos.</p>
 
                 <div className="mt-5 grid gap-3">
                   <input
@@ -2851,7 +2851,7 @@ useEffect(() => {
 
               <form onSubmit={handleCreateActivity} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 className="text-xl font-semibold">4. Atividade</h2>
-                <p className="mt-1 text-sm text-slate-500">Contrato: POST /api/nr1/activities?tenantId=...</p>
+                <p className="mt-1 text-sm text-slate-500">Descreva as atividades reais executadas para orientar o diagnostico e o plano de acao.</p>
 
                 <div className="mt-5 grid gap-3">
                   <select
