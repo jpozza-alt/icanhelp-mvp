@@ -2427,7 +2427,7 @@ useEffect(() => {
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-700">ICANHELP NR1</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight">Workspace operacional SST</h1>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight">Adequacao NR-1 da sua empresa</h1>
             <p className="mt-2 max-w-3xl text-sm text-slate-600">
               Cadastre empresa, estabelecimento, setores e atividades. Estes registros sustentam o diagnostico guiado, inventario de riscos e plano de acao.
             </p>
