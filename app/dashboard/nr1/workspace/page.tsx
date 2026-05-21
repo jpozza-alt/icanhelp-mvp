@@ -2428,6 +2428,9 @@ useEffect(() => {
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-800">ICANHELP NR1</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">Adequacao NR-1 da sua empresa</h1>
+            <p className="mt-2 max-w-3xl text-sm text-slate-600">
+              Cadastre a empresa, organize a unidade e avance pela jornada guiada. O sistema transforma as respostas em riscos, acoes e documentos.
+            </p>
 
           <section className="mt-6 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
             <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
@@ -2474,9 +2477,7 @@ useEffect(() => {
                 </div>
               ))}
             </div>
-          </section>            <p className="mt-2 max-w-3xl text-sm text-slate-600">
-              Cadastre empresa, estabelecimento, setores e atividades. Estes registros sustentam o diagnostico guiado, inventario de riscos e plano de acao.
-            </p>
+          </section>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
