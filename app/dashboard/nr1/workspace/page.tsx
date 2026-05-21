@@ -837,7 +837,7 @@ useEffect(() => {
         const accessToken = await getBrowserAccessToken();
 
         if (!accessToken) {
-          throw new Error("Sessao Supabase ausente para carregar plano NR1.");
+          throw new Error("Sessao ausente para carregar plano contratado.");
         }
 
         const result = await getNr1PlanFeatures({
@@ -851,7 +851,7 @@ useEffect(() => {
       } catch (error) {
         if (!cancelled) {
           setPlanFeatures(null);
-          setPlanFeaturesError(error instanceof Error ? error.message : "Erro ao carregar plano NR1.");
+          setPlanFeaturesError(error instanceof Error ? error.message : "Erro ao carregar plano contratado.");
         }
       } finally {
         if (!cancelled) {
@@ -1257,7 +1257,7 @@ useEffect(() => {
 
     if (!currentContext.tenantId) {
       setFormStatus("error");
-      setFormError("Tenant nao resolvido.");
+      setFormError("Contexto da empresa nao resolvido.");
       return;
     }
 
@@ -1330,7 +1330,7 @@ useEffect(() => {
 
     if (!currentContext.tenantId) {
       setFormStatus("error");
-      setFormError("Tenant nao resolvido.");
+      setFormError("Contexto da empresa nao resolvido.");
       return;
     }
 
@@ -2385,7 +2385,7 @@ useEffect(() => {
         }
       } catch (error) {
         if (cancelled) return;
-        setLoadError(error instanceof Error ? error.message : "Erro ao carregar workspace NR1.");
+        setLoadError(error instanceof Error ? error.message : "Erro ao carregar area de trabalho.");
         setSaveStatus("save_error");
       }
     }
@@ -2455,7 +2455,7 @@ useEffect(() => {
                 ["Riscos", "Atencao", "Prioridades"],
                 ["Plano", "Pendente", "Acoes"],
                 ["Evidencias", "Parcial", "Registros"],
-                ["PGR", "Nao gerado", "Documento final"],
+                ["Documento final", "Nao gerado", "Relatorio"],
               ].map(([title, status, helper]) => (
                 <div
                   key={title}
@@ -2595,7 +2595,7 @@ useEffect(() => {
                 ) : null}
                 <div className="mt-3 rounded-2xl border border-cyan-200 bg-cyan-50 p-3 text-sm text-cyan-950">
                   <p className="font-semibold">
-                    Plano NR1: {planFeaturesLoading ? "carregando" : planFeatures?.plan?.name || "nao carregado"}
+                    Plano contratado: {planFeaturesLoading ? "carregando" : planFeatures?.plan?.name || "nao carregado"}
                   </p>
                   <p className="mt-1">
                     Fonte: {planFeatures?.subscriptionSource || "indisponivel"} / Features: {planFeatures?.featureKeys.length ?? 0}
@@ -2815,7 +2815,7 @@ useEffect(() => {
 
               <form onSubmit={handleCreateEstablishment} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 className="text-xl font-semibold">2. Estabelecimento</h2>
-                <p className="mt-1 text-sm text-slate-500">Organize a unidade onde as atividades acontecem e onde o PGR sera estruturado.</p>
+                <p className="mt-1 text-sm text-slate-500">Organize a unidade onde as atividades acontecem e onde a documentacao sera estruturada.</p>
 
                 <div className="mt-5 grid gap-3">
                   <select
@@ -3611,7 +3611,7 @@ useEffect(() => {
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h3 className="text-lg font-semibold">Planos do risco selecionado</h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  Lista retornada por /api/nr1/action-plans filtrada por riskId.
+                  Acoes vinculadas ao risco selecionado.
                 </p>
 
                 <div className="mt-5 space-y-3">
