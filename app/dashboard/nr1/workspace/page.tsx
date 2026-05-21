@@ -2515,11 +2515,26 @@ useEffect(() => {
       <div className="mx-auto grid max-w-7xl gap-6 px-6 py-6 xl:grid-cols-[280px_1fr]">
         <aside className="h-fit rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="rounded-2xl bg-slate-950 p-4 text-white">
-            <p className="text-sm text-slate-300">Progresso do workspace</p>
+            <p className="text-sm text-slate-300">Progresso da jornada</p>
             <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-800">
               <div className="h-full rounded-full bg-cyan-300" style={{ width: `${progressPercent}%` }} />
             </div>
-            <p className="mt-2 text-2xl font-semibold">{progressPercent}%</p>
+            <div className="mt-3 flex items-end justify-between gap-3">
+              <p className="text-2xl font-semibold">{progressPercent}%</p>
+              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-cyan-100">
+                Em andamento
+              </span>
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-slate-300">
+              Continue pela etapa ativa e deixe o sistema salvar a jornada automaticamente.
+            </p>
+            <button
+              type="button"
+              onClick={() => patchDraft({ activeSection: draft.activeSection }, `continue_${draft.activeSection}`)}
+              className="mt-4 w-full rounded-xl bg-cyan-300 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-200"
+            >
+              Continuar jornada
+            </button>
           </div>
 
           <nav className="mt-5 space-y-2">
