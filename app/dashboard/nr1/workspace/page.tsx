@@ -2479,10 +2479,33 @@ useEffect(() => {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm shadow-sm">
-            <p className="font-medium text-slate-700">Status da base</p>
-            <p className="mt-1 text-slate-600">{statusLabel}</p>
-            <p className="mt-1 text-xs text-slate-500">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="font-medium text-slate-800">Autosave da jornada</p>
+                <p className="mt-1 text-slate-600">{statusLabel}</p>
+              </div>
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  saveStatus === "save_error"
+                    ? "bg-red-100 text-red-700"
+                    : saveStatus === "dirty"
+                      ? "bg-amber-100 text-amber-700"
+                      : saveStatus === "saving" || saveStatus === "loading"
+                        ? "bg-cyan-100 text-cyan-700"
+                        : "bg-emerald-100 text-emerald-700"
+                }`}
+              >
+                {saveStatus === "save_error"
+                  ? "Revisar"
+                  : saveStatus === "dirty"
+                    ? "Pendente"
+                    : saveStatus === "saving" || saveStatus === "loading"
+                      ? "Processando"
+                      : "Seguro"}
+              </span>
+            </div>
+            <p className="mt-3 text-xs text-slate-500">
               {lastSavedAt ? `Ultimo autosave: ${new Date(lastSavedAt).toLocaleTimeString("pt-BR")}` : "Autosave aguardando edicao"}
             </p>
           </div>
