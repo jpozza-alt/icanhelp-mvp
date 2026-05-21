@@ -2447,18 +2447,12 @@ useEffect(() => {
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {[
-                ["Visao geral", "Agora", "Proximo passo"],
-                ["Empresa", "Completo", "Dados principais"],
-                ["Estabelecimento", "Pendente", "Revisar unidade"],
-                ["Setores", "Andamento", "Mapa da empresa"],
-                ["Atividades", "Incompleto", "Trabalho real"],
-                ["Diagnostico", "Andamento", "Coleta guiada"],
-                ["Riscos", "Atencao", "Prioridades"],
-                ["Plano", "Pendente", "Acoes"],
-                ["Evidencias", "Parcial", "Registros"],
-                ["Documento final", "Nao gerado", "Relatorio"],
+                ["Cadastros", "Em andamento", "Empresa, unidade, setores e atividades"],
+                ["Diagnostico", "Em andamento", "Perguntas guiadas por atividade"],
+                ["Riscos e acoes", "Atencao", "Prioridades e plano de acao"],
+                ["Documentos", "Parcial", "Evidencias e relatorio final"],
               ].map(([title, status, helper]) => (
                 <div
                   key={title}
