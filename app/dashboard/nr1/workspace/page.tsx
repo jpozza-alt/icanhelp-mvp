@@ -2742,7 +2742,7 @@ useEffect(() => {
             <section className="grid gap-6 xl:grid-cols-2">
               <form onSubmit={handleCreateCompany} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h2 className="text-xl font-semibold">1. Empresa</h2>
-                <p className="mt-1 text-sm text-slate-500">Cadastre ou revise os dados principais da empresa para iniciar a jornada NR-1.</p>
+                <p className="mt-1 text-sm text-slate-500">Informe os dados essenciais da empresa para organizar a jornada NR-1 desde o inicio.</p>
 
                 <div className="mt-5 grid gap-3">
                   <input
@@ -3019,9 +3019,9 @@ useEffect(() => {
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <h2 className="text-xl font-semibold">Diagnostico Guiado NR1/Pasini</h2>
+                    <h2 className="text-xl font-semibold">Diagnostico guiado do trabalho</h2>
                     <p className="mt-1 max-w-3xl text-sm text-slate-500">
-                      Fluxo real: atividade cadastrada, sessao de diagnostico, contexto do trabalho, sinais psicossociais e risco gerado no inventario.
+                      Responda por atividade, registre o contexto real do trabalho e mantenha foco nos fatores ocupacionais.
                     </p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
@@ -3234,9 +3234,9 @@ useEffect(() => {
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <h2 className="text-xl font-semibold">Inventario de riscos e plano de acao</h2>
+                    <h2 className="text-xl font-semibold">Riscos e plano de acao</h2>
                     <p className="mt-1 max-w-3xl text-sm text-slate-500">
-                      Liste riscos do estabelecimento, selecione um risco psicossocial e crie um plano de acao vinculado ao risk_id.
+                      Revise os riscos encontrados, priorize o que precisa de controle e organize as acoes de melhoria.
                     </p>
                   </div>
                   <button
@@ -3647,8 +3647,8 @@ useEffect(() => {
             <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-semibold">Trilha auditavel</h2>
-                  <p className="mt-1 text-sm text-slate-500">Eventos reais de rascunho e cadastro.</p>
+                  <h2 className="text-xl font-semibold">Trilha do processo</h2>
+                  <p className="mt-1 text-sm text-slate-500">Acompanhe os registros gerados durante o preenchimento da jornada.</p>
                 </div>
                 <button
                   type="button"
