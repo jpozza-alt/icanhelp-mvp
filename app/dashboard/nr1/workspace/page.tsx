@@ -2572,46 +2572,6 @@ useEffect(() => {
         </aside>
 
         <section className="min-w-0 space-y-6">
-          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Diagnostico de sessao</p>
-                <h2 className="mt-2 text-lg font-semibold">
-                  {sessionDebug.hasAccessToken ? "Sessao Supabase detectada" : "Sessao Supabase ausente"}
-                </h2>
-                <p className="mt-1 text-sm text-slate-500">
-                  Checked: {String(sessionDebug.checked)} / Session: {String(sessionDebug.hasSession)} / Token: protegido
-                </p>
-                <p className="mt-1 text-sm text-slate-500">
-                  Email: {sessionDebug.userEmail || "nao identificado"} / Token: protegido
-                </p>
-                {sessionDebug.error ? (
-                  <p className="mt-2 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{sessionDebug.error}</p>
-                ) : null}
-                <div className="mt-3 rounded-2xl border border-amber-200 bg-[#f7efe7] p-3 text-sm text-slate-900">
-                  <p className="font-semibold">
-                    Plano contratado: {planFeaturesLoading ? "carregando" : planFeatures?.plan?.name || "nao carregado"}
-                  </p>
-                  <p className="mt-1">
-                    Fonte: {planFeatures?.subscriptionSource || "indisponivel"} / Features: {planFeatures?.featureKeys.length ?? 0}
-                  </p>
-                  <p className="mt-1">
-                    Motor inteligente: {planFeatures?.featureFlags.iso45003_engine ? "liberado" : "bloqueado"}
-                  </p>
-                  {planFeaturesError ? (
-                    <p className="mt-2 rounded-xl border border-red-200 bg-white p-2 text-red-800">{planFeaturesError}</p>
-                  ) : null}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => void refreshSessionDebug()}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-50"
-              >
-                Verificar sessao
-              </button>
-            </div>
-          </div>
           <div
             className={
               planFeatures?.featureFlags.iso45003_engine
