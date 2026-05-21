@@ -2483,7 +2483,7 @@ useEffect(() => {
           <div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-medium text-slate-800">Autosave da jornada</p>
+                <p className="font-medium text-slate-800">Salvamento automatico</p>
                 <p className="mt-1 text-slate-600">{statusLabel}</p>
               </div>
               <span
@@ -2507,7 +2507,7 @@ useEffect(() => {
               </span>
             </div>
             <p className="mt-3 text-xs text-slate-500">
-              {lastSavedAt ? `Ultimo autosave: ${new Date(lastSavedAt).toLocaleTimeString("pt-BR")}` : "Autosave aguardando edicao"}
+              {lastSavedAt ? `Ultimo salvamento: ${new Date(lastSavedAt).toLocaleTimeString("pt-BR")}` : "Salvamento automatico aguardando alteracao"}
             </p>
           </div>
         </div>
