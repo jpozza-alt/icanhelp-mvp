@@ -2539,22 +2539,23 @@ useEffect(() => {
 
           <nav className="mt-5 space-y-2">
             {[
-              ["cadastros", "Cadastros"],
-              ["diagnostico", "Diagnostico"],
-              ["riscos", "Riscos e planos"],
-              ["auditoria", "Trilha"],
-            ].map(([key, label]) => (
+              ["cadastros", "Cadastros", "Empresa, unidade, setores e atividades"],
+              ["diagnostico", "Diagnostico", "Perguntas guiadas por atividade"],
+              ["riscos", "Riscos e planos", "Prioridades, acoes e evidencias"],
+              ["auditoria", "Trilha", "Historico e registros do processo"],
+            ].map(([key, label, helper]) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => patchDraft({ activeSection: key }, `section_${key}`)}
-                className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-medium transition ${
+                className={`w-full rounded-2xl px-4 py-3 text-left transition ${
                   draft.activeSection === key
                     ? "bg-cyan-100 text-cyan-900"
                     : "bg-slate-50 text-slate-700 hover:bg-slate-100"
                 }`}
               >
-                {label}
+                <span className="block text-sm font-semibold">{label}</span>
+                <span className="mt-1 block text-xs font-normal opacity-75">{helper}</span>
               </button>
             ))}
           </nav>
