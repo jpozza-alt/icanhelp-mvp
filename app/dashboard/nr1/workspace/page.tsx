@@ -2433,14 +2433,14 @@ useEffect(() => {
             <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
-                  Jornada compacta NR-1
+                  Sua jornada NR-1
                 </p>
                 <h2 className="text-base font-semibold text-slate-900">
-                  Escolha uma etapa para orientar o preenchimento
+                  Continue pelo proximo passo recomendado
                 </h2>
               </div>
               <p className="text-sm text-slate-500">
-                Primeiro passo visual do novo modelo. Sem alterar regras, API ou banco.
+                Acompanhe etapas, pendencias e documentos sem precisar entender termos tecnicos.
               </p>
             </div>
 
@@ -3698,4 +3698,3 @@ useEffect(() => {
     </main>
   );
 }
-
