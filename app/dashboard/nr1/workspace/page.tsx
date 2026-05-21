@@ -2428,7 +2428,53 @@ useEffect(() => {
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-700">ICANHELP NR1</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">Adequacao NR-1 da sua empresa</h1>
-            <p className="mt-2 max-w-3xl text-sm text-slate-600">
+
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+            <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
+                  Jornada compacta NR-1
+                </p>
+                <h2 className="text-base font-semibold text-slate-900">
+                  Escolha uma etapa para orientar o preenchimento
+                </h2>
+              </div>
+              <p className="text-sm text-slate-500">
+                Primeiro passo visual do novo modelo. Sem alterar regras, API ou banco.
+              </p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {[
+                ["Visao geral", "Agora", "Proximo passo"],
+                ["Empresa", "Completo", "Dados principais"],
+                ["Estabelecimento", "Pendente", "Revisar unidade"],
+                ["Setores", "Andamento", "Mapa da empresa"],
+                ["Atividades", "Incompleto", "Trabalho real"],
+                ["Diagnostico", "Andamento", "Coleta guiada"],
+                ["Riscos", "Atencao", "Prioridades"],
+                ["Plano", "Pendente", "Acoes"],
+                ["Evidencias", "Parcial", "Registros"],
+                ["PGR", "Nao gerado", "Documento final"],
+              ].map(([title, status, helper]) => (
+                <div
+                  key={title}
+                  className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md"
+                >
+                  <div className="mb-3 flex items-start justify-between gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#ead8c8] text-xs font-bold text-slate-800">
+                      {title.slice(0, 1)}
+                    </div>
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
+                      {status}
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+                  <p className="mt-1 text-xs text-slate-500">{helper}</p>
+                </div>
+              ))}
+            </div>
+          </section>            <p className="mt-2 max-w-3xl text-sm text-slate-600">
               Cadastre empresa, estabelecimento, setores e atividades. Estes registros sustentam o diagnostico guiado, inventario de riscos e plano de acao.
             </p>
           </div>
