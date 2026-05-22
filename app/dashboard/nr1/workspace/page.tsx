@@ -3245,7 +3245,7 @@ useEffect(() => {
                 <form onSubmit={handleCreateRisk} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                   <h3 className="text-lg font-semibold">1. Criar risco manual</h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    Contrato real: establishment_id, department_id, activity_id, title, risk_category e hazard_description.
+                    Preencha os dados principais para registrar o risco com seguranca.
                   </p>
 
                   <div className="mt-5 grid gap-3">
@@ -3464,7 +3464,7 @@ useEffect(() => {
                 <form onSubmit={handleCreateActionPlan} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                   <h3 className="text-lg font-semibold">3. Criar plano de acao</h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    Contrato real: establishment_id, risk_id e title sao obrigatorios.
+                    De um nome claro ao plano e mantenha-o vinculado ao risco selecionado.
                   </p>
 
                   <div className="mt-5 grid gap-3">
