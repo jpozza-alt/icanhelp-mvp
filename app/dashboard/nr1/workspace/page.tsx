@@ -754,6 +754,7 @@ export default function Nr1WorkspacePage() {
   const [departmentForm, setDepartmentForm] = useState<DepartmentForm>(INITIAL_DEPARTMENT_FORM);
   const [activityForm, setActivityForm] = useState<ActivityForm>(INITIAL_ACTIVITY_FORM);
   const [onboardingMicroStepIndex, setOnboardingMicroStepIndex] = useState(0);
+  const [guidedSetupOpen, setGuidedSetupOpen] = useState(false);
   const [diagnosisActivityId, setDiagnosisActivityId] = useState<string>("");
   const [diagnosisSessionId, setDiagnosisSessionId] = useState<string>("");
   const [diagnosisRiskId, setDiagnosisRiskId] = useState<string>("");
@@ -893,6 +894,7 @@ useEffect(() => {
   const hasActivity = activities.length > 0;
   const isWorkspaceMode = hasCompany && hasEstablishment && hasDepartment && hasActivity;
   const isOnboardingMode = !isWorkspaceMode;
+  const showGuidedSetup = isOnboardingMode || guidedSetupOpen;
 
   const onboardingCurrentStep = !hasCompany
     ? {
@@ -940,6 +942,12 @@ useEffect(() => {
     ["Setor", hasDepartment ? "Concluido" : onboardingCurrentStep.index === 3 ? "Agora" : "Depois"],
     ["Atividade", hasActivity ? "Concluido" : onboardingCurrentStep.index === 4 ? "Agora" : "Depois"],
   ] as const;
+
+  useEffect(() => {
+    if (isOnboardingMode) {
+      setGuidedSetupOpen(true);
+    }
+  }, [isOnboardingMode]);
 
   useEffect(() => {
     setOnboardingMicroStepIndex(0);
@@ -2780,13 +2788,35 @@ useEffect(() => {
           </section>
           ) : null}
 
-          {isOnboardingMode ? (
-            <div className="fixed inset-0 z-40 bg-[#10243e]/25 backdrop-blur-md" aria-hidden="true" />
+          {isWorkspaceMode && !showGuidedSetup ? (
+            <section className="rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-5 shadow-sm">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
+                    Configuracao guiada
+                  </p>
+                  <p className="mt-1 text-sm text-[#6f665b]">
+                    Continue pelo assistente quando quiser revisar ou completar a base.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setGuidedSetupOpen(true)}
+                  className="rounded-xl bg-[#132238] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f1b2d]"
+                >
+                  Continuar configuracao guiada
+                </button>
+              </div>
+            </section>
           ) : null}
 
-          {isOnboardingMode || draft.activeSection === "cadastros" ? (
-            <section className={isOnboardingMode ? "relative z-50 mx-auto max-w-3xl rounded-[2rem] border border-[#d9c9b8] bg-[#fffaf6]/95 p-6 shadow-2xl ring-1 ring-white/60" : "grid gap-6 xl:grid-cols-2"}>
-              {isOnboardingMode ? (
+          {showGuidedSetup ? (
+            <div className="fixed -inset-24 z-[9998] bg-[#10243e]/12 backdrop-blur-sm" aria-hidden="true" />
+          ) : null}
+
+          {showGuidedSetup || draft.activeSection === "cadastros" ? (
+            <section className={showGuidedSetup ? "fixed left-1/2 top-1/2 z-[9999] max-h-[calc(100vh-3rem)] w-[min(56rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[2rem] border border-[#d9c9b8] bg-[#fffaf6]/95 p-6 shadow-2xl ring-1 ring-white/60" : "grid gap-6 xl:grid-cols-2"}>
+              {showGuidedSetup ? (
                 <div>
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
@@ -2830,14 +2860,23 @@ useEffect(() => {
                       style={{ width: `${((onboardingMicroStepIndex + 1) / onboardingMicroSteps.length) * 100}%` }}
                     />
                   </div>
+                  {isWorkspaceMode ? (
+                    <button
+                      type="button"
+                      onClick={() => setGuidedSetupOpen(false)}
+                      className="mt-4 text-sm font-semibold text-[#132238] underline underline-offset-4"
+                    >
+                      Fechar modo guiado
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
-              {(!isOnboardingMode || onboardingCurrentStep.key === "empresa") ? (
-              <form onSubmit={handleCreateCompany} className={isOnboardingMode ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
-                <h2 className={isOnboardingMode ? "sr-only" : "text-xl font-semibold"}>1. Empresa</h2>
+              {(!showGuidedSetup || onboardingCurrentStep.key === "empresa") ? (
+              <form onSubmit={handleCreateCompany} className={showGuidedSetup ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
+                <h2 className={showGuidedSetup ? "sr-only" : "text-xl font-semibold"}>1. Empresa</h2>
                 <p className="mt-1 text-sm text-slate-500">Informe os dados essenciais da empresa para organizar a jornada NR-1 desde o inicio.</p>
 
-                {isOnboardingMode ? (
+                {showGuidedSetup ? (
                   <div className="mt-5">
                     {onboardingMicroStepIndex === 0 ? (
                       <input
@@ -2866,7 +2905,7 @@ useEffect(() => {
                   </div>
                 ) : null}
 
-                <div className={isOnboardingMode ? "hidden" : "mt-5 grid gap-3"}>
+                <div className={showGuidedSetup ? "hidden" : "mt-5 grid gap-3"}>
                   <input
                     value={companyForm.legal_name}
                     onChange={(event) => setCompanyForm((prev) => ({ ...prev, legal_name: event.target.value }))}
@@ -2927,29 +2966,29 @@ useEffect(() => {
                 </div>
 
                 <div className="mt-5 flex items-center justify-between gap-3">
-                  {isOnboardingMode && onboardingMicroStepIndex > 0 ? (
+                  {showGuidedSetup && onboardingMicroStepIndex > 0 ? (
                     <button type="button" onClick={() => setOnboardingMicroStepIndex((prev) => Math.max(0, prev - 1))} className="rounded-xl border border-[#d9c9b8] px-4 py-2 text-sm font-semibold text-[#10243e] hover:bg-[#f7f1e8]">
                       Voltar
                     </button>
                   ) : <span />}
                   <button
-                    type={isOnboardingMode && !isLastOnboardingMicroStep ? "button" : "submit"}
-                    onClick={isOnboardingMode && !isLastOnboardingMicroStep ? () => setOnboardingMicroStepIndex((prev) => prev + 1) : undefined}
+                    type={showGuidedSetup && !isLastOnboardingMicroStep ? "button" : "submit"}
+                    onClick={showGuidedSetup && !isLastOnboardingMicroStep ? () => setOnboardingMicroStepIndex((prev) => prev + 1) : undefined}
                     disabled={formStatus === "saving"}
                     className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                   >
-                    {isOnboardingMode ? (isLastOnboardingMicroStep ? onboardingCurrentStep.buttonLabel : "Continuar") : "Cadastrar empresa"}
+                    {showGuidedSetup ? (isLastOnboardingMicroStep ? onboardingCurrentStep.buttonLabel : "Continuar") : "Cadastrar empresa"}
                   </button>
                 </div>
               </form>
               ) : null}
 
-              {(!isOnboardingMode || onboardingCurrentStep.key === "estabelecimento") ? (
-              <form onSubmit={handleCreateEstablishment} className={isOnboardingMode ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
-                <h2 className={isOnboardingMode ? "sr-only" : "text-xl font-semibold"}>2. Estabelecimento</h2>
+              {(!showGuidedSetup || onboardingCurrentStep.key === "estabelecimento") ? (
+              <form onSubmit={handleCreateEstablishment} className={showGuidedSetup ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
+                <h2 className={showGuidedSetup ? "sr-only" : "text-xl font-semibold"}>2. Estabelecimento</h2>
                 <p className="mt-1 text-sm text-slate-500">Organize a unidade onde as atividades acontecem e onde a documentacao sera estruturada.</p>
 
-                {isOnboardingMode ? (
+                {showGuidedSetup ? (
                   <div className="mt-5">
                     {onboardingMicroStepIndex === 0 ? (
                       <input
@@ -2978,7 +3017,7 @@ useEffect(() => {
                   </div>
                 ) : null}
 
-                <div className={isOnboardingMode ? "hidden" : "mt-5 grid gap-3"}>
+                <div className={showGuidedSetup ? "hidden" : "mt-5 grid gap-3"}>
                   <select
                     value={establishmentForm.company_id || activeCompanyId}
                     onChange={(event) => setEstablishmentForm((prev) => ({ ...prev, company_id: event.target.value }))}
@@ -3027,29 +3066,29 @@ useEffect(() => {
                 </div>
 
                 <div className="mt-5 flex items-center justify-between gap-3">
-                  {isOnboardingMode && onboardingMicroStepIndex > 0 ? (
+                  {showGuidedSetup && onboardingMicroStepIndex > 0 ? (
                     <button type="button" onClick={() => setOnboardingMicroStepIndex((prev) => Math.max(0, prev - 1))} className="rounded-xl border border-[#d9c9b8] px-4 py-2 text-sm font-semibold text-[#10243e] hover:bg-[#f7f1e8]">
                       Voltar
                     </button>
                   ) : <span />}
                   <button
-                    type={isOnboardingMode && !isLastOnboardingMicroStep ? "button" : "submit"}
-                    onClick={isOnboardingMode && !isLastOnboardingMicroStep ? () => setOnboardingMicroStepIndex((prev) => prev + 1) : undefined}
+                    type={showGuidedSetup && !isLastOnboardingMicroStep ? "button" : "submit"}
+                    onClick={showGuidedSetup && !isLastOnboardingMicroStep ? () => setOnboardingMicroStepIndex((prev) => prev + 1) : undefined}
                     disabled={formStatus === "saving"}
                     className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                   >
-                    {isOnboardingMode ? (isLastOnboardingMicroStep ? onboardingCurrentStep.buttonLabel : "Continuar") : "Cadastrar estabelecimento"}
+                    {showGuidedSetup ? (isLastOnboardingMicroStep ? onboardingCurrentStep.buttonLabel : "Continuar") : "Cadastrar estabelecimento"}
                   </button>
                 </div>
               </form>
               ) : null}
 
-              {(!isOnboardingMode || onboardingCurrentStep.key === "setor") ? (
-              <form onSubmit={handleCreateDepartment} className={isOnboardingMode ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
-                <h2 className={isOnboardingMode ? "sr-only" : "text-xl font-semibold"}>3. Setor</h2>
+              {(!showGuidedSetup || onboardingCurrentStep.key === "setor") ? (
+              <form onSubmit={handleCreateDepartment} className={showGuidedSetup ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
+                <h2 className={showGuidedSetup ? "sr-only" : "text-xl font-semibold"}>3. Setor</h2>
                 <p className="mt-1 text-sm text-slate-500">Mapeie os setores reais de trabalho antes de vincular atividades e riscos.</p>
 
-                {isOnboardingMode ? (
+                {showGuidedSetup ? (
                   <div className="mt-5">
                     {onboardingMicroStepIndex === 0 ? (
                       <input
@@ -3070,7 +3109,7 @@ useEffect(() => {
                   </div>
                 ) : null}
 
-                <div className={isOnboardingMode ? "hidden" : "mt-5 grid gap-3"}>
+                <div className={showGuidedSetup ? "hidden" : "mt-5 grid gap-3"}>
                   <input
                     value={departmentForm.name}
                     onChange={(event) => setDepartmentForm((prev) => ({ ...prev, name: event.target.value }))}
@@ -3118,29 +3157,29 @@ useEffect(() => {
                 </div>
 
                 <div className="mt-5 flex items-center justify-between gap-3">
-                  {isOnboardingMode && onboardingMicroStepIndex > 0 ? (
+                  {showGuidedSetup && onboardingMicroStepIndex > 0 ? (
                     <button type="button" onClick={() => setOnboardingMicroStepIndex((prev) => Math.max(0, prev - 1))} className="rounded-xl border border-[#d9c9b8] px-4 py-2 text-sm font-semibold text-[#10243e] hover:bg-[#f7f1e8]">
                       Voltar
                     </button>
                   ) : <span />}
                   <button
-                    type={isOnboardingMode && !isLastOnboardingMicroStep ? "button" : "submit"}
-                    onClick={isOnboardingMode && !isLastOnboardingMicroStep ? () => setOnboardingMicroStepIndex((prev) => prev + 1) : undefined}
+                    type={showGuidedSetup && !isLastOnboardingMicroStep ? "button" : "submit"}
+                    onClick={showGuidedSetup && !isLastOnboardingMicroStep ? () => setOnboardingMicroStepIndex((prev) => prev + 1) : undefined}
                     disabled={formStatus === "saving"}
                     className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                   >
-                    {isOnboardingMode ? (isLastOnboardingMicroStep ? onboardingCurrentStep.buttonLabel : "Continuar") : "Cadastrar setor"}
+                    {showGuidedSetup ? (isLastOnboardingMicroStep ? onboardingCurrentStep.buttonLabel : "Continuar") : "Cadastrar setor"}
                   </button>
                 </div>
               </form>
               ) : null}
 
-              {(!isOnboardingMode || onboardingCurrentStep.key === "atividade") ? (
-              <form onSubmit={handleCreateActivity} className={isOnboardingMode ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
-                <h2 className={isOnboardingMode ? "sr-only" : "text-xl font-semibold"}>4. Atividade</h2>
+              {(!showGuidedSetup || onboardingCurrentStep.key === "atividade") ? (
+              <form onSubmit={handleCreateActivity} className={showGuidedSetup ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
+                <h2 className={showGuidedSetup ? "sr-only" : "text-xl font-semibold"}>4. Atividade</h2>
                 <p className="mt-1 text-sm text-slate-500">Descreva as atividades reais executadas para orientar o diagnostico e o plano de acao.</p>
 
-                {isOnboardingMode ? (
+                {showGuidedSetup ? (
                   <div className="mt-5">
                     {onboardingMicroStepIndex === 0 ? (
                       <input
@@ -3162,7 +3201,7 @@ useEffect(() => {
                   </div>
                 ) : null}
 
-                <div className={isOnboardingMode ? "hidden" : "mt-5 grid gap-3"}>
+                <div className={showGuidedSetup ? "hidden" : "mt-5 grid gap-3"}>
                   <select
                     value={activityForm.department_id}
                     onChange={(event) => setActivityForm((prev) => ({ ...prev, department_id: event.target.value }))}
@@ -3228,18 +3267,18 @@ useEffect(() => {
                 </div>
 
                 <div className="mt-5 flex items-center justify-between gap-3">
-                  {isOnboardingMode && onboardingMicroStepIndex > 0 ? (
+                  {showGuidedSetup && onboardingMicroStepIndex > 0 ? (
                     <button type="button" onClick={() => setOnboardingMicroStepIndex((prev) => Math.max(0, prev - 1))} className="rounded-xl border border-[#d9c9b8] px-4 py-2 text-sm font-semibold text-[#10243e] hover:bg-[#f7f1e8]">
                       Voltar
                     </button>
                   ) : <span />}
                   <button
-                    type={isOnboardingMode && !isLastOnboardingMicroStep ? "button" : "submit"}
-                    onClick={isOnboardingMode && !isLastOnboardingMicroStep ? () => setOnboardingMicroStepIndex((prev) => prev + 1) : undefined}
+                    type={showGuidedSetup && !isLastOnboardingMicroStep ? "button" : "submit"}
+                    onClick={showGuidedSetup && !isLastOnboardingMicroStep ? () => setOnboardingMicroStepIndex((prev) => prev + 1) : undefined}
                     disabled={formStatus === "saving"}
                     className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                   >
-                    {isOnboardingMode ? (isLastOnboardingMicroStep ? onboardingCurrentStep.buttonLabel : "Continuar") : "Cadastrar atividade"}
+                    {showGuidedSetup ? (isLastOnboardingMicroStep ? onboardingCurrentStep.buttonLabel : "Continuar") : "Cadastrar atividade"}
                   </button>
                 </div>
               </form>
@@ -3965,3 +4004,7 @@ useEffect(() => {
     </main>
   );
 }
+
+
+
+
