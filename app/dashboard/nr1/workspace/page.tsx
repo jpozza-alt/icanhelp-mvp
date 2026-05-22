@@ -2499,31 +2499,35 @@ useEffect(() => {
       </div>
 
       <div className="mx-auto grid max-w-7xl gap-6 px-6 py-6 xl:grid-cols-[280px_1fr]">
-        <aside className="h-fit rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-5 shadow-sm">
-          <div className="rounded-2xl bg-[#132238] p-4 text-white">
-            <p className="text-sm text-slate-300">Progresso da jornada</p>
-            <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-800">
+        <aside className="h-fit rounded-3xl border border-[#132238] bg-[#132238] p-5 text-white shadow-sm">
+          <div className="border-b border-white/10 pb-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#c7a96b]">icanHelp NR-1</p>
+            <p className="mt-2 text-sm leading-5 text-white/70">
+              Jornada guiada para organizar diagnostico, riscos e acoes.
+            </p>
+          </div>
+
+          <div className="mt-5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium text-white/75">Progresso</p>
+              <p className="text-xl font-semibold">{progressPercent}%</p>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
               <div className="h-full rounded-full bg-[#c7a96b]" style={{ width: `${progressPercent}%` }} />
             </div>
-            <div className="mt-3 flex items-end justify-between gap-3">
-              <p className="text-2xl font-semibold">{progressPercent}%</p>
-              <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-amber-100">
-                Em andamento
-              </span>
-            </div>
-            <p className="mt-2 text-xs leading-relaxed text-slate-300">
+            <p className="mt-3 text-xs leading-relaxed text-white/60">
               Continue pela etapa ativa e deixe o sistema salvar a jornada automaticamente.
             </p>
             <button
               type="button"
               onClick={() => patchDraft({ activeSection: draft.activeSection }, `continue_${draft.activeSection}`)}
-              className="mt-4 w-full rounded-xl bg-[#132238] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#0f1b2d]"
+              className="mt-4 w-full rounded-xl border border-white/15 bg-[#0f1b2d] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#0b1524]"
             >
               Continuar jornada
             </button>
           </div>
 
-          <nav className="mt-5 space-y-2">
+          <nav className="mt-6 space-y-1.5">
             {[
               ["cadastros", "Cadastros", "Empresa, unidade, setores e atividades"],
               ["diagnostico", "Diagnostico", "Perguntas guiadas por atividade"],
@@ -2536,8 +2540,8 @@ useEffect(() => {
                 onClick={() => patchDraft({ activeSection: key }, `section_${key}`)}
                 className={`w-full rounded-2xl px-4 py-3 text-left transition ${
                   draft.activeSection === key
-                    ? "bg-[#132238] text-white shadow-sm"
-                    : "bg-[#f7f1e8] text-[#4f5b68] hover:bg-[#efe4d6]"
+                    ? "bg-white text-[#132238] shadow-sm"
+                    : "text-white/70 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 <span className="block text-sm font-semibold">{label}</span>
@@ -2546,15 +2550,15 @@ useEffect(() => {
             ))}
           </nav>
 
-          <div className="mt-5 space-y-2 rounded-2xl border border-[#d9c9b8] bg-[#f7f1e8] p-4">
-            <p className="text-sm font-semibold">Checklist</p>
+          <div className="mt-6 space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p className="text-sm font-semibold text-white/85">Checklist</p>
             {checklistItems.map(([key, label]) => (
-              <label key={key} className="flex items-center gap-2 text-sm text-slate-700">
+              <label key={key} className="flex items-center gap-2 text-sm text-white/65">
                 <input
                   type="checkbox"
                   checked={Boolean(draft.checklist[key])}
                   onChange={(event) => patchChecklist(key, event.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300"
+                  className="h-4 w-4 rounded border-white/30 bg-transparent accent-[#c7a96b]"
                 />
                 <span>{label}</span>
               </label>
