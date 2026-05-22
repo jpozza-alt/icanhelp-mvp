@@ -753,6 +753,7 @@ export default function Nr1WorkspacePage() {
   const [establishmentForm, setEstablishmentForm] = useState<EstablishmentForm>(INITIAL_ESTABLISHMENT_FORM);
   const [departmentForm, setDepartmentForm] = useState<DepartmentForm>(INITIAL_DEPARTMENT_FORM);
   const [activityForm, setActivityForm] = useState<ActivityForm>(INITIAL_ACTIVITY_FORM);
+  const [onboardingMicroStepIndex, setOnboardingMicroStepIndex] = useState(0);
   const [diagnosisActivityId, setDiagnosisActivityId] = useState<string>("");
   const [diagnosisSessionId, setDiagnosisSessionId] = useState<string>("");
   const [diagnosisRiskId, setDiagnosisRiskId] = useState<string>("");
@@ -885,6 +886,91 @@ useEffect(() => {
   const selectedRisk = useMemo(() => {
     return risks.find((item) => item.id === selectedRiskId) || null;
   }, [risks, selectedRiskId]);
+
+  const hasCompany = companies.length > 0;
+  const hasEstablishment = Boolean(context.establishmentId);
+  const hasDepartment = departments.length > 0;
+  const hasActivity = activities.length > 0;
+  const isWorkspaceMode = hasCompany && hasEstablishment && hasDepartment && hasActivity;
+  const isOnboardingMode = !isWorkspaceMode;
+
+  const onboardingCurrentStep = !hasCompany
+    ? {
+        index: 1,
+        key: "empresa",
+        title: "Empresa",
+        question: "Qual o nome da empresa?",
+        intro: "Vamos comecar pelo basico. Depois disso eu libero a unidade, os setores e as atividades.",
+        helper: "Preencha os dados essenciais para iniciar a jornada NR-1.",
+        buttonLabel: "Salvar empresa e continuar",
+      }
+    : !hasEstablishment
+      ? {
+          index: 2,
+          key: "estabelecimento",
+          title: "Estabelecimento",
+          question: "Onde esse trabalho acontece?",
+          intro: "Agora precisamos identificar a unidade que sera usada como referencia.",
+          helper: "Informe o estabelecimento para organizar os proximos passos.",
+          buttonLabel: "Salvar estabelecimento e continuar",
+        }
+      : !hasDepartment
+        ? {
+            index: 3,
+            key: "setor",
+            title: "Setor",
+            question: "Qual setor vamos mapear primeiro?",
+            intro: "Escolha uma area real de trabalho. As atividades virao depois.",
+            helper: "Mapeie um setor para aproximar a jornada da rotina da empresa.",
+            buttonLabel: "Salvar setor e continuar",
+          }
+        : {
+            index: 4,
+            key: "atividade",
+            title: "Atividade",
+            question: "Qual atividade esse setor executa?",
+            intro: "Descreva a atividade real para liberar diagnostico, riscos e documentos.",
+            helper: "Essa etapa transforma a base cadastrada em uma jornada operacional.",
+            buttonLabel: "Salvar atividade e liberar workspace",
+          };
+
+  const onboardingStepItems = [
+    ["Empresa", hasCompany ? "Concluido" : onboardingCurrentStep.index === 1 ? "Agora" : "Depois"],
+    ["Estabelecimento", hasEstablishment ? "Concluido" : onboardingCurrentStep.index === 2 ? "Agora" : "Depois"],
+    ["Setor", hasDepartment ? "Concluido" : onboardingCurrentStep.index === 3 ? "Agora" : "Depois"],
+    ["Atividade", hasActivity ? "Concluido" : onboardingCurrentStep.index === 4 ? "Agora" : "Depois"],
+  ] as const;
+
+  useEffect(() => {
+    setOnboardingMicroStepIndex(0);
+  }, [onboardingCurrentStep.key]);
+
+  const onboardingMicroSteps =
+    onboardingCurrentStep.key === "empresa"
+      ? [
+          { question: "Qual o nome da empresa?", helper: "Use a razao social ou o nome mais conhecido internamente." },
+          { question: "Ela tem CNPJ?", helper: "Se ainda nao souber, pode deixar para completar depois." },
+          { question: "Quantas pessoas trabalham nela?", helper: "Uma estimativa ja ajuda a orientar a jornada." },
+        ]
+      : onboardingCurrentStep.key === "estabelecimento"
+        ? [
+            { question: "Onde esse trabalho acontece?", helper: "Informe o nome da unidade, matriz, filial ou local principal." },
+            { question: "Em qual cidade e estado?", helper: "Isso ajuda a organizar a documentacao da unidade." },
+          ]
+        : onboardingCurrentStep.key === "setor"
+          ? [
+              { question: "Qual setor vamos mapear primeiro?", helper: "Comece por uma area real da rotina de trabalho." },
+              { question: "Quantas pessoas trabalham nesse setor?", helper: "Pode ser uma estimativa inicial." },
+            ]
+          : [
+              { question: "Qual atividade esse setor executa?", helper: "Escreva como as pessoas chamam essa atividade no dia a dia." },
+              { question: "O que acontece nessa atividade?", helper: "Descreva em linguagem simples, sem jargao tecnico." },
+            ];
+
+  const onboardingMicroStep =
+    onboardingMicroSteps[Math.min(onboardingMicroStepIndex, onboardingMicroSteps.length - 1)] ??
+    { question: onboardingCurrentStep.question, helper: onboardingCurrentStep.helper };
+  const isLastOnboardingMicroStep = onboardingMicroStepIndex >= onboardingMicroSteps.length - 1;
 
   const statusLabel = useMemo(() => {
     if (saveStatus === "loading") return "Carregando dados reais";
@@ -2453,7 +2539,7 @@ useEffect(() => {
 
   return (
     <main className="min-h-screen bg-[#f7f1e8] text-[#10243e]">
-          <Nr1PgrReportShortcut />
+      {isWorkspaceMode ? <Nr1PgrReportShortcut /> : null}
       <div className="border-b border-[#d9c9b8] bg-[#fffaf1]">
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-7 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">
@@ -2567,6 +2653,7 @@ useEffect(() => {
         </aside>
 
         <section className="min-w-0 space-y-6">
+          {isWorkspaceMode ? (
           <div
             className={
               planFeatures?.featureFlags.iso45003_engine
@@ -2609,6 +2696,7 @@ useEffect(() => {
               })}
             </div>
           </div>
+          ) : null}
           {loadError ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
               {loadError}
@@ -2627,6 +2715,7 @@ useEffect(() => {
             </div>
           ) : null}
 
+          {isWorkspaceMode ? (
           <section className="rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-5 shadow-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
@@ -2646,7 +2735,9 @@ useEffect(() => {
               <span className="rounded-full bg-[#ead8c8] px-3 py-1">Atividades {activities.length}</span>
             </div>
           </section>
+          ) : null}
 
+          {isWorkspaceMode ? (
           <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="grid gap-4 lg:grid-cols-2">
               <div>
@@ -2687,14 +2778,95 @@ useEffect(() => {
               </div>
             </div>
           </section>
+          ) : null}
 
-          {draft.activeSection === "cadastros" ? (
-            <section className="grid gap-6 xl:grid-cols-2">
-              <form onSubmit={handleCreateCompany} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="text-xl font-semibold">1. Empresa</h2>
+          {isOnboardingMode ? (
+            <div className="fixed inset-0 z-40 bg-[#10243e]/25 backdrop-blur-md" aria-hidden="true" />
+          ) : null}
+
+          {isOnboardingMode || draft.activeSection === "cadastros" ? (
+            <section className={isOnboardingMode ? "relative z-50 mx-auto max-w-3xl rounded-[2rem] border border-[#d9c9b8] bg-[#fffaf6]/95 p-6 shadow-2xl ring-1 ring-white/60" : "grid gap-6 xl:grid-cols-2"}>
+              {isOnboardingMode ? (
+                <div>
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
+                        Implantacao guiada
+                      </p>
+                      <h2 className="mt-3 text-3xl font-semibold tracking-tight text-[#10243e]">
+                        {onboardingMicroStep.question}
+                      </h2>
+                      <p className="mt-2 max-w-2xl text-sm leading-6 text-[#6f665b]">
+                        {onboardingMicroStep.helper}
+                      </p>
+                    </div>
+                    <span className="w-fit rounded-full bg-[#132238] px-3 py-1 text-xs font-semibold text-white">
+                      {onboardingCurrentStep.index} de 4
+                    </span>
+                  </div>
+                  <div className="mt-6 grid gap-2 sm:grid-cols-4">
+                    {onboardingStepItems.map(([label, status], index) => (
+                      <div
+                        key={label}
+                        className={`rounded-2xl border px-3 py-2 text-xs ${
+                          status === "Agora"
+                            ? "border-[#132238] bg-[#132238] text-white"
+                            : status === "Concluido"
+                              ? "border-[#d9c9b8] bg-[#f7f1e8] text-[#10243e]"
+                              : "border-[#ead8c8] bg-white/50 text-[#8b8175]"
+                        }`}
+                      >
+                        <p className="font-semibold">{index + 1}. {label}</p>
+                        <p className="mt-1 opacity-75">{status}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-5 text-sm leading-6 text-[#6f665b]">
+                    {onboardingCurrentStep.helper}
+                  </p>
+                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#ead8c8]">
+                    <div
+                      className="h-full rounded-full bg-[#132238] transition-all"
+                      style={{ width: `${((onboardingMicroStepIndex + 1) / onboardingMicroSteps.length) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              ) : null}
+              {(!isOnboardingMode || onboardingCurrentStep.key === "empresa") ? (
+              <form onSubmit={handleCreateCompany} className={isOnboardingMode ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
+                <h2 className={isOnboardingMode ? "sr-only" : "text-xl font-semibold"}>1. Empresa</h2>
                 <p className="mt-1 text-sm text-slate-500">Informe os dados essenciais da empresa para organizar a jornada NR-1 desde o inicio.</p>
 
-                <div className="mt-5 grid gap-3">
+                {isOnboardingMode ? (
+                  <div className="mt-5">
+                    {onboardingMicroStepIndex === 0 ? (
+                      <input
+                        value={companyForm.legal_name}
+                        onChange={(event) => setCompanyForm((prev) => ({ ...prev, legal_name: event.target.value }))}
+                        placeholder="Nome da empresa"
+                        className="w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
+                      />
+                    ) : null}
+                    {onboardingMicroStepIndex === 1 ? (
+                      <input
+                        value={companyForm.cnpj}
+                        onChange={(event) => setCompanyForm((prev) => ({ ...prev, cnpj: event.target.value }))}
+                        placeholder="CNPJ"
+                        className="w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
+                      />
+                    ) : null}
+                    {onboardingMicroStepIndex === 2 ? (
+                      <input
+                        value={companyForm.employee_count}
+                        onChange={(event) => setCompanyForm((prev) => ({ ...prev, employee_count: event.target.value }))}
+                        placeholder="Numero de pessoas"
+                        className="w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
+                      />
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div className={isOnboardingMode ? "hidden" : "mt-5 grid gap-3"}>
                   <input
                     value={companyForm.legal_name}
                     onChange={(event) => setCompanyForm((prev) => ({ ...prev, legal_name: event.target.value }))}
@@ -2754,20 +2926,59 @@ useEffect(() => {
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={formStatus === "saving"}
-                  className="mt-5 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
-                >
-                  Cadastrar empresa
-                </button>
+                <div className="mt-5 flex items-center justify-between gap-3">
+                  {isOnboardingMode && onboardingMicroStepIndex > 0 ? (
+                    <button type="button" onClick={() => setOnboardingMicroStepIndex((prev) => Math.max(0, prev - 1))} className="rounded-xl border border-[#d9c9b8] px-4 py-2 text-sm font-semibold text-[#10243e] hover:bg-[#f7f1e8]">
+                      Voltar
+                    </button>
+                  ) : <span />}
+                  <button
+                    type={isOnboardingMode && !isLastOnboardingMicroStep ? "button" : "submit"}
+                    onClick={isOnboardingMode && !isLastOnboardingMicroStep ? () => setOnboardingMicroStepIndex((prev) => prev + 1) : undefined}
+                    disabled={formStatus === "saving"}
+                    className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+                  >
+                    {isOnboardingMode ? (isLastOnboardingMicroStep ? onboardingCurrentStep.buttonLabel : "Continuar") : "Cadastrar empresa"}
+                  </button>
+                </div>
               </form>
+              ) : null}
 
-              <form onSubmit={handleCreateEstablishment} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="text-xl font-semibold">2. Estabelecimento</h2>
+              {(!isOnboardingMode || onboardingCurrentStep.key === "estabelecimento") ? (
+              <form onSubmit={handleCreateEstablishment} className={isOnboardingMode ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
+                <h2 className={isOnboardingMode ? "sr-only" : "text-xl font-semibold"}>2. Estabelecimento</h2>
                 <p className="mt-1 text-sm text-slate-500">Organize a unidade onde as atividades acontecem e onde a documentacao sera estruturada.</p>
 
-                <div className="mt-5 grid gap-3">
+                {isOnboardingMode ? (
+                  <div className="mt-5">
+                    {onboardingMicroStepIndex === 0 ? (
+                      <input
+                        value={establishmentForm.name}
+                        onChange={(event) => setEstablishmentForm((prev) => ({ ...prev, name: event.target.value }))}
+                        placeholder="Nome da unidade"
+                        className="w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
+                      />
+                    ) : null}
+                    {onboardingMicroStepIndex === 1 ? (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <input
+                          value={establishmentForm.city}
+                          onChange={(event) => setEstablishmentForm((prev) => ({ ...prev, city: event.target.value }))}
+                          placeholder="Cidade"
+                          className="rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
+                        />
+                        <input
+                          value={establishmentForm.state}
+                          onChange={(event) => setEstablishmentForm((prev) => ({ ...prev, state: event.target.value }))}
+                          placeholder="UF"
+                          className="rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div className={isOnboardingMode ? "hidden" : "mt-5 grid gap-3"}>
                   <select
                     value={establishmentForm.company_id || activeCompanyId}
                     onChange={(event) => setEstablishmentForm((prev) => ({ ...prev, company_id: event.target.value }))}
@@ -2815,20 +3026,51 @@ useEffect(() => {
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={formStatus === "saving"}
-                  className="mt-5 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
-                >
-                  Cadastrar estabelecimento
-                </button>
+                <div className="mt-5 flex items-center justify-between gap-3">
+                  {isOnboardingMode && onboardingMicroStepIndex > 0 ? (
+                    <button type="button" onClick={() => setOnboardingMicroStepIndex((prev) => Math.max(0, prev - 1))} className="rounded-xl border border-[#d9c9b8] px-4 py-2 text-sm font-semibold text-[#10243e] hover:bg-[#f7f1e8]">
+                      Voltar
+                    </button>
+                  ) : <span />}
+                  <button
+                    type={isOnboardingMode && !isLastOnboardingMicroStep ? "button" : "submit"}
+                    onClick={isOnboardingMode && !isLastOnboardingMicroStep ? () => setOnboardingMicroStepIndex((prev) => prev + 1) : undefined}
+                    disabled={formStatus === "saving"}
+                    className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+                  >
+                    {isOnboardingMode ? (isLastOnboardingMicroStep ? onboardingCurrentStep.buttonLabel : "Continuar") : "Cadastrar estabelecimento"}
+                  </button>
+                </div>
               </form>
+              ) : null}
 
-              <form onSubmit={handleCreateDepartment} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="text-xl font-semibold">3. Setor</h2>
+              {(!isOnboardingMode || onboardingCurrentStep.key === "setor") ? (
+              <form onSubmit={handleCreateDepartment} className={isOnboardingMode ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
+                <h2 className={isOnboardingMode ? "sr-only" : "text-xl font-semibold"}>3. Setor</h2>
                 <p className="mt-1 text-sm text-slate-500">Mapeie os setores reais de trabalho antes de vincular atividades e riscos.</p>
 
-                <div className="mt-5 grid gap-3">
+                {isOnboardingMode ? (
+                  <div className="mt-5">
+                    {onboardingMicroStepIndex === 0 ? (
+                      <input
+                        value={departmentForm.name}
+                        onChange={(event) => setDepartmentForm((prev) => ({ ...prev, name: event.target.value }))}
+                        placeholder="Nome do setor"
+                        className="w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
+                      />
+                    ) : null}
+                    {onboardingMicroStepIndex === 1 ? (
+                      <input
+                        value={departmentForm.employee_count}
+                        onChange={(event) => setDepartmentForm((prev) => ({ ...prev, employee_count: event.target.value }))}
+                        placeholder="Numero de pessoas no setor"
+                        className="w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
+                      />
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div className={isOnboardingMode ? "hidden" : "mt-5 grid gap-3"}>
                   <input
                     value={departmentForm.name}
                     onChange={(event) => setDepartmentForm((prev) => ({ ...prev, name: event.target.value }))}
@@ -2875,20 +3117,52 @@ useEffect(() => {
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={formStatus === "saving"}
-                  className="mt-5 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
-                >
-                  Cadastrar setor
-                </button>
+                <div className="mt-5 flex items-center justify-between gap-3">
+                  {isOnboardingMode && onboardingMicroStepIndex > 0 ? (
+                    <button type="button" onClick={() => setOnboardingMicroStepIndex((prev) => Math.max(0, prev - 1))} className="rounded-xl border border-[#d9c9b8] px-4 py-2 text-sm font-semibold text-[#10243e] hover:bg-[#f7f1e8]">
+                      Voltar
+                    </button>
+                  ) : <span />}
+                  <button
+                    type={isOnboardingMode && !isLastOnboardingMicroStep ? "button" : "submit"}
+                    onClick={isOnboardingMode && !isLastOnboardingMicroStep ? () => setOnboardingMicroStepIndex((prev) => prev + 1) : undefined}
+                    disabled={formStatus === "saving"}
+                    className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+                  >
+                    {isOnboardingMode ? (isLastOnboardingMicroStep ? onboardingCurrentStep.buttonLabel : "Continuar") : "Cadastrar setor"}
+                  </button>
+                </div>
               </form>
+              ) : null}
 
-              <form onSubmit={handleCreateActivity} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="text-xl font-semibold">4. Atividade</h2>
+              {(!isOnboardingMode || onboardingCurrentStep.key === "atividade") ? (
+              <form onSubmit={handleCreateActivity} className={isOnboardingMode ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
+                <h2 className={isOnboardingMode ? "sr-only" : "text-xl font-semibold"}>4. Atividade</h2>
                 <p className="mt-1 text-sm text-slate-500">Descreva as atividades reais executadas para orientar o diagnostico e o plano de acao.</p>
 
-                <div className="mt-5 grid gap-3">
+                {isOnboardingMode ? (
+                  <div className="mt-5">
+                    {onboardingMicroStepIndex === 0 ? (
+                      <input
+                        value={activityForm.name}
+                        onChange={(event) => setActivityForm((prev) => ({ ...prev, name: event.target.value }))}
+                        placeholder="Nome da atividade"
+                        className="w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
+                      />
+                    ) : null}
+                    {onboardingMicroStepIndex === 1 ? (
+                      <textarea
+                        value={activityForm.real_activity_description}
+                        onChange={(event) => setActivityForm((prev) => ({ ...prev, real_activity_description: event.target.value }))}
+                        placeholder="Descreva em uma frase simples"
+                        rows={4}
+                        className="w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
+                      />
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <div className={isOnboardingMode ? "hidden" : "mt-5 grid gap-3"}>
                   <select
                     value={activityForm.department_id}
                     onChange={(event) => setActivityForm((prev) => ({ ...prev, department_id: event.target.value }))}
@@ -2953,18 +3227,27 @@ useEffect(() => {
                   </div>
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={formStatus === "saving"}
-                  className="mt-5 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
-                >
-                  Cadastrar atividade
-                </button>
+                <div className="mt-5 flex items-center justify-between gap-3">
+                  {isOnboardingMode && onboardingMicroStepIndex > 0 ? (
+                    <button type="button" onClick={() => setOnboardingMicroStepIndex((prev) => Math.max(0, prev - 1))} className="rounded-xl border border-[#d9c9b8] px-4 py-2 text-sm font-semibold text-[#10243e] hover:bg-[#f7f1e8]">
+                      Voltar
+                    </button>
+                  ) : <span />}
+                  <button
+                    type={isOnboardingMode && !isLastOnboardingMicroStep ? "button" : "submit"}
+                    onClick={isOnboardingMode && !isLastOnboardingMicroStep ? () => setOnboardingMicroStepIndex((prev) => prev + 1) : undefined}
+                    disabled={formStatus === "saving"}
+                    className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+                  >
+                    {isOnboardingMode ? (isLastOnboardingMicroStep ? onboardingCurrentStep.buttonLabel : "Continuar") : "Cadastrar atividade"}
+                  </button>
+                </div>
               </form>
+              ) : null}
             </section>
           ) : null}
 
-          {draft.activeSection === "diagnostico" ? (
+          {isWorkspaceMode && draft.activeSection === "diagnostico" ? (
             <section className="space-y-6">
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -3179,7 +3462,7 @@ useEffect(() => {
             </section>
           ) : null}
 
-          {draft.activeSection === "riscos" ? (
+          {isWorkspaceMode && draft.activeSection === "riscos" ? (
             <section className="space-y-6">
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -3590,7 +3873,7 @@ useEffect(() => {
               </div>
             </section>
           ) : null}
-          {draft.activeSection === "auditoria" ? (
+          {isWorkspaceMode && draft.activeSection === "auditoria" ? (
             <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between gap-4">
                 <div>
