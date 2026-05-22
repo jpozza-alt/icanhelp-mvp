@@ -2670,7 +2670,7 @@ useEffect(() => {
                     </option>
                   ))}
                 </select>
-                <p className="mt-2 text-xs text-slate-500">{selectedCompany ? `ID: ${selectedCompany.id}` : "Nenhuma empresa selecionada"}</p>
+                <p className="mt-2 text-xs text-slate-500">{selectedCompany ? "Empresa selecionada" : "Nenhuma empresa selecionada"}</p>
               </div>
 
               <div>
@@ -2687,7 +2687,7 @@ useEffect(() => {
                     </option>
                   ))}
                 </select>
-                <p className="mt-2 text-xs text-slate-500">{selectedEstablishment ? `ID: ${selectedEstablishment.id}` : "Nenhum estabelecimento selecionado"}</p>
+                <p className="mt-2 text-xs text-slate-500">{selectedEstablishment ? "Estabelecimento selecionado" : "Nenhum estabelecimento selecionado"}</p>
               </div>
             </div>
           </section>
@@ -3452,9 +3452,6 @@ useEffect(() => {
                           <p className="mt-1 text-xs text-slate-500">
                             Categoria: {firstString(item, ["risk_category"]) || "nao informada"} / Nivel: {firstString(item, ["risk_level"]) || "nao informado"}
                           </p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            ID: {item.id || "sem id"}
-                          </p>
                         </button>
                       ))
                     )}
@@ -3663,7 +3660,6 @@ useEffect(() => {
                   departments.map((item, index) => (
                     <div key={item.id || index} className="rounded-2xl bg-slate-50 p-3 text-sm">
                       <p className="font-medium">{displayName(item, `Setor ${index + 1}`)}</p>
-                      <p className="mt-1 text-xs text-slate-500">ID: {item.id || "sem id"}</p>
                     </div>
                   ))
                 )}
@@ -3679,7 +3675,6 @@ useEffect(() => {
                   activities.map((item, index) => (
                     <div key={item.id || index} className="rounded-2xl bg-slate-50 p-3 text-sm">
                       <p className="font-medium">{displayName(item, `Atividade ${index + 1}`)}</p>
-                      <p className="mt-1 text-xs text-slate-500">Setor: {item.department_id || "nao informado"}</p>
                     </div>
                   ))
                 )}
