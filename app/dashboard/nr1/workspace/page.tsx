@@ -2580,24 +2580,23 @@ useEffect(() => {
             }
           >
             <p className="text-xs font-semibold uppercase tracking-[0.25em]">
-              Recursos inteligentes
+              Recursos do plano
             </p>
             <h3 className="mt-2 text-lg font-semibold">
               {planFeatures?.featureFlags.iso45003_engine
-                ? "Motor inteligente liberado"
-                : "Disponivel no plano Inteligente"}
+                ? "Recursos avancados disponiveis"
+                : "Recursos avancados em outro plano"}
             </h3>
             <p className="mt-2 max-w-3xl">
-              O plano atual mantem o registro psicossocial basico. A analise avancada libera Motor ISO 45003,
-              radar psicossocial, score psicossocial e alertas inteligentes.
+              Seu plano atual permite continuar a jornada NR-1. Alguns recursos avancados podem aparecer conforme o plano contratado.
             </p>
 
             <div className="mt-4 grid gap-2 md:grid-cols-2">
               {[
-                ["iso45003_engine", "Motor ISO 45003"],
-                ["psychosocial_radar", "Radar psicossocial"],
-                ["psychosocial_scoring", "Score psicossocial"],
-                ["smart_alerts", "Alertas inteligentes"],
+                ["iso45003_engine", "Analise psicossocial"],
+                ["psychosocial_radar", "Sinais de atencao"],
+                ["psychosocial_scoring", "Leitura de prioridade"],
+                ["smart_alerts", "Orientacoes de cuidado"],
               ].map(([featureKey, label]) => {
                 const enabled = planFeatures?.featureFlags[featureKey] === true;
 
@@ -2608,7 +2607,7 @@ useEffect(() => {
                   >
                     <span>{label}</span>
                     <span className={enabled ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>
-                      {enabled ? "liberado" : "bloqueado"}
+                      {enabled ? "Disponivel" : "Nao disponivel agora"}
                     </span>
                   </div>
                 );
