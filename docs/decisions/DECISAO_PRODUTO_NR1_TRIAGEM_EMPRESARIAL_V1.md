@@ -169,7 +169,46 @@ O sistema reduz INSS automaticamente.
 
 ---
 
-## 8. Relação com PGR
+
+## 8. Historico ocupacional dos ultimos 24 meses
+
+A Triagem Empresarial NR-1 deve conter um bloco especifico para coletar indicadores agregados dos ultimos 24 meses.
+
+Esse bloco nao deve coletar nome de trabalhador, prontuario medico, CID individual ou diagnostico clinico individual.
+
+A coleta deve ser agregada por empresa, estabelecimento, setor, atividade ou grupo exposto.
+
+Campos recomendados:
+
+- quantidade de afastamentos relacionados ao trabalho nos ultimos 24 meses;
+- quantidade de acidentes de trabalho nos ultimos 24 meses;
+- existencia de CAT emitida;
+- existencia de atestados recorrentes;
+- setores com maior concentracao de faltas, atestados ou afastamentos;
+- motivos agrupados, quando conhecidos;
+- ocorrencias osteomusculares;
+- ocorrencias relacionadas a sofrimento mental, estresse, ansiedade, depressao, burnout ou conflitos relacionados ao trabalho;
+- existencia de documentos, planilhas, relatorios ou evidencias internas;
+- medidas preventivas ja adotadas;
+- observacoes gerais sem identificacao individual.
+
+Finalidade do bloco:
+
+- apoiar a priorizacao de setores e atividades;
+- orientar o diagnostico guiado da rotina real de trabalho;
+- subsidiar o inventario de riscos;
+- fortalecer o plano de acao;
+- organizar evidencias;
+- apoiar leitura trabalhista e previdenciaria futura;
+- auxiliar a governanca sobre RAT, GILRAT e FAP sem prometer reducao automatica.
+
+Regra de protecao:
+
+O sistema deve tratar essas informacoes como indicadores organizacionais agregados.
+
+O icanHelp NR-1 nao deve diagnosticar pessoas e nao deve registrar dados medicos individualizados nesse bloco.
+
+## 9. Relação com PGR
 
 A Triagem Empresarial NR-1 deve alimentar diretamente:
 
@@ -186,7 +225,7 @@ O PGR deve ser entendido no produto como resultado progressivo da jornada, nao c
 
 ---
 
-## 9. Regras de UX
+## 10. Regras de UX
 
 No primeiro acesso, o usuario nao deve ver o dashboard completo.
 
@@ -219,7 +258,7 @@ Termos tecnicos como GRO, PGR, inventario, classificacao, severidade e probabili
 
 ---
 
-## 10. Regras de implementacao
+## 11. Regras de implementacao
 
 Toda implementacao desta decisao deve respeitar:
 
@@ -235,7 +274,7 @@ Toda implementacao desta decisao deve respeitar:
 
 ---
 
-## 11. Definition of Done
+## 12. Definition of Done
 
 Esta decisao estara implementada quando:
 
@@ -246,6 +285,8 @@ Esta decisao estara implementada quando:
 - a qualificacao do estabelecimento incluir os campos minimos definidos;
 - CNAE principal e CNAEs secundarios forem tratados como dados estruturantes;
 - setor, atividade e grupo exposto forem coletados antes do diagnostico;
+- o historico ocupacional dos ultimos 24 meses for coletado de forma agregada;
+- afastamentos, acidentes, CAT, atestados recorrentes e setores mais afetados forem considerados sem identificacao individual;
 - o diagnostico guiado iniciar somente depois da base minima;
 - o dashboard for montado progressivamente;
 - o PGR puder usar os dados da triagem como base documental;
@@ -253,7 +294,7 @@ Esta decisao estara implementada quando:
 
 ---
 
-## 12. Decisao final
+## 13. Decisao final
 
 A Triagem Empresarial NR-1 passa a ser regra oficial do produto icanHelp NR-1.
 
