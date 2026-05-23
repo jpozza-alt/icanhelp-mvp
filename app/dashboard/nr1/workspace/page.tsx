@@ -11,6 +11,7 @@ type SaveStatus = "idle" | "loading" | "dirty" | "saving" | "saved" | "save_erro
 type FormStatus = "idle" | "saving" | "saved" | "error";
 type CnpjLookupStatus = "idle" | "loading" | "ready" | "error";
 type GuidedSetupChoice = "undecided" | "review" | "dashboard";
+type GuidedStepKey = "empresa" | "estabelecimento" | "setor" | "atividade";
 
 type SessionDebugState = {
   checked: boolean;
@@ -793,6 +794,7 @@ export default function Nr1WorkspacePage() {
   const [departmentForm, setDepartmentForm] = useState<DepartmentForm>(INITIAL_DEPARTMENT_FORM);
   const [activityForm, setActivityForm] = useState<ActivityForm>(INITIAL_ACTIVITY_FORM);
   const [guidedSetupChoice, setGuidedSetupChoice] = useState<GuidedSetupChoice>("undecided");
+  const [guidedStepKey, setGuidedStepKey] = useState<GuidedStepKey>("empresa");
   const [onboardingMicroStepIndex, setOnboardingMicroStepIndex] = useState(0);
   const [guidedSetupOpen, setGuidedSetupOpen] = useState(false);
   const [diagnosisActivityId, setDiagnosisActivityId] = useState<string>("");
@@ -939,7 +941,15 @@ useEffect(() => {
   const showExistingBaseResume = workspaceBooted && !showGuidedSetup && !isWorkspaceMode && hasAnyTriageBase && guidedSetupChoice === "undecided";
   const isFirstRunMode = workspaceBooted && !hasAnyTriageBase && !showGuidedSetup;
   const showWorkspaceShell = workspaceBooted && !isFirstRunMode && !showExistingBaseResume;
+  const showWorkspaceDashboardContent = showWorkspaceShell && !showGuidedSetup;
   const previousWorkspaceModeRef = useRef(isWorkspaceMode);
+
+  function openGuidedSetupReview(): void {
+    setGuidedSetupChoice("review");
+    setGuidedStepKey("empresa");
+    setOnboardingMicroStepIndex(0);
+    setGuidedSetupOpen(true);
+  }
 
   useEffect(() => {
     const wasWorkspaceMode = previousWorkspaceModeRef.current;
@@ -981,7 +991,7 @@ useEffect(() => {
     };
   }, [showGuidedSetup]);
 
-  const onboardingCurrentStep = !hasCompany
+  const inferredOnboardingCurrentStep = !hasCompany
     ? {
         index: 1,
         key: "empresa",
@@ -1020,6 +1030,24 @@ useEffect(() => {
             helper: "Essa etapa transforma a base cadastrada em uma jornada operacional.",
             buttonLabel: "Salvar atividade e liberar workspace",
           };
+
+  const guidedReviewCurrentStep =
+    guidedStepKey === "empresa"
+      ? {
+          index: 1,
+          key: "empresa",
+          title: "Triagem Empresarial NR-1",
+          question: "Triagem Empresarial NR-1",
+          intro: "Antes do diagnostico, vamos qualificar a empresa para formar a base do PGR.",
+          helper: "Comece pelo CNPJ. Depois revise a identificacao formal, a atividade economica, o porte, a quantidade de trabalhadores e a caracterizacao inicial de SST.",
+          buttonLabel: "Salvar triagem da empresa e continuar",
+        }
+      : inferredOnboardingCurrentStep;
+
+  const onboardingCurrentStep =
+    showGuidedSetup && guidedSetupChoice === "review"
+      ? guidedReviewCurrentStep
+      : inferredOnboardingCurrentStep;
 
   const onboardingStepItems = [
     ["Triagem empresarial", hasCompany ? "Concluido" : onboardingCurrentStep.index === 1 ? "Agora" : "Depois"],
@@ -2755,10 +2783,7 @@ useEffect(() => {
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
             <button
               type="button"
-              onClick={() => {
-                setGuidedSetupChoice("review");
-                setGuidedSetupOpen(true);
-              }}
+              onClick={openGuidedSetupReview}
               className="rounded-xl bg-[#132238] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0f1b2d]"
             >
               Começar jornada guiada
@@ -2787,10 +2812,7 @@ useEffect(() => {
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
             <button
               type="button"
-              onClick={() => {
-                setGuidedSetupChoice("review");
-                setGuidedSetupOpen(true);
-              }}
+              onClick={openGuidedSetupReview}
               className="rounded-xl bg-[#132238] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0f1b2d]"
             >
               Revisar triagem
@@ -2808,7 +2830,8 @@ useEffect(() => {
 
       {showWorkspaceShell ? (
         <>
-      {isWorkspaceMode ? <Nr1PgrReportShortcut /> : null}
+      {showWorkspaceDashboardContent && isWorkspaceMode ? <Nr1PgrReportShortcut /> : null}
+      {showWorkspaceDashboardContent ? (
       <div className="border-b border-[#d9c9b8] bg-[#fffaf1]">
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-7 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">
@@ -2852,8 +2875,10 @@ useEffect(() => {
           </div>
         </div>
       </div>
+      ) : null}
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-6 py-6 xl:grid-cols-[280px_1fr]">
+      <div className={showGuidedSetup ? "" : "mx-auto grid max-w-7xl gap-6 px-6 py-6 xl:grid-cols-[280px_1fr]"}>
+        {showWorkspaceDashboardContent ? (
         <aside className="h-fit rounded-3xl border border-[#132238] bg-[#132238] p-5 text-white shadow-sm">
           <div className="border-b border-white/10 pb-5">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#c7a96b]">icanHelp NR-1</p>
@@ -2920,9 +2945,10 @@ useEffect(() => {
             ))}
           </div>
         </aside>
+        ) : null}
 
-        <section className="min-w-0 space-y-6">
-          {isWorkspaceMode ? (
+        <section className={showGuidedSetup ? "min-w-0" : "min-w-0 space-y-6"}>
+          {showWorkspaceDashboardContent && isWorkspaceMode ? (
           <div
             className={
               planFeatures?.featureFlags.iso45003_engine
@@ -2984,7 +3010,7 @@ useEffect(() => {
             </div>
           ) : null}
 
-          {isWorkspaceMode ? (
+          {showWorkspaceDashboardContent && isWorkspaceMode ? (
           <section className="rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-6 shadow-sm">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
@@ -3008,10 +3034,7 @@ useEffect(() => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                setGuidedSetupChoice("review");
-                setGuidedSetupOpen(true);
-              }}
+                  onClick={openGuidedSetupReview}
                   className="rounded-xl border border-[#d9c9b8] px-4 py-2 text-sm font-semibold text-[#132238] hover:bg-[#f7f1e8]"
                 >
                   Rever configuração guiada
@@ -3027,7 +3050,7 @@ useEffect(() => {
           </section>
           ) : null}
 
-          {isWorkspaceMode ? (
+          {showWorkspaceDashboardContent && isWorkspaceMode ? (
           <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="grid gap-4 lg:grid-cols-2">
               <div>
@@ -3682,7 +3705,7 @@ useEffect(() => {
             </section>
           ) : null}
 
-          {isWorkspaceMode && draft.activeSection === "diagnostico" ? (
+          {showWorkspaceDashboardContent && isWorkspaceMode && draft.activeSection === "diagnostico" ? (
             <section className="space-y-6">
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -3897,7 +3920,7 @@ useEffect(() => {
             </section>
           ) : null}
 
-          {isWorkspaceMode && draft.activeSection === "riscos" ? (
+          {showWorkspaceDashboardContent && isWorkspaceMode && draft.activeSection === "riscos" ? (
             <section className="space-y-6">
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -4308,7 +4331,7 @@ useEffect(() => {
               </div>
             </section>
           ) : null}
-          {isWorkspaceMode && draft.activeSection === "auditoria" ? (
+          {showWorkspaceDashboardContent && isWorkspaceMode && draft.activeSection === "auditoria" ? (
             <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between gap-4">
                 <div>
