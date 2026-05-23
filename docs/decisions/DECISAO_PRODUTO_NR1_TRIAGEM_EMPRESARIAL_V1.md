@@ -170,8 +170,75 @@ O sistema reduz INSS automaticamente.
 ---
 
 
-## 8. Historico ocupacional dos ultimos 24 meses
 
+## 8. Consulta cadastral por CNPJ
+
+A Triagem Empresarial NR-1 deve tratar o CNPJ como porta de entrada preferencial da qualificacao da empresa.
+
+Fluxo desejado:
+
+1. O usuario informa o CNPJ.
+2. O sistema valida matematicamente o CNPJ.
+3. O sistema bloqueia CNPJ incompleto, sequencias repetidas ou digitos verificadores invalidos.
+4. O usuario aciona o botao "Buscar dados pelo CNPJ".
+5. O front-end chama uma API interna do icanHelp.
+6. A API interna consulta fonte cadastral adequada.
+7. O formulario e preenchido automaticamente com os dados disponiveis.
+8. O usuario revisa e completa os dados que a consulta cadastral nao entrega.
+
+Campos que a consulta cadastral deve tentar preencher quando disponiveis:
+
+- razao social;
+- nome fantasia;
+- CNPJ normalizado;
+- CNAE principal;
+- natureza juridica, se houver campo existente;
+- endereco, se houver campo existente;
+- municipio e UF, se houver campo existente;
+- situacao cadastral, se houver campo existente.
+
+Campos que continuam sendo responsabilidade do usuario:
+
+- porte, quando nao vier da fonte;
+- quantidade aproximada de trabalhadores;
+- existencia de CIPA;
+- existencia de SESMT;
+- terceiros;
+- trabalho remoto;
+- atividades externas;
+- atendimento ao publico;
+- informacoes internas de SST;
+- historico ocupacional dos ultimos 24 meses.
+
+Regra tecnica:
+
+O botao de busca por CNPJ nao deve consultar a Receita Federal diretamente pelo navegador.
+
+A arquitetura correta e:
+
+Front-end -> API interna do icanHelp -> fonte cadastral CNPJ -> resposta normalizada -> preenchimento do formulario.
+
+Justificativa:
+
+- evita expor logica ou credenciais no front-end;
+- permite cache e controle de erro;
+- permite trocar a fonte cadastral no futuro;
+- preserva governanca tecnica;
+- evita acoplamento do formulario a uma fonte externa especifica.
+
+Regra de produto:
+
+A consulta cadastral por CNPJ e um recurso de preenchimento assistido, nao substitui a revisao do usuario.
+
+O usuario deve confirmar os dados antes de seguir para estabelecimento, setor, atividade e historico ocupacional.
+
+Regra de cautela:
+
+O sistema nao deve prometer que a consulta cadastral da Receita Federal estara sempre disponivel em tempo real.
+
+Se a fonte cadastral estiver indisponivel, o sistema deve permitir preenchimento manual assistido, mantendo validacao de CNPJ e CNAE.
+
+## 9. Historico ocupacional dos ultimos 24 meses
 A Triagem Empresarial NR-1 deve conter um bloco especifico para coletar indicadores agregados dos ultimos 24 meses.
 
 Esse bloco nao deve coletar nome de trabalhador, prontuario medico, CID individual ou diagnostico clinico individual.
@@ -208,8 +275,7 @@ O sistema deve tratar essas informacoes como indicadores organizacionais agregad
 
 O icanHelp NR-1 nao deve diagnosticar pessoas e nao deve registrar dados medicos individualizados nesse bloco.
 
-## 9. Relação com PGR
-
+## 10. Relação com PGR
 A Triagem Empresarial NR-1 deve alimentar diretamente:
 
 - identificacao da organizacao;
@@ -225,8 +291,7 @@ O PGR deve ser entendido no produto como resultado progressivo da jornada, nao c
 
 ---
 
-## 10. Regras de UX
-
+## 11. Regras de UX
 No primeiro acesso, o usuario nao deve ver o dashboard completo.
 
 O fluxo visual oficial e:
@@ -258,8 +323,7 @@ Termos tecnicos como GRO, PGR, inventario, classificacao, severidade e probabili
 
 ---
 
-## 11. Regras de implementacao
-
+## 12. Regras de implementacao
 Toda implementacao desta decisao deve respeitar:
 
 - PowerShell-first;
@@ -274,8 +338,11 @@ Toda implementacao desta decisao deve respeitar:
 
 ---
 
-## 12. Definition of Done
+## 13. Definition of Done
 
+- o CNPJ for tratado como porta de entrada preferencial da triagem;
+- existir previsao de consulta cadastral por API interna, sem chamada direta do navegador para fonte externa;
+- houver fallback para preenchimento manual assistido quando a fonte cadastral estiver indisponivel;
 Esta decisao estara implementada quando:
 
 - o primeiro acesso mostrar tela de boas-vindas;
@@ -294,8 +361,7 @@ Esta decisao estara implementada quando:
 
 ---
 
-## 13. Decisao final
-
+## 14. Decisao final
 A Triagem Empresarial NR-1 passa a ser regra oficial do produto icanHelp NR-1.
 
 Ela deve ser tratada como etapa anterior e obrigatoria ao diagnostico guiado de riscos.

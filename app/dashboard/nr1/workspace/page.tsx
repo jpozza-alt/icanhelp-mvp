@@ -9,6 +9,7 @@ type JsonObject = Record<string, unknown>;
 
 type SaveStatus = "idle" | "loading" | "dirty" | "saving" | "saved" | "save_error";
 type FormStatus = "idle" | "saving" | "saved" | "error";
+type CnpjLookupStatus = "idle" | "loading" | "ready" | "error";
 
 type SessionDebugState = {
   checked: boolean;
@@ -550,6 +551,41 @@ function numberOrNull(value: string): number | null {
   return parsed;
 }
 
+
+function normalizeCnpj(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+function isValidCnpj(value: string): boolean {
+  const digits = normalizeCnpj(value);
+
+  if (digits.length !== 14) return false;
+  if (/^(\d)\1{13}$/.test(digits)) return false;
+
+  const calculateDigit = (base: string, weights: number[]): number => {
+    const sum = weights.reduce((acc, weight, index) => acc + Number(base[index]) * weight, 0);
+    const remainder = sum % 11;
+    return remainder < 2 ? 0 : 11 - remainder;
+  };
+
+  const firstDigit = calculateDigit(digits.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  const secondDigit = calculateDigit(digits.slice(0, 13), [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+
+  return firstDigit === Number(digits[12]) && secondDigit === Number(digits[13]);
+}
+
+function normalizeCnae(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+const LOCAL_CNPJ_LOOKUP_STUBS: Record<string, Partial<CompanyForm>> = {
+  "12345678000195": {
+    legal_name: "EMPRESA EXEMPLO PARA TRIAGEM NR-1 LTDA",
+    trade_name: "Empresa Exemplo NR-1",
+    cnae_main: "6201501",
+    company_size: "EPP",
+  },
+};
 function isoDatePlusDays(days: number): string {
   const date = new Date();
   date.setDate(date.getDate() + days);
@@ -748,6 +784,8 @@ export default function Nr1WorkspacePage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [cnpjLookupStatus, setCnpjLookupStatus] = useState<CnpjLookupStatus>("idle");
+  const [cnpjLookupMessage, setCnpjLookupMessage] = useState<string | null>(null);
 
   const [companyForm, setCompanyForm] = useState<CompanyForm>(INITIAL_COMPANY_FORM);
   const [establishmentForm, setEstablishmentForm] = useState<EstablishmentForm>(INITIAL_ESTABLISHMENT_FORM);
@@ -941,11 +979,11 @@ useEffect(() => {
     ? {
         index: 1,
         key: "empresa",
-        title: "Empresa",
-        question: "Qual o nome da empresa?",
-        intro: "Vamos comecar pelo basico. Depois disso eu libero a unidade, os setores e as atividades.",
-        helper: "Preencha os dados essenciais para iniciar a jornada NR-1.",
-        buttonLabel: "Salvar empresa e continuar",
+        title: "Triagem Empresarial NR-1",
+        question: "Triagem Empresarial NR-1",
+        intro: "Antes do diagnostico, vamos qualificar a empresa para formar a base do PGR.",
+        helper: "Comece pelo CNPJ. Depois revise a identificacao formal, a atividade economica, o porte, a quantidade de trabalhadores e a caracterizacao inicial de SST.",
+        buttonLabel: "Salvar triagem da empresa e continuar",
       }
     : !hasEstablishment
       ? {
@@ -978,10 +1016,10 @@ useEffect(() => {
           };
 
   const onboardingStepItems = [
-    ["Empresa", hasCompany ? "Concluido" : onboardingCurrentStep.index === 1 ? "Agora" : "Depois"],
+    ["Triagem empresarial", hasCompany ? "Concluido" : onboardingCurrentStep.index === 1 ? "Agora" : "Depois"],
     ["Estabelecimento", hasEstablishment ? "Concluido" : onboardingCurrentStep.index === 2 ? "Agora" : "Depois"],
     ["Setor", hasDepartment ? "Concluido" : onboardingCurrentStep.index === 3 ? "Agora" : "Depois"],
-    ["Atividade", hasActivity ? "Concluido" : onboardingCurrentStep.index === 4 ? "Agora" : "Depois"],
+    ["Atividade e historico", hasActivity ? "Concluido" : onboardingCurrentStep.index === 4 ? "Agora" : "Depois"],
   ] as const;
 
   useEffect(() => {
@@ -997,9 +1035,14 @@ useEffect(() => {
   const onboardingMicroSteps =
     onboardingCurrentStep.key === "empresa"
       ? [
-          { question: "Qual o nome da empresa?", helper: "Use a razao social ou o nome mais conhecido internamente." },
-          { question: "Ela tem CNPJ?", helper: "Se ainda nao souber, pode deixar para completar depois." },
-          { question: "Quantas pessoas trabalham nela?", helper: "Uma estimativa ja ajuda a orientar a jornada." },
+                              { question: "Qual e o CNPJ da empresa?", helper: "Informe o CNPJ para validar a porta de entrada da Triagem Empresarial NR-1 e preparar a busca cadastral." },
+          { question: "Qual e a razao social da empresa?", helper: "Informe a identificacao formal da organizacao ou revise o dado preenchido pela consulta cadastral." },
+          { question: "Qual e o nome fantasia?", helper: "Se nao houver nome fantasia, repita a razao social." },
+          { question: "Qual e o CNAE principal?", helper: "Informe 7 digitos. A validacao contra tabela CNAE fica para a proxima etapa tecnica." },
+          { question: "Qual e o porte da empresa?", helper: "O porte ajuda a orientar a leitura da obrigacao e da jornada." },
+          { question: "Quantos trabalhadores existem aproximadamente?", helper: "A quantidade de trabalhadores ajuda a priorizar a base do PGR." },
+          { question: "A empresa possui CIPA, SESMT, terceiros, trabalho remoto ou atividades externas?", helper: "Esses dados ajudam a caracterizar a realidade inicial de SST." },
+          { question: "Depois desta etapa, a jornada segue para estabelecimento, setor, atividade e historico ocupacional.", helper: "O historico dos ultimos 24 meses sera tratado em etapa propria, com dados agregados, sem nome de trabalhador, prontuario, CID individual ou diagnostico clinico." },
         ]
       : onboardingCurrentStep.key === "estabelecimento"
         ? [
@@ -1033,8 +1076,8 @@ useEffect(() => {
   const nextStepSummary = useMemo(() => {
     if (companies.length === 0) {
       return {
-        title: "Cadastrar a empresa",
-        helper: "Comece pela identificacao da empresa para organizar a jornada NR-1.",
+        title: "Iniciar Triagem Empresarial NR-1",
+        helper: "Comece pela qualificacao da empresa: razao social, nome fantasia, CNPJ, CNAE, porte, trabalhadores e caracterizacao inicial de SST.",
         metric: "1",
       };
     }
@@ -1413,6 +1456,32 @@ useEffect(() => {
     [establishments, loadActivities, loadAuditEvents, loadDepartments, loadDraftState, recordAuditEvent, refreshAuditEvents]
   );
 
+  function handlePreparedCnpjLookup(): void {
+    const cnpjDigits = normalizeCnpj(companyForm.cnpj);
+    setCnpjLookupMessage(null);
+
+    if (!isValidCnpj(cnpjDigits)) {
+      setCnpjLookupStatus("error");
+      setCnpjLookupMessage("Informe um CNPJ valido com 14 digitos e digitos verificadores corretos.");
+      return;
+    }
+
+    setCnpjLookupStatus("loading");
+
+    window.setTimeout(() => {
+      const stub = LOCAL_CNPJ_LOOKUP_STUBS[cnpjDigits];
+
+      if (stub) {
+        setCompanyForm((prev) => ({ ...prev, cnpj: cnpjDigits, ...stub }));
+        setCnpjLookupStatus("ready");
+        setCnpjLookupMessage("Dados de exemplo preenchidos pelo stub local. A consulta cadastral real sera conectada pela API interna do icanHelp.");
+        return;
+      }
+
+      setCnpjLookupStatus("ready");
+      setCnpjLookupMessage("Consulta cadastral sera conectada na proxima etapa tecnica. Por enquanto, revise e preencha manualmente.");
+    }, 350);
+  }
   async function handleCreateCompany(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setFormStatus("saving");
@@ -1427,9 +1496,43 @@ useEffect(() => {
       return;
     }
 
+    const cnpjDigits = normalizeCnpj(companyForm.cnpj);
+    const cnaeDigits = normalizeCnae(companyForm.cnae_main);
+    const employeeCountValue = numberOrNull(companyForm.employee_count);
+
     if (companyForm.legal_name.trim().length < 3) {
       setFormStatus("error");
-      setFormError("Informe uma razao social com pelo menos 3 caracteres.");
+      setFormError("Informe a razao social com pelo menos 3 caracteres.");
+      return;
+    }
+
+    if (companyForm.trade_name.trim().length < 2) {
+      setFormStatus("error");
+      setFormError("Informe o nome fantasia. Se nao houver, repita a razao social.");
+      return;
+    }
+
+    if (!isValidCnpj(cnpjDigits)) {
+      setFormStatus("error");
+      setFormError("Informe um CNPJ valido, com 14 digitos e digitos verificadores corretos.");
+      return;
+    }
+
+    if (cnaeDigits.length !== 7) {
+      setFormStatus("error");
+      setFormError("Informe o CNAE principal com 7 digitos.");
+      return;
+    }
+
+    if (!companyForm.company_size.trim()) {
+      setFormStatus("error");
+      setFormError("Informe o porte da empresa.");
+      return;
+    }
+
+    if (employeeCountValue === null || employeeCountValue <= 0) {
+      setFormStatus("error");
+      setFormError("Informe a quantidade estimada de trabalhadores.");
       return;
     }
 
@@ -1445,11 +1548,11 @@ useEffect(() => {
           body: JSON.stringify({
             legal_name: companyForm.legal_name,
             trade_name: companyForm.trade_name,
-            cnpj: companyForm.cnpj,
-            cnae_main: companyForm.cnae_main,
+            cnpj: cnpjDigits,
+            cnae_main: cnaeDigits,
             company_size: companyForm.company_size,
             risk_grade: companyForm.risk_grade,
-            employee_count: numberOrNull(companyForm.employee_count),
+            employee_count: employeeCountValue,
             has_cipa: companyForm.has_cipa,
             has_sesmt: companyForm.has_sesmt,
             has_public_service: companyForm.has_public_service,
@@ -1477,7 +1580,7 @@ useEffect(() => {
 
       setCompanyForm(INITIAL_COMPANY_FORM);
       await reloadOperationalData(currentContext);
-      setSuccessMessage("Empresa cadastrada.");
+      setSuccessMessage("Triagem da empresa cadastrada.");
       setFormStatus("saved");
     } catch (error) {
       setFormStatus("error");
@@ -2975,34 +3078,141 @@ useEffect(() => {
               ) : null}
               {(!showGuidedSetup || onboardingCurrentStep.key === "empresa") ? (
               <form onSubmit={handleCreateCompany} className={showGuidedSetup ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
-                <h2 className={showGuidedSetup ? "sr-only" : "text-xl font-semibold"}>1. Empresa</h2>
-                <p className="mt-1 text-sm text-slate-500">Informe os dados essenciais da empresa para organizar a jornada NR-1 desde o inicio.</p>
+                <h2 className={showGuidedSetup ? "sr-only" : "text-xl font-semibold"}>1. Triagem Empresarial NR-1</h2>
+                <p className="mt-1 text-sm text-slate-500">Antes do diagnostico, vamos qualificar a empresa para formar a base do PGR.</p>
 
                 {showGuidedSetup ? (
-                  <div className="mt-5">
+                  <div className="mt-5 space-y-4">
                     {onboardingMicroStepIndex === 0 ? (
-                      <input
-                        value={companyForm.legal_name}
-                        onChange={(event) => setCompanyForm((prev) => ({ ...prev, legal_name: event.target.value }))}
-                        placeholder="Nome da empresa"
-                        className="w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
-                      />
+                      <div className="rounded-2xl border border-[#d9c9b8] bg-white p-4">
+                        <label className="block">
+                          <span className="text-sm font-semibold text-[#10243e]">CNPJ</span>
+                          <span className="mt-1 block text-xs text-[#6f665b]">Informe 14 digitos. O sistema valida os digitos verificadores antes de continuar.</span>
+                          <input
+                            value={companyForm.cnpj}
+                            onChange={(event) => {
+                              setCompanyForm((prev) => ({ ...prev, cnpj: event.target.value }));
+                              setCnpjLookupStatus("idle");
+                              setCnpjLookupMessage(null);
+                            }}
+                            placeholder="00.000.000/0000-00"
+                            className="mt-2 w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handlePreparedCnpjLookup}
+                          disabled={cnpjLookupStatus === "loading" || !isValidCnpj(companyForm.cnpj)}
+                          className="mt-4 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {cnpjLookupStatus === "loading" ? "Buscando..." : "Buscar dados pelo CNPJ"}
+                        </button>
+                        {cnpjLookupMessage ? (
+                          <p className={`mt-3 text-sm leading-5 ${cnpjLookupStatus === "error" ? "text-red-700" : "text-[#6f665b]"}`}>
+                            {cnpjLookupMessage}
+                          </p>
+                        ) : (
+                          <p className="mt-3 text-xs leading-5 text-[#6f665b]">
+                            A consulta cadastral real sera conectada por API interna. Por enquanto, o preenchimento manual assistido continua disponivel.
+                          </p>
+                        )}
+                      </div>
                     ) : null}
                     {onboardingMicroStepIndex === 1 ? (
-                      <input
-                        value={companyForm.cnpj}
-                        onChange={(event) => setCompanyForm((prev) => ({ ...prev, cnpj: event.target.value }))}
-                        placeholder="CNPJ"
-                        className="w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
-                      />
+                      <label className="block">
+                        <span className="text-sm font-semibold text-[#10243e]">Razao social</span>
+                        <span className="mt-1 block text-xs text-[#6f665b]">Informe a identificacao formal da organizacao ou revise o dado preenchido pela consulta cadastral.</span>
+                        <input
+                          value={companyForm.legal_name}
+                          onChange={(event) => setCompanyForm((prev) => ({ ...prev, legal_name: event.target.value }))}
+                          placeholder="Razao social"
+                          className="mt-2 w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
+                        />
+                      </label>
                     ) : null}
                     {onboardingMicroStepIndex === 2 ? (
-                      <input
-                        value={companyForm.employee_count}
-                        onChange={(event) => setCompanyForm((prev) => ({ ...prev, employee_count: event.target.value }))}
-                        placeholder="Numero de pessoas"
-                        className="w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
-                      />
+                      <label className="block">
+                        <span className="text-sm font-semibold text-[#10243e]">Nome fantasia</span>
+                        <span className="mt-1 block text-xs text-[#6f665b]">Se nao houver nome fantasia, repita a razao social.</span>
+                        <input
+                          value={companyForm.trade_name}
+                          onChange={(event) => setCompanyForm((prev) => ({ ...prev, trade_name: event.target.value }))}
+                          placeholder="Nome fantasia"
+                          className="mt-2 w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
+                        />
+                      </label>
+                    ) : null}
+                    {onboardingMicroStepIndex === 3 ? (
+                      <label className="block">
+                        <span className="text-sm font-semibold text-[#10243e]">CNAE principal</span>
+                        <span className="mt-1 block text-xs text-[#6f665b]">Informe 7 digitos. A validacao contra tabela CNAE fica para a proxima etapa tecnica.</span>
+                        <input
+                          value={companyForm.cnae_main}
+                          onChange={(event) => setCompanyForm((prev) => ({ ...prev, cnae_main: event.target.value }))}
+                          placeholder="CNAE principal"
+                          className="mt-2 w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
+                        />
+                      </label>
+                    ) : null}
+                    {onboardingMicroStepIndex === 4 ? (
+                      <label className="block">
+                        <span className="text-sm font-semibold text-[#10243e]">Porte da empresa</span>
+                        <span className="mt-1 block text-xs text-[#6f665b]">O porte ajuda a orientar a leitura da obrigacao e da jornada.</span>
+                        <input
+                          value={companyForm.company_size}
+                          onChange={(event) => setCompanyForm((prev) => ({ ...prev, company_size: event.target.value }))}
+                          placeholder="ME, EPP, medio porte ou grande porte"
+                          className="mt-2 w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
+                        />
+                      </label>
+                    ) : null}
+                    {onboardingMicroStepIndex === 5 ? (
+                      <label className="block">
+                        <span className="text-sm font-semibold text-[#10243e]">Quantidade aproximada de trabalhadores</span>
+                        <span className="mt-1 block text-xs text-[#6f665b]">A quantidade de trabalhadores ajuda a priorizar a base do PGR.</span>
+                        <input
+                          value={companyForm.employee_count}
+                          onChange={(event) => setCompanyForm((prev) => ({ ...prev, employee_count: event.target.value }))}
+                          placeholder="Ex.: 45"
+                          className="mt-2 w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
+                        />
+                      </label>
+                    ) : null}
+                    {onboardingMicroStepIndex === 6 ? (
+                      <div className="rounded-2xl border border-[#d9c9b8] bg-white p-4">
+                        <p className="text-sm font-semibold text-[#10243e]">Caracterizacao inicial de SST</p>
+                        <p className="mt-1 text-xs text-[#6f665b]">Marque o que ja existe na realidade da empresa.</p>
+                        <div className="mt-4 grid gap-3 text-sm text-[#10243e] sm:grid-cols-2">
+                          {[
+                            ["has_cipa", "Possui CIPA"],
+                            ["has_sesmt", "Possui SESMT"],
+                            ["has_third_parties", "Possui terceiros"],
+                            ["has_remote_work", "Possui trabalho remoto"],
+                            ["has_external_activities", "Possui atividades externas"],
+                            ["has_public_service", "Possui atendimento ao publico"],
+                          ].map(([key, label]) => (
+                            <label key={key} className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={Boolean(companyForm[key as keyof CompanyForm])}
+                                onChange={(event) => setCompanyForm((prev) => ({ ...prev, [key]: event.target.checked }))}
+                              />
+                              <span>{label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                    {onboardingMicroStepIndex === 7 ? (
+                      <div className="rounded-2xl border border-[#d9c9b8] bg-[#fffaf3] p-4">
+                        <p className="text-sm font-semibold text-[#10243e]">Proximas etapas da triagem</p>
+                        <p className="mt-2 text-sm leading-6 text-[#6f665b]">
+                          Depois desta qualificacao, a jornada segue para estabelecimento, setor, atividade ou tarefa, grupo exposto e historico ocupacional dos ultimos 24 meses.
+                        </p>
+                        <p className="mt-2 text-xs leading-5 text-[#6f665b]">
+                          O historico sera coletado como indicador agregado: afastamentos, acidentes, CAT, atestados recorrentes, setores mais afetados, motivos agrupados e evidencias existentes. Nao deve coletar nome de trabalhador, prontuario medico, CID individual ou diagnostico clinico individual.
+                        </p>
+                      </div>
                     ) : null}
                   </div>
                 ) : null}
@@ -3054,6 +3264,8 @@ useEffect(() => {
                       ["has_sesmt", "Possui SESMT"],
                       ["has_remote_work", "Trabalho remoto"],
                       ["has_third_parties", "Terceiros"],
+                      ["has_external_activities", "Atividades externas"],
+                      ["has_public_service", "Atendimento ao publico"],
                     ].map(([key, label]) => (
                       <label key={key} className="flex items-center gap-2">
                         <input
