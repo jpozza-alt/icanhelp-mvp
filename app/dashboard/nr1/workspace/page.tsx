@@ -10,6 +10,7 @@ type JsonObject = Record<string, unknown>;
 type SaveStatus = "idle" | "loading" | "dirty" | "saving" | "saved" | "save_error";
 type FormStatus = "idle" | "saving" | "saved" | "error";
 type CnpjLookupStatus = "idle" | "loading" | "ready" | "error";
+type GuidedSetupChoice = "undecided" | "review" | "dashboard";
 
 type SessionDebugState = {
   checked: boolean;
@@ -791,6 +792,7 @@ export default function Nr1WorkspacePage() {
   const [establishmentForm, setEstablishmentForm] = useState<EstablishmentForm>(INITIAL_ESTABLISHMENT_FORM);
   const [departmentForm, setDepartmentForm] = useState<DepartmentForm>(INITIAL_DEPARTMENT_FORM);
   const [activityForm, setActivityForm] = useState<ActivityForm>(INITIAL_ACTIVITY_FORM);
+  const [guidedSetupChoice, setGuidedSetupChoice] = useState<GuidedSetupChoice>("undecided");
   const [onboardingMicroStepIndex, setOnboardingMicroStepIndex] = useState(0);
   const [guidedSetupOpen, setGuidedSetupOpen] = useState(false);
   const [diagnosisActivityId, setDiagnosisActivityId] = useState<string>("");
@@ -930,27 +932,31 @@ useEffect(() => {
   const hasEstablishment = Boolean(context.establishmentId);
   const hasDepartment = departments.length > 0;
   const hasActivity = activities.length > 0;
+  const hasAnyTriageBase = hasCompany || hasEstablishment || hasDepartment || hasActivity;
   const isWorkspaceMode = hasCompany && hasEstablishment && hasDepartment && hasActivity;
-  const isOnboardingMode = !isWorkspaceMode;
   const showGuidedSetup = guidedSetupOpen;
-  const isFirstRunMode = !hasCompany && !showGuidedSetup;
+  const workspaceBooted = saveStatus !== "loading";
+  const showExistingBaseResume = workspaceBooted && !showGuidedSetup && !isWorkspaceMode && hasAnyTriageBase && guidedSetupChoice === "undecided";
+  const isFirstRunMode = workspaceBooted && !hasAnyTriageBase && !showGuidedSetup;
+  const showWorkspaceShell = workspaceBooted && !isFirstRunMode && !showExistingBaseResume;
   const previousWorkspaceModeRef = useRef(isWorkspaceMode);
 
   useEffect(() => {
     const wasWorkspaceMode = previousWorkspaceModeRef.current;
     previousWorkspaceModeRef.current = isWorkspaceMode;
 
-    if (!wasWorkspaceMode && isWorkspaceMode) {
+    if (!wasWorkspaceMode && isWorkspaceMode && guidedSetupChoice !== "review") {
       setGuidedSetupOpen(false);
     }
-  }, [isWorkspaceMode]);
+  }, [guidedSetupChoice, isWorkspaceMode]);
   function handleRequestCloseGuidedSetup() {
-    const confirmed = window.confirm("Deseja sair da jornada guiada? Você poderá voltar depois pelo botão Rever configuração guiada.");
+    const confirmed = window.confirm("Deseja sair da jornada guiada? Voce podera voltar depois pelo botao Rever configuracao guiada.");
 
     if (!confirmed) {
       return;
     }
 
+    setGuidedSetupChoice("dashboard");
     setGuidedSetupOpen(false);
   }
 
@@ -1022,11 +1028,7 @@ useEffect(() => {
     ["Atividade e historico", hasActivity ? "Concluido" : onboardingCurrentStep.index === 4 ? "Agora" : "Depois"],
   ] as const;
 
-  useEffect(() => {
-    if (isOnboardingMode && hasCompany) {
-      setGuidedSetupOpen(true);
-    }
-  }, [hasCompany, isOnboardingMode]);
+  // A jornada guiada deve abrir por escolha explicita do usuario. Dados carregados de forma assincrona nao devem empurrar a UI para modal ou dashboard.
 
   useEffect(() => {
     setOnboardingMicroStepIndex(0);
@@ -2691,6 +2693,19 @@ useEffect(() => {
 
   return (
     <main className="min-h-screen bg-[#f7f1e8] text-[#10243e]">
+      {!workspaceBooted ? (
+        <section className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 py-10">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#9d7b37]">
+            ICANHELP NR-1
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[#10243e]">
+            Carregando sua jornada NR-1
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6f665b]">
+            Estamos verificando se ja existe uma Triagem Empresarial NR-1 iniciada para esta empresa.
+          </p>
+        </section>
+      ) : null}
       {isFirstRunMode ? (
         <section className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 py-10">
           <div className="max-w-3xl">
@@ -2740,7 +2755,10 @@ useEffect(() => {
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
             <button
               type="button"
-              onClick={() => setGuidedSetupOpen(true)}
+              onClick={() => {
+                setGuidedSetupChoice("review");
+                setGuidedSetupOpen(true);
+              }}
               className="rounded-xl bg-[#132238] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0f1b2d]"
             >
               Começar jornada guiada
@@ -2755,7 +2773,40 @@ useEffect(() => {
         </section>
       ) : null}
 
-      {!isFirstRunMode ? (
+      {showExistingBaseResume ? (
+        <section className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-6 py-10">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#9d7b37]">
+            ICANHELP NR-1
+          </p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[#10243e]">
+            Encontramos uma base ja iniciada
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6f665b]">
+            Voce pode revisar a Triagem Empresarial NR-1 antes de continuar ou ir para o dashboard e retomar pelos cadastros.
+          </p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={() => {
+                setGuidedSetupChoice("review");
+                setGuidedSetupOpen(true);
+              }}
+              className="rounded-xl bg-[#132238] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0f1b2d]"
+            >
+              Revisar triagem
+            </button>
+            <button
+              type="button"
+              onClick={() => setGuidedSetupChoice("dashboard")}
+              className="rounded-xl border border-[#d9c9b8] px-5 py-3 text-sm font-semibold text-[#132238] hover:bg-[#fffaf6]"
+            >
+              Ir para dashboard
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {showWorkspaceShell ? (
         <>
       {isWorkspaceMode ? <Nr1PgrReportShortcut /> : null}
       <div className="border-b border-[#d9c9b8] bg-[#fffaf1]">
@@ -2957,7 +3008,10 @@ useEffect(() => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setGuidedSetupOpen(true)}
+                  onClick={() => {
+                setGuidedSetupChoice("review");
+                setGuidedSetupOpen(true);
+              }}
                   className="rounded-xl border border-[#d9c9b8] px-4 py-2 text-sm font-semibold text-[#132238] hover:bg-[#f7f1e8]"
                 >
                   Rever configuração guiada
