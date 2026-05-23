@@ -945,10 +945,10 @@ useEffect(() => {
     const wasWorkspaceMode = previousWorkspaceModeRef.current;
     previousWorkspaceModeRef.current = isWorkspaceMode;
 
-    if (!wasWorkspaceMode && isWorkspaceMode && guidedSetupChoice !== "review") {
+    if (!wasWorkspaceMode && isWorkspaceMode && !showGuidedSetup && guidedSetupChoice !== "review") {
       setGuidedSetupOpen(false);
     }
-  }, [guidedSetupChoice, isWorkspaceMode]);
+  }, [guidedSetupChoice, isWorkspaceMode, showGuidedSetup]);
   function handleRequestCloseGuidedSetup() {
     const confirmed = window.confirm("Deseja sair da jornada guiada? Voce podera voltar depois pelo botao Rever configuracao guiada.");
 
@@ -3341,7 +3341,14 @@ useEffect(() => {
                   ) : <span />}
                   <button
                     type={showGuidedSetup && !isLastOnboardingMicroStep ? "button" : "submit"}
-                    onClick={showGuidedSetup && !isLastOnboardingMicroStep ? () => setOnboardingMicroStepIndex((prev) => prev + 1) : undefined}
+                    onClick={
+                      showGuidedSetup && !isLastOnboardingMicroStep
+                        ? () => {
+                            setGuidedSetupChoice("review");
+                            setOnboardingMicroStepIndex((prev) => prev + 1);
+                          }
+                        : undefined
+                    }
                     disabled={formStatus === "saving"}
                     className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                   >
@@ -3441,7 +3448,14 @@ useEffect(() => {
                   ) : <span />}
                   <button
                     type={showGuidedSetup && !isLastOnboardingMicroStep ? "button" : "submit"}
-                    onClick={showGuidedSetup && !isLastOnboardingMicroStep ? () => setOnboardingMicroStepIndex((prev) => prev + 1) : undefined}
+                    onClick={
+                      showGuidedSetup && !isLastOnboardingMicroStep
+                        ? () => {
+                            setGuidedSetupChoice("review");
+                            setOnboardingMicroStepIndex((prev) => prev + 1);
+                          }
+                        : undefined
+                    }
                     disabled={formStatus === "saving"}
                     className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                   >
@@ -3532,7 +3546,14 @@ useEffect(() => {
                   ) : <span />}
                   <button
                     type={showGuidedSetup && !isLastOnboardingMicroStep ? "button" : "submit"}
-                    onClick={showGuidedSetup && !isLastOnboardingMicroStep ? () => setOnboardingMicroStepIndex((prev) => prev + 1) : undefined}
+                    onClick={
+                      showGuidedSetup && !isLastOnboardingMicroStep
+                        ? () => {
+                            setGuidedSetupChoice("review");
+                            setOnboardingMicroStepIndex((prev) => prev + 1);
+                          }
+                        : undefined
+                    }
                     disabled={formStatus === "saving"}
                     className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                   >
@@ -3642,7 +3663,14 @@ useEffect(() => {
                   ) : <span />}
                   <button
                     type={showGuidedSetup && !isLastOnboardingMicroStep ? "button" : "submit"}
-                    onClick={showGuidedSetup && !isLastOnboardingMicroStep ? () => setOnboardingMicroStepIndex((prev) => prev + 1) : undefined}
+                    onClick={
+                      showGuidedSetup && !isLastOnboardingMicroStep
+                        ? () => {
+                            setGuidedSetupChoice("review");
+                            setOnboardingMicroStepIndex((prev) => prev + 1);
+                          }
+                        : undefined
+                    }
                     disabled={formStatus === "saving"}
                     className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                   >
