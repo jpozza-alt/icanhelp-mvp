@@ -894,7 +894,48 @@ useEffect(() => {
   const hasActivity = activities.length > 0;
   const isWorkspaceMode = hasCompany && hasEstablishment && hasDepartment && hasActivity;
   const isOnboardingMode = !isWorkspaceMode;
-  const showGuidedSetup = isOnboardingMode || guidedSetupOpen;
+  const showGuidedSetup = guidedSetupOpen;
+  const isFirstRunMode = !hasCompany && !showGuidedSetup;
+  const previousWorkspaceModeRef = useRef(isWorkspaceMode);
+
+  useEffect(() => {
+    const wasWorkspaceMode = previousWorkspaceModeRef.current;
+    previousWorkspaceModeRef.current = isWorkspaceMode;
+
+    if (!wasWorkspaceMode && isWorkspaceMode) {
+      setGuidedSetupOpen(false);
+    }
+  }, [isWorkspaceMode]);
+  function handleRequestCloseGuidedSetup() {
+    const confirmed = window.confirm("Deseja sair da jornada guiada? Você poderá voltar depois pelo botão Rever configuração guiada.");
+
+    if (!confirmed) {
+      return;
+    }
+
+    setGuidedSetupOpen(false);
+  }
+
+  useEffect(() => {
+    if (!showGuidedSetup) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") {
+        return;
+      }
+
+      event.preventDefault();
+      handleRequestCloseGuidedSetup();
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showGuidedSetup]);
 
   const onboardingCurrentStep = !hasCompany
     ? {
@@ -944,10 +985,10 @@ useEffect(() => {
   ] as const;
 
   useEffect(() => {
-    if (isOnboardingMode) {
+    if (isOnboardingMode && hasCompany) {
       setGuidedSetupOpen(true);
     }
-  }, [isOnboardingMode]);
+  }, [hasCompany, isOnboardingMode]);
 
   useEffect(() => {
     setOnboardingMicroStepIndex(0);
@@ -2123,7 +2164,7 @@ useEffect(() => {
             title: "Risco psicossocial identificado no diagnostico",
             risk_category: "psychosocial",
             hazard_description: "Indicadores psicossociais sinalizados no diagnostico guiado.",
-            source_circumstance: "Diagnostico guiado psicossocial",
+            source_circumstance: "Diagnóstico guiado psicossocial",
             exposed_group: "Trabalhadores da atividade analisada",
             possible_harms: "Estresse ocupacional, fadiga, sofrimento psiquico e reducao de desempenho.",
             existing_controls: "Controles ainda nao formalizados no sistema.",
@@ -2547,6 +2588,72 @@ useEffect(() => {
 
   return (
     <main className="min-h-screen bg-[#f7f1e8] text-[#10243e]">
+      {isFirstRunMode ? (
+        <section className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 py-10">
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#9d7b37]">
+              ICANHELP NR-1
+            </p>
+            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-[#10243e]">
+              Bem-vindo ao icanHelp NR-1
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-[#6f665b]">
+              Este módulo ajuda sua empresa a organizar a adequação NR-1, entender a rotina de trabalho, identificar riscos, criar plano de ação e guardar evidências.
+            </p>
+          </div>
+
+          <div id="nr1-welcome-details" className="mt-8 grid gap-4 lg:grid-cols-3">
+            <div className="rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-5 shadow-sm">
+              <p className="text-sm font-semibold text-[#10243e]">O que você vai fazer</p>
+              <ul className="mt-4 space-y-3 text-sm leading-6 text-[#6f665b]">
+                <li>Informar os dados básicos da empresa</li>
+                <li>Cadastrar a unidade analisada</li>
+                <li>Mapear setor e atividade</li>
+                <li>Responder perguntas guiadas sobre a rotina de trabalho</li>
+              </ul>
+            </div>
+
+            <div className="rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-5 shadow-sm">
+              <p className="text-sm font-semibold text-[#10243e]">O que o sistema vai montar</p>
+              <ul className="mt-4 space-y-3 text-sm leading-6 text-[#6f665b]">
+                <li>Base inicial da empresa</li>
+                <li>Diagnóstico guiado</li>
+                <li>Riscos organizados</li>
+                <li>Plano de ação, evidências e documentos de apoio ao PGR</li>
+              </ul>
+            </div>
+
+            <div className="rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-5 shadow-sm">
+              <p className="text-sm font-semibold text-[#10243e]">Onde você vai chegar</p>
+              <ul className="mt-4 space-y-3 text-sm leading-6 text-[#6f665b]">
+                <li>Visão clara do que falta</li>
+                <li>Riscos priorizados</li>
+                <li>Ações recomendadas</li>
+                <li>Histórico e evidências organizadas</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={() => setGuidedSetupOpen(true)}
+              className="rounded-xl bg-[#132238] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0f1b2d]"
+            >
+              Começar jornada guiada
+            </button>
+            <a
+              href="#nr1-welcome-details"
+              className="rounded-xl border border-[#d9c9b8] px-5 py-3 text-sm font-semibold text-[#132238] hover:bg-[#fffaf6]"
+            >
+              Ver como funciona
+            </a>
+          </div>
+        </section>
+      ) : null}
+
+      {!isFirstRunMode ? (
+        <>
       {isWorkspaceMode ? <Nr1PgrReportShortcut /> : null}
       <div className="border-b border-[#d9c9b8] bg-[#fffaf1]">
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-7 lg:flex-row lg:items-start lg:justify-between">
@@ -2724,23 +2831,41 @@ useEffect(() => {
           ) : null}
 
           {isWorkspaceMode ? (
-          <section className="rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-5 shadow-sm">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <section className="rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-6 shadow-sm">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">Proximo passo</p>
-                <h2 className="mt-2 text-xl font-semibold text-[#10243e]">{nextStepSummary.title}</h2>
-                <p className="mt-1 max-w-2xl text-sm leading-6 text-[#6f665b]">{nextStepSummary.helper}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
+                  Base inicial pronta
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[#10243e]">
+                  Agora vamos entender a rotina de trabalho
+                </h2>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
+                  Agora que já sabemos quem trabalha, onde trabalha e qual atividade será analisada, o próximo passo é entender a rotina real de trabalho.
+                </p>
               </div>
-              <div className="rounded-2xl border border-[#ead8c8] bg-[#f7f1e8] px-5 py-4 text-right">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#7a7065]">Jornada</p>
-                <p className="mt-1 text-3xl font-semibold text-[#132238]">{nextStepSummary.metric}</p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  onClick={() => patchDraft({ activeSection: "diagnostico" }, "start_guided_diagnosis")}
+                  className="rounded-xl bg-[#132238] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f1b2d]"
+                >
+                  Iniciar diagnóstico guiado
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGuidedSetupOpen(true)}
+                  className="rounded-xl border border-[#d9c9b8] px-4 py-2 text-sm font-semibold text-[#132238] hover:bg-[#f7f1e8]"
+                >
+                  Rever configuração guiada
+                </button>
               </div>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium text-[#6f665b]">
-              <span className="rounded-full bg-[#ead8c8] px-3 py-1">Empresas {companies.length}</span>
-              <span className="rounded-full bg-[#ead8c8] px-3 py-1">Unidades {establishments.length}</span>
-              <span className="rounded-full bg-[#ead8c8] px-3 py-1">Setores {departments.length}</span>
-              <span className="rounded-full bg-[#ead8c8] px-3 py-1">Atividades {activities.length}</span>
+            <div className="mt-5 grid gap-2 text-xs font-medium text-[#6f665b] sm:grid-cols-4">
+              <span className="rounded-full bg-[#ead8c8] px-3 py-1">Empresa pronta</span>
+              <span className="rounded-full bg-[#ead8c8] px-3 py-1">Unidade pronta</span>
+              <span className="rounded-full bg-[#ead8c8] px-3 py-1">Setor pronto</span>
+              <span className="rounded-full bg-[#ead8c8] px-3 py-1">Atividade pronta</span>
             </div>
           </section>
           ) : null}
@@ -2788,27 +2913,6 @@ useEffect(() => {
           </section>
           ) : null}
 
-          {isWorkspaceMode && !showGuidedSetup ? (
-            <section className="rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-5 shadow-sm">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
-                    Configuracao guiada
-                  </p>
-                  <p className="mt-1 text-sm text-[#6f665b]">
-                    Continue pelo assistente quando quiser revisar ou completar a base.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setGuidedSetupOpen(true)}
-                  className="rounded-xl bg-[#132238] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f1b2d]"
-                >
-                  Continuar configuracao guiada
-                </button>
-              </div>
-            </section>
-          ) : null}
 
           {showGuidedSetup ? (
             <div className="fixed -inset-24 z-[9998] bg-[#10243e]/12 backdrop-blur-sm" aria-hidden="true" />
@@ -2860,15 +2964,13 @@ useEffect(() => {
                       style={{ width: `${((onboardingMicroStepIndex + 1) / onboardingMicroSteps.length) * 100}%` }}
                     />
                   </div>
-                  {isWorkspaceMode ? (
-                    <button
-                      type="button"
-                      onClick={() => setGuidedSetupOpen(false)}
-                      className="mt-4 text-sm font-semibold text-[#132238] underline underline-offset-4"
-                    >
-                      Fechar modo guiado
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    onClick={handleRequestCloseGuidedSetup}
+                    className="mt-4 text-sm font-semibold text-[#132238] underline underline-offset-4"
+                  >
+                    Sair da jornada guiada
+                  </button>
                 </div>
               ) : null}
               {(!showGuidedSetup || onboardingCurrentStep.key === "empresa") ? (
@@ -3291,7 +3393,7 @@ useEffect(() => {
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <h2 className="text-xl font-semibold">Diagnostico guiado do trabalho</h2>
+                    <h2 className="text-xl font-semibold">Diagnóstico guiado do trabalho</h2>
                     <p className="mt-1 max-w-3xl text-sm text-slate-500">
                       Responda por atividade, registre o contexto real do trabalho e mantenha foco nos fatores ocupacionais.
                     </p>
@@ -3343,7 +3445,7 @@ useEffect(() => {
                     disabled={diagnosisStatus === "saving"}
                     className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                   >
-                    Iniciar diagnostico
+                    Iniciar diagnóstico guiado
                   </button>
                 </div>
               </div>
@@ -4001,10 +4103,8 @@ useEffect(() => {
           </section>
         </section>
       </div>
+          </>
+      ) : null}
     </main>
-  );
+);
 }
-
-
-
-
