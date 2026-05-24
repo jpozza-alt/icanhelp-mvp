@@ -9,29 +9,39 @@ Data: 2026-05-23
 
 O dashboard do icanHelp NR-1 nao deve nascer completo.
 
-O primeiro acesso deve iniciar com boas-vindas, explicacao do SaaS, objetivo da jornada e convite para uma experiencia guiada.
+O primeiro acesso deve iniciar com uma experiencia narrativa, progressiva e guiada: boas-vindas, explicacao do SaaS, objetivo da jornada e transicoes simples por Enter ou botao Continuar.
 
-A primeira acao operacional obrigatoria e identificar a empresa pelo CNPJ.
+A primeira acao operacional obrigatoria, depois da introducao narrativa, e identificar a empresa pelo CNPJ.
 
 Depois da identificacao da empresa, o dashboard deve surgir limpo, com destaque para os dados cadastrais e apenas as ferramentas coerentes com a etapa atual.
 
 ## 2. Regra de ouro de UX
 
 Primeiro acesso nao e dashboard.
-Primeiro acesso e orientacao + CNPJ.
+Primeiro acesso tambem nao deve ser apenas um card direto.
+Primeiro acesso e narrativa guiada + orientacao + CNPJ.
 
 O usuario nao deve ser lancado diretamente em uma tela cheia de cards, menus, graficos ou ferramentas antes de entender o caminho.
 
 ## 3. Fluxo oficial do primeiro acesso
 
-1. Boas-vindas com letras maiores que a interface operacional.
-2. Explicacao do proposito do SaaS.
-3. Explicacao dos objetivos: diagnostico, inventario de riscos, plano de acao, evidencias e PGR.
-4. Convite para jornada guiada.
-5. Primeiro card operacional: CNPJ.
-6. Acao principal: Buscar dados pelo CNPJ.
-7. Dashboard minimo com empresa em destaque.
-8. Proxima etapa guiada.
+1. Tela limpa com a mensagem: "Bem-vindo ao icanHelp NR-1."
+2. Mensagem discreta: "Pressione Enter para continuar", sempre acompanhada de botao "Continuar".
+3. Segunda tela com um paragrafo explicando para que serve o SaaS.
+4. Enter ou botao Continuar.
+5. Terceira tela explicando onde vamos chegar: triagem, diagnostico, inventario de riscos, plano de acao, evidencias e PGR.
+6. Enter ou botao Continuar.
+7. Quarta tela explicando que antes do diagnostico precisamos conhecer a empresa.
+8. Enter ou botao Continuar.
+9. Tela simples: "Digite o CNPJ".
+10. Ao digitar CNPJ valido, habilitar a acao "Buscar dados da empresa".
+11. Apos busca ou preenchimento assistido, exibir dashboard minimo com a empresa em destaque.
+12. Perguntar: "Como a empresa deve aparecer no icanHelp?"
+13. Oferecer as opcoes: usar razao social, usar nome fantasia ou informar nome de uso interno.
+14. O nome escolhido passa a ser o nome de destaque no dashboard.
+15. Exibir a mensagem: "Agora precisamos obter mais informacoes da [nome escolhido]."
+16. A partir dai, iniciar os cards de perguntas guiadas.
+17. O dashboard vai sendo completado progressivamente conforme as etapas forem preenchidas.
 
 ## 4. CNPJ como porta de entrada
 
@@ -45,6 +55,8 @@ O navegador nao deve chamar diretamente a fonte externa.
 
 Enquanto a API real nao estiver conectada, a interface pode manter stub local ou preenchimento manual assistido, sem prometer consulta real.
 
+Na experiencia narrativa inicial, o botao de busca de CNPJ deve ficar bloqueado ate que o CNPJ informado seja valido.
+
 ## 5. Dashboard minimo apos identificacao da empresa
 
 Depois do CNPJ, o dashboard deve mostrar apenas o essencial:
@@ -53,11 +65,20 @@ Depois do CNPJ, o dashboard deve mostrar apenas o essencial:
 - nome fantasia, se houver;
 - CNPJ;
 - CNAE principal;
+- CNAEs secundarios ou atividades, se disponiveis;
 - porte, se disponivel;
 - status da jornada;
 - proxima etapa recomendada.
 
 O nome da empresa deve ter destaque visual.
+
+Depois que os dados da empresa forem obtidos ou preenchidos, o sistema deve perguntar como a empresa deve aparecer no icanHelp:
+
+1. Usar razao social.
+2. Usar nome fantasia.
+3. Informar nome de uso interno.
+
+O nome escolhido sera o nome principal exibido no dashboard e nas proximas mensagens da jornada.
 
 ## 6. Dashboard progressivo
 
@@ -65,19 +86,23 @@ O dashboard deve se completar conforme a jornada avanca.
 
 Sequencia oficial:
 
-1. Boas-vindas.
-2. CNPJ / identificacao da empresa.
-3. Dados cadastrais da empresa.
-4. Estabelecimento / unidade operacional.
-5. Setores.
-6. Atividades / tarefas.
-7. Grupos expostos.
-8. Historico ocupacional dos ultimos 24 meses.
-9. Diagnostico guiado.
-10. Riscos.
-11. Plano de acao.
-12. Evidencias.
-13. PGR / relatorio final.
+1. Boas-vindas narrativa.
+2. Explicacao do SaaS.
+3. Explicacao do destino da jornada.
+4. Explicacao de que a empresa precisa ser conhecida antes do diagnostico.
+5. CNPJ / identificacao da empresa.
+6. Dados cadastrais da empresa.
+7. Nome de destaque da empresa no icanHelp.
+8. Estabelecimento / unidade operacional.
+9. Setores.
+10. Atividades / tarefas.
+11. Grupos expostos.
+12. Historico ocupacional dos ultimos 24 meses.
+13. Diagnostico guiado.
+14. Riscos.
+15. Plano de acao.
+16. Evidencias.
+17. PGR / relatorio final.
 
 Cada ferramenta deve ser liberada somente quando houver dados minimos para ela fazer sentido.
 
@@ -96,7 +121,7 @@ O mapa deve mostrar etapa atual, etapas concluidas, proximas etapas, ferramentas
 
 ## 8. Cliente novo
 
-Cliente novo deve ver: boas-vindas -> explicacao -> convite -> CNPJ -> empresa identificada -> dashboard minimo -> proxima etapa guiada.
+Cliente novo deve ver: boas-vindas narrativa -> explicacao do SaaS -> explicacao do destino da jornada -> explicacao de que precisamos conhecer a empresa -> CNPJ -> empresa identificada -> escolha do nome de destaque -> dashboard minimo -> proxima etapa guiada.
 
 Cliente novo nao deve cair direto no dashboard completo.
 
@@ -133,10 +158,12 @@ Esta decisao nao implementa API real de CNPJ, migracao de banco, novas tabelas, 
 
 A decisao estara implementada quando:
 
-- primeiro acesso exibir boas-vindas antes do dashboard;
-- primeiro card operacional for CNPJ;
-- botao Buscar dados pelo CNPJ estiver presente;
+- primeiro acesso exibir experiencia narrativa antes do dashboard;
+- existir fluxo Enter/Continuar entre as telas introdutorias;
+- o CNPJ aparecer somente depois da introducao narrativa;
+- botao Buscar dados da empresa estiver presente e bloqueado ate CNPJ valido;
 - dashboard minimo destacar a empresa;
+- usuario puder escolher se a empresa aparece por razao social, nome fantasia ou nome interno;
 - dashboard liberar ferramentas progressivamente;
 - existir mapa ou fluxograma da jornada;
 - cliente novo, parcial e completo tiverem fluxos distintos;
