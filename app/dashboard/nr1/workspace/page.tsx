@@ -1788,6 +1788,93 @@ useEffect(() => {
     [establishments, loadActivities, loadAuditEvents, loadDepartments, loadDraftState, recordAuditEvent, refreshAuditEvents]
   );
 
+  const handleActiveCompanyChange = useCallback(
+    async (selectedCompanyId: string): Promise<void> => {
+      const currentTenantId = contextRef.current.tenantId;
+      const emptyContext: BackendContext = {
+        tenantId: currentTenantId,
+        establishmentId: "",
+      };
+
+      activeCompanyIdRef.current = selectedCompanyId;
+      setActiveCompanyId(selectedCompanyId);
+      setContext(emptyContext);
+      contextRef.current = emptyContext;
+
+      setStoredWorkspaceSelection(currentTenantId, {
+        companyId: selectedCompanyId,
+        establishmentId: "",
+      });
+
+      setEstablishmentForm((prev) => ({
+        ...prev,
+        company_id: selectedCompanyId,
+      }));
+
+      setDepartments([]);
+      setActivities([]);
+      setRisks([]);
+      setActionPlans([]);
+      setAuditEvents([]);
+      setDraft(DEFAULT_DRAFT);
+      setDiagnosisActivityId("");
+      setDiagnosisSessionId("");
+      setDiagnosisRiskId("");
+      setSelectedRiskId("");
+
+      if (!currentTenantId || !selectedCompanyId) {
+        setEstablishments([]);
+        setSaveStatus("saved");
+        return;
+      }
+
+      setSaveStatus("loading");
+      setLoadError(null);
+
+      try {
+        const nextEstablishments = await loadEstablishments(emptyContext, selectedCompanyId);
+        setEstablishments(nextEstablishments);
+
+        const autoEstablishmentId =
+          nextEstablishments.length === 1 ? firstString(nextEstablishments[0], ["id"]) : "";
+
+        if (!autoEstablishmentId) {
+          setSaveStatus("saved");
+          return;
+        }
+
+        const nextContext: BackendContext = {
+          tenantId: currentTenantId,
+          establishmentId: autoEstablishmentId,
+        };
+
+        setContext(nextContext);
+        contextRef.current = nextContext;
+
+        setStoredWorkspaceSelection(currentTenantId, {
+          companyId: selectedCompanyId,
+          establishmentId: autoEstablishmentId,
+        });
+
+        const [nextDepartments, nextActivities, nextDraft, nextAuditEvents] = await Promise.all([
+          loadDepartments(nextContext),
+          loadActivities(nextContext),
+          loadDraftState(nextContext),
+          loadAuditEvents(nextContext),
+        ]);
+
+        setDepartments(nextDepartments);
+        setActivities(nextActivities);
+        setDraft(nextDraft);
+        setAuditEvents(nextAuditEvents);
+        setSaveStatus("saved");
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : "Erro ao trocar empresa ativa.");
+        setSaveStatus("save_error");
+      }
+    },
+    [loadActivities, loadAuditEvents, loadDepartments, loadDraftState, loadEstablishments]
+  );
   function handlePreparedCnpjLookup(): void {
     const cnpjDigits = normalizeCnpj(companyForm.cnpj);
     setFormError(null);
@@ -3561,15 +3648,7 @@ useEffect(() => {
                 <p className="text-sm font-semibold text-slate-700">Empresa ativa</p>
                 <select
                   value={activeCompanyId}
-                  onChange={(event) => {
-                    activeCompanyIdRef.current = event.target.value;
-                    setActiveCompanyId(event.target.value);
-                    setStoredWorkspaceSelection(contextRef.current.tenantId, {
-                      companyId: event.target.value,
-                      establishmentId: "",
-                    });
-                    setEstablishmentForm((prev) => ({ ...prev, company_id: event.target.value }));
-                  }}
+                  onChange={(event) => { void handleActiveCompanyChange(event.target.value); }}
                   className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                 >
                   <option value="">Selecione uma empresa</option>
@@ -3937,13 +4016,7 @@ useEffect(() => {
                   <select
                     value={establishmentForm.company_id || activeCompanyId}
                     onChange={(event) => {
-                      activeCompanyIdRef.current = event.target.value;
-                      setActiveCompanyId(event.target.value);
-                      setStoredWorkspaceSelection(contextRef.current.tenantId, {
-                        companyId: event.target.value,
-                        establishmentId: "",
-                      });
-                      setEstablishmentForm((prev) => ({ ...prev, company_id: event.target.value }));
+                      void handleActiveCompanyChange(event.target.value);
                     }}
                     className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
                   >
@@ -4946,3 +5019,6 @@ useEffect(() => {
     </main>
 );
 }
+
+
+
