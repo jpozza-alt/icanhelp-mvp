@@ -960,6 +960,7 @@ export default function Nr1WorkspacePage() {
   const [guidedStepKey, setGuidedStepKey] = useState<GuidedStepKey>("empresa");
   const [onboardingMicroStepIndex, setOnboardingMicroStepIndex] = useState(0);
   const [guidedSetupOpen, setGuidedSetupOpen] = useState(false);
+  const [companyFinalSubmitAttempted, setCompanyFinalSubmitAttempted] = useState(false);
   const [diagnosisActivityId, setDiagnosisActivityId] = useState<string>("");
   const [diagnosisSessionId, setDiagnosisSessionId] = useState<string>("");
   const [diagnosisRiskId, setDiagnosisRiskId] = useState<string>("");
@@ -1314,8 +1315,12 @@ useEffect(() => {
       ok: companyEmployeeCountValue !== null && companyEmployeeCountValue > 0,
     },
   ];
+  const hasCompanyRequiredFieldPending = companyRequiredFieldSummary.some((item) => !item.ok);
+  const showCompanyFinalFeedback =
+    isGuidedCompanyFinalMicroStep && (companyFinalSubmitAttempted || Boolean(visibleFormError) || hasCompanyRequiredFieldPending);
 
   function handleContinueGuidedMicroStep(): void {
+    setCompanyFinalSubmitAttempted(false);
     setFormError(null);
     setSuccessMessage(null);
 
@@ -1901,6 +1906,9 @@ useEffect(() => {
   }
   async function handleCreateCompany(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (isGuidedCompanyFinalMicroStep) {
+      setCompanyFinalSubmitAttempted(true);
+    }
     setFormStatus("saving");
     setFormError(null);
     setSuccessMessage(null);
@@ -2044,6 +2052,7 @@ useEffect(() => {
       }
 
       if (showGuidedSetup) {
+        setCompanyFinalSubmitAttempted(false);
         setGuidedSetupChoice("review");
         setGuidedStepKey("estabelecimento");
         setOnboardingMicroStepIndex(0);
@@ -3955,7 +3964,7 @@ useEffect(() => {
                   </div>
                 </div>
 
-                {isGuidedCompanyFinalMicroStep ? (
+                {showCompanyFinalFeedback ? (
                   <div className="mt-5 rounded-2xl border border-[#d9c9b8] bg-white p-4">
                     <p className="text-sm font-semibold text-[#10243e]">Revise os campos obrigatorios</p>
                     <div className="mt-3 grid gap-2 sm:grid-cols-2">
@@ -3987,12 +3996,18 @@ useEffect(() => {
                     onClick={
                       showGuidedSetup && !isLastOnboardingMicroStep
                         ? handleContinueGuidedMicroStep
-                        : undefined
+                        : isGuidedCompanyFinalMicroStep
+                          ? () => setCompanyFinalSubmitAttempted(true)
+                          : undefined
                     }
                     disabled={formStatus === "saving"}
                     className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                   >
-                    {showGuidedSetup ? (isLastOnboardingMicroStep ? onboardingCurrentStep.buttonLabel : "Continuar") : "Cadastrar empresa"}
+                    {formStatus === "saving"
+                      ? "Salvando..."
+                      : showGuidedSetup
+                        ? (isLastOnboardingMicroStep ? onboardingCurrentStep.buttonLabel : "Continuar")
+                        : "Cadastrar empresa"}
                   </button>
                 </div>
               </form>
