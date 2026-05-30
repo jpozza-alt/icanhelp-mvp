@@ -960,7 +960,7 @@ export default function Nr1WorkspacePage() {
   const [guidedStepKey, setGuidedStepKey] = useState<GuidedStepKey>("empresa");
   const [onboardingMicroStepIndex, setOnboardingMicroStepIndex] = useState(0);
   const [guidedSetupOpen, setGuidedSetupOpen] = useState(false);
-  const [companyFinalSubmitAttempted, setCompanyFinalSubmitAttempted] = useState(false);
+  const [, setCompanyFinalSubmitAttempted] = useState(false);
   const [diagnosisActivityId, setDiagnosisActivityId] = useState<string>("");
   const [diagnosisSessionId, setDiagnosisSessionId] = useState<string>("");
   const [diagnosisRiskId, setDiagnosisRiskId] = useState<string>("");
@@ -1316,7 +1316,7 @@ useEffect(() => {
     },
   ];
   const showCompanyFinalFeedback =
-    isGuidedCompanyFinalMicroStep && (companyFinalSubmitAttempted || Boolean(visibleFormError));
+    isGuidedCompanyFinalMicroStep;
 
   function handleContinueGuidedMicroStep(): void {
     setCompanyFinalSubmitAttempted(false);
