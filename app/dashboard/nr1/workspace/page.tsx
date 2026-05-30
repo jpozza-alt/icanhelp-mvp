@@ -1296,10 +1296,24 @@ useEffect(() => {
   const isLastOnboardingMicroStep = onboardingMicroStepIndex >= onboardingMicroSteps.length - 1;
   const isGuidedCompanyCnpjMicroStep =
     showGuidedSetup && onboardingCurrentStep.key === "empresa" && onboardingMicroStepIndex === 0;
+  const isGuidedCompanyFinalMicroStep =
+    showGuidedSetup && onboardingCurrentStep.key === "empresa" && isLastOnboardingMicroStep;
   const visibleFormError =
     isGuidedCompanyCnpjMicroStep && formError?.startsWith("Contexto do workspace nao resolvido")
       ? null
       : formError;
+  const companyEmployeeCountValue = numberOrNull(companyForm.employee_count);
+  const companyRequiredFieldSummary = [
+    { label: "CNPJ", ok: isValidCnpj(companyForm.cnpj) },
+    { label: "Razao social", ok: companyForm.legal_name.trim().length >= 3 },
+    { label: "Nome fantasia", ok: companyForm.trade_name.trim().length >= 2 },
+    { label: "CNAE principal", ok: normalizeCnae(companyForm.cnae_main).length === 7 },
+    { label: "Porte", ok: companyForm.company_size.trim().length > 0 },
+    {
+      label: "Quantidade de trabalhadores",
+      ok: companyEmployeeCountValue !== null && companyEmployeeCountValue > 0,
+    },
+  ];
 
   function handleContinueGuidedMicroStep(): void {
     setFormError(null);
@@ -3940,6 +3954,27 @@ useEffect(() => {
                     ))}
                   </div>
                 </div>
+
+                {isGuidedCompanyFinalMicroStep ? (
+                  <div className="mt-5 rounded-2xl border border-[#d9c9b8] bg-white p-4">
+                    <p className="text-sm font-semibold text-[#10243e]">Revise os campos obrigatorios</p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      {companyRequiredFieldSummary.map((item) => (
+                        <div key={item.label} className="flex items-center justify-between gap-3 rounded-xl bg-[#fffaf3] px-3 py-2 text-sm">
+                          <span className="text-[#10243e]">{item.label}</span>
+                          <span className={`font-semibold ${item.ok ? "text-emerald-700" : "text-red-700"}`}>
+                            {item.ok ? "OK" : "Pendente"}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {visibleFormError ? (
+                      <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                        {visibleFormError}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 <div className="mt-5 flex items-center justify-between gap-3">
                   {showGuidedSetup && onboardingMicroStepIndex > 0 ? (
