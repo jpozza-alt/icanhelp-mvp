@@ -1372,10 +1372,6 @@ useEffect(() => {
       accept: "application/json",
     });
 
-    console.debug("[nr1/workspace] context token state", {
-      tokenPresent: Boolean(accessToken),
-    });
-
     if (!accessToken) {
       throw new Error("Sessao local sem token de acesso. Faca login novamente e tente de novo.");
     }
@@ -1409,20 +1405,11 @@ useEffect(() => {
 
         payload = text.trim() ? (JSON.parse(text) as unknown) : {};
       } catch {
-        if (path === "/api/tenant/select") {
-          console.debug("[nr1/workspace] tenant legacy fallback ignored", { endpoint: path });
-        }
         continue;
       }
 
       const tenantCandidates = extractTenantCandidatesFromPayload(payload);
       const selectedTenant = tenantCandidates[0] || null;
-
-      console.debug("[nr1/workspace] tenant candidates", {
-        endpoint: path,
-        count: tenantCandidates.length,
-        selectedRole: selectedTenant?.role || null,
-      });
 
       const tenantId = selectedTenant?.tenantId || null;
 
@@ -1438,11 +1425,6 @@ useEffect(() => {
       }
 
       if (tenantId) {
-        console.debug("[nr1/workspace] tenant resolved", {
-          endpoint: path,
-          role: selectedTenant?.role || null,
-        });
-
         return {
           tenantId,
           establishmentId: establishmentId || fallbackEstablishmentId,
@@ -2048,12 +2030,15 @@ useEffect(() => {
       }
 
       if (showGuidedSetup) {
+        setGuidedSetupChoice("review");
         setGuidedStepKey("estabelecimento");
         setOnboardingMicroStepIndex(0);
-        setSuccessMessage("Triagem da empresa cadastrada. Vamos para o proximo passo.");
+        setSuccessMessage("Triagem da empresa cadastrada. Agora informe o estabelecimento.");
       } else {
         setSuccessMessage("Triagem da empresa cadastrada.");
       }
+
+      setFormError(null);
       setFormStatus("saved");
     } catch (error) {
       setFormStatus("error");
@@ -5019,6 +5004,3 @@ useEffect(() => {
     </main>
 );
 }
-
-
-
