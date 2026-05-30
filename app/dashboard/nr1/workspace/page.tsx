@@ -1315,9 +1315,8 @@ useEffect(() => {
       ok: companyEmployeeCountValue !== null && companyEmployeeCountValue > 0,
     },
   ];
-  const hasCompanyRequiredFieldPending = companyRequiredFieldSummary.some((item) => !item.ok);
   const showCompanyFinalFeedback =
-    isGuidedCompanyFinalMicroStep && (companyFinalSubmitAttempted || Boolean(visibleFormError) || hasCompanyRequiredFieldPending);
+    isGuidedCompanyFinalMicroStep && (companyFinalSubmitAttempted || Boolean(visibleFormError));
 
   function handleContinueGuidedMicroStep(): void {
     setCompanyFinalSubmitAttempted(false);
@@ -3760,7 +3759,7 @@ useEffect(() => {
                 </div>
               ) : null}
               {(!showGuidedSetup || onboardingCurrentStep.key === "empresa") ? (
-              <form onSubmit={handleCreateCompany} className={showGuidedSetup ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
+              <form noValidate onSubmit={handleCreateCompany} className={showGuidedSetup ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
                 <h2 className={showGuidedSetup ? "sr-only" : "text-xl font-semibold"}>1. Triagem Empresarial NR-1</h2>
                 <p className="mt-1 text-sm text-slate-500">Antes do diagnostico, vamos qualificar a empresa para formar a base do PGR.</p>
 
@@ -3993,13 +3992,16 @@ useEffect(() => {
                   ) : <span />}
                   <button
                     type={showGuidedSetup && !isLastOnboardingMicroStep ? "button" : "submit"}
-                    onClick={
-                      showGuidedSetup && !isLastOnboardingMicroStep
-                        ? handleContinueGuidedMicroStep
-                        : isGuidedCompanyFinalMicroStep
-                          ? () => setCompanyFinalSubmitAttempted(true)
-                          : undefined
-                    }
+                    onClick={() => {
+                      if (isGuidedCompanyFinalMicroStep) {
+                        setCompanyFinalSubmitAttempted(true);
+                        return;
+                      }
+
+                      if (showGuidedSetup && !isLastOnboardingMicroStep) {
+                        handleContinueGuidedMicroStep();
+                      }
+                    }}
                     disabled={formStatus === "saving"}
                     className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                   >
