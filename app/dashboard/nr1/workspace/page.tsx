@@ -474,51 +474,125 @@ function stringOrNull(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function extractTenantIdFromPayload(payload: unknown): string | null {
-  const direct =
-    firstString(payload, ["tenant_id", "tenantId", "active_tenant_id", "activeTenantId"]) ||
-    firstString(payload, ["id"]);
+function tenantRolePriority(value: unknown): number {
+  const role = stringOrNull(value)?.toLowerCase();
 
-  if (direct) return direct;
+  if (role === "owner") return 0;
+  if (role === "admin") return 1;
+  if (role) return 2;
 
-  const asRecord = payload && typeof payload === "object" && !Array.isArray(payload)
-    ? (payload as Record<string, unknown>)
-    : null;
+  return 3;
+}
 
-  const candidates: unknown[] = [];
+function isUuid(value: string | null): value is string {
+  return Boolean(
+    value &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+  );
+}
 
-  if (Array.isArray(payload)) {
-    candidates.push(payload[0]);
-  }
+type TenantCandidate = {
+  tenantId: string;
+  role: string | null;
+  priority: number;
+  index: number;
+};
 
-  if (asRecord) {
-    candidates.push(asRecord.items);
-    candidates.push(asRecord.data);
-    candidates.push(asRecord.tenant);
-    candidates.push(asRecord.activeTenant);
-    candidates.push(asRecord.active_tenant);
-    candidates.push(asRecord.membership);
-    candidates.push(asRecord.current);
-    candidates.push(asRecord.result);
-  }
+function tenantIdFromCandidate(candidate: unknown): string | null {
+  const explicit =
+    firstString(candidate, ["tenant_id", "tenantId", "active_tenant_id", "activeTenantId"]) ||
+    nestedString(candidate, ["tenant", "tenant_id"]) ||
+    nestedString(candidate, ["tenant", "tenantId"]) ||
+    nestedString(candidate, ["membership", "tenant_id"]) ||
+    nestedString(candidate, ["membership", "tenantId"]) ||
+    nestedString(candidate, ["membership", "tenant", "tenant_id"]) ||
+    nestedString(candidate, ["membership", "tenant", "tenantId"]);
 
-  for (const candidate of candidates) {
-    if (!candidate) continue;
+  if (isUuid(explicit)) return explicit;
+
+  const tenantObjectId =
+    nestedString(candidate, ["tenant", "id"]) ||
+    nestedString(candidate, ["activeTenant", "id"]) ||
+    nestedString(candidate, ["active_tenant", "id"]) ||
+    nestedString(candidate, ["currentTenant", "id"]) ||
+    nestedString(candidate, ["selectedTenant", "id"]) ||
+    nestedString(candidate, ["membership", "tenant", "id"]);
+
+  if (isUuid(tenantObjectId)) return tenantObjectId;
+
+  const genericId = firstString(candidate, ["id"]);
+
+  return isUuid(genericId) ? genericId : null;
+}
+
+function extractTenantCandidatesFromPayload(payload: unknown): TenantCandidate[] {
+  const candidates: TenantCandidate[] = [];
+  const visited = new Set<unknown>();
+
+  const addCandidate = (candidate: unknown): void => {
+    const tenantId = tenantIdFromCandidate(candidate);
+
+    if (!tenantId || candidates.some((item) => item.tenantId === tenantId)) return;
+
+    const role =
+      firstString(candidate, ["role", "membershipRole", "membership_role"]) ||
+      nestedString(candidate, ["membership", "role"]) ||
+      nestedString(candidate, ["tenant", "role"]);
+
+    candidates.push({
+      tenantId,
+      role,
+      priority: tenantRolePriority(role),
+      index: candidates.length,
+    });
+  };
+
+  const collect = (candidate: unknown): void => {
+    if (!candidate) return;
 
     if (Array.isArray(candidate)) {
-      const fromFirst =
-        firstString(candidate[0], ["tenant_id", "tenantId", "active_tenant_id", "activeTenantId", "id"]);
-      if (fromFirst) return fromFirst;
-      continue;
+      for (const item of candidate) {
+        collect(item);
+      }
+      return;
     }
 
-    const fromObject =
-      firstString(candidate, ["tenant_id", "tenantId", "active_tenant_id", "activeTenantId", "id"]);
-    if (fromObject) return fromObject;
-  }
+    if (!isRecord(candidate) || visited.has(candidate)) return;
 
-  return null;
+    visited.add(candidate);
+    addCandidate(candidate);
+
+    for (const key of [
+      "activeTenant",
+      "active_tenant",
+      "currentTenant",
+      "current_tenant",
+      "selectedTenant",
+      "selected_tenant",
+      "tenant",
+      "current",
+      "membership",
+      "memberships",
+      "items",
+      "tenants",
+      "data",
+      "result",
+    ]) {
+      collect(candidate[key]);
+    }
+
+    for (const value of Object.values(candidate)) {
+      if (Array.isArray(value) || isRecord(value)) {
+        collect(value);
+      }
+    }
+  };
+
+  collect(payload);
+
+  return candidates.sort((left, right) => left.priority - right.priority || left.index - right.index);
 }
+
 function firstString(record: unknown, keys: string[]): string | null {
   if (!isRecord(record)) return null;
 
@@ -656,6 +730,95 @@ function displayName(item: SimpleEntity | null | undefined, fallback: string): s
     firstString(item, ["legal_name", "trade_name", "name", "title", "description", "real_activity_description"]) ||
     fallback
   );
+}
+
+function resolvePreferredCompanyId({
+  preferredCompanyId,
+  currentActiveCompanyId,
+  loadedCompanies,
+  loadedEstablishments,
+  fallbackCompanyId,
+}: {
+  preferredCompanyId?: string | null;
+  currentActiveCompanyId?: string | null;
+  loadedCompanies: SimpleEntity[];
+  loadedEstablishments: SimpleEntity[];
+  fallbackCompanyId?: string | null;
+}): string {
+  const companyIds = new Set<string>();
+
+  for (const company of loadedCompanies) {
+    const companyId = firstString(company, ["id"]);
+    if (companyId) companyIds.add(companyId);
+  }
+
+  for (const establishment of loadedEstablishments) {
+    const companyId = firstString(establishment, ["company_id"]);
+    if (companyId) companyIds.add(companyId);
+  }
+
+  const isKnownOrUnloaded = (companyId: string | null): companyId is string =>
+    Boolean(companyId && (companyIds.size === 0 || companyIds.has(companyId)));
+
+  const preferred = stringOrNull(preferredCompanyId);
+  if (preferred) return preferred;
+
+  const current = stringOrNull(currentActiveCompanyId);
+  if (isKnownOrUnloaded(current)) return current;
+
+  const fallback = stringOrNull(fallbackCompanyId);
+  if (isKnownOrUnloaded(fallback)) return fallback;
+
+  return firstString(loadedCompanies[0], ["id"]) || firstString(loadedEstablishments[0], ["company_id"]) || "";
+}
+
+type StoredWorkspaceSelection = {
+  companyId: string;
+  establishmentId: string;
+};
+
+function workspaceSelectionStorageKey(tenantId: string): string {
+  return `nr1_workspace_selection:${tenantId}`;
+}
+
+function getStoredWorkspaceSelection(tenantId: string | null | undefined): StoredWorkspaceSelection {
+  if (!tenantId || typeof window === "undefined") {
+    return { companyId: "", establishmentId: "" };
+  }
+
+  try {
+    const raw = window.localStorage.getItem(workspaceSelectionStorageKey(tenantId));
+    if (!raw) return { companyId: "", establishmentId: "" };
+
+    const parsed = JSON.parse(raw) as unknown;
+    if (!isRecord(parsed)) return { companyId: "", establishmentId: "" };
+
+    return {
+      companyId: stringOrNull(parsed.companyId) || "",
+      establishmentId: stringOrNull(parsed.establishmentId) || "",
+    };
+  } catch {
+    return { companyId: "", establishmentId: "" };
+  }
+}
+
+function setStoredWorkspaceSelection(
+  tenantId: string | null | undefined,
+  selection: Partial<StoredWorkspaceSelection>
+): void {
+  if (!tenantId || typeof window === "undefined") return;
+
+  const current = getStoredWorkspaceSelection(tenantId);
+  const next = {
+    companyId: selection.companyId ?? current.companyId,
+    establishmentId: selection.establishmentId ?? current.establishmentId,
+  };
+
+  try {
+    window.localStorage.setItem(workspaceSelectionStorageKey(tenantId), JSON.stringify(next));
+  } catch {
+    // Local storage is an optimization for UX continuity; it must not block the workflow.
+  }
 }
 
 function normalizeDraftPayload(value: unknown): WorkspaceDraftPayload {
@@ -825,6 +988,7 @@ export default function Nr1WorkspacePage() {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestDraftRef = useRef<WorkspaceDraftPayload>(DEFAULT_DRAFT);
   const contextRef = useRef<BackendContext>({ tenantId: null, establishmentId: null });
+  const activeCompanyIdRef = useRef<string>("");
   const [sessionDebug, setSessionDebug] = useState<SessionDebugState>(INITIAL_SESSION_DEBUG);
   const [planFeatures, setPlanFeatures] = useState<Nr1PlanFeaturesResponse | null>(null);
   const [planFeaturesLoading, setPlanFeaturesLoading] = useState<boolean>(false);
@@ -863,6 +1027,11 @@ useEffect(() => {
   useEffect(() => {
     contextRef.current = context;
   }, [context]);
+
+  useEffect(() => {
+    activeCompanyIdRef.current = activeCompanyId;
+  }, [activeCompanyId]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -945,6 +1114,8 @@ useEffect(() => {
   const previousWorkspaceModeRef = useRef(isWorkspaceMode);
 
   function openGuidedSetupReview(): void {
+    setFormError(null);
+    setSuccessMessage(null);
     setGuidedSetupChoice("review");
     setGuidedStepKey("empresa");
     setOnboardingMicroStepIndex(0);
@@ -1042,7 +1213,37 @@ useEffect(() => {
           helper: "Comece pelo CNPJ. Depois revise a identificacao formal, a atividade economica, o porte, a quantidade de trabalhadores e a caracterizacao inicial de SST.",
           buttonLabel: "Salvar triagem da empresa e continuar",
         }
-      : inferredOnboardingCurrentStep;
+      : guidedStepKey === "estabelecimento"
+        ? {
+            index: 2,
+            key: "estabelecimento",
+            title: "Estabelecimento",
+            question: "Onde esse trabalho acontece?",
+            intro: "Agora precisamos identificar a unidade que sera usada como referencia.",
+            helper: "Informe o estabelecimento para organizar os proximos passos.",
+            buttonLabel: "Salvar estabelecimento e continuar",
+          }
+        : guidedStepKey === "setor"
+          ? {
+              index: 3,
+              key: "setor",
+              title: "Setor",
+              question: "Qual setor vamos mapear primeiro?",
+              intro: "Escolha uma area real de trabalho. As atividades virao depois.",
+              helper: "Mapeie um setor para aproximar a jornada da rotina da empresa.",
+              buttonLabel: "Salvar setor e continuar",
+            }
+          : guidedStepKey === "atividade"
+            ? {
+                index: 4,
+                key: "atividade",
+                title: "Atividade",
+                question: "Qual atividade esse setor executa?",
+                intro: "Descreva a atividade real para liberar diagnostico, riscos e documentos.",
+                helper: "Essa etapa transforma a base cadastrada em uma jornada operacional.",
+                buttonLabel: "Salvar atividade e liberar workspace",
+              }
+            : inferredOnboardingCurrentStep;
 
   const onboardingCurrentStep =
     showGuidedSetup && guidedSetupChoice === "review"
@@ -1093,6 +1294,32 @@ useEffect(() => {
     onboardingMicroSteps[Math.min(onboardingMicroStepIndex, onboardingMicroSteps.length - 1)] ??
     { question: onboardingCurrentStep.question, helper: onboardingCurrentStep.helper };
   const isLastOnboardingMicroStep = onboardingMicroStepIndex >= onboardingMicroSteps.length - 1;
+  const isGuidedCompanyCnpjMicroStep =
+    showGuidedSetup && onboardingCurrentStep.key === "empresa" && onboardingMicroStepIndex === 0;
+  const visibleFormError =
+    isGuidedCompanyCnpjMicroStep && formError?.startsWith("Contexto do workspace nao resolvido")
+      ? null
+      : formError;
+
+  function handleContinueGuidedMicroStep(): void {
+    setFormError(null);
+    setSuccessMessage(null);
+
+    if (onboardingCurrentStep.key === "empresa" && onboardingMicroStepIndex === 0) {
+      if (!isValidCnpj(companyForm.cnpj)) {
+        setFormError("Informe um CNPJ valido antes de continuar.");
+        return;
+      }
+
+      if (cnpjLookupStatus !== "ready") {
+        setFormError("Clique em Buscar dados pelo CNPJ antes de continuar.");
+        return;
+      }
+    }
+
+    setGuidedSetupChoice("review");
+    setOnboardingMicroStepIndex((prev) => prev + 1);
+  }
 
   const statusLabel = useMemo(() => {
     if (saveStatus === "loading") return "Carregando dados reais";
@@ -1138,20 +1365,66 @@ useEffect(() => {
     const paths = [
       "/api/debug/context",
       "/api/tenants",
+      "/api/tenant/select",
     ];
+    const accessToken = await getBrowserAccessToken();
+    const headers = new Headers({
+      accept: "application/json",
+    });
+
+    console.debug("[nr1/workspace] context token state", {
+      tokenPresent: Boolean(accessToken),
+    });
+
+    if (!accessToken) {
+      throw new Error("Sessao local sem token de acesso. Faca login novamente e tente de novo.");
+    }
+
+    if (accessToken) {
+      headers.set("Authorization", "Bearer " + accessToken);
+    }
 
     let fallbackEstablishmentId: string | null = null;
+    let authFailed = false;
 
     for (const path of paths) {
       let payload: unknown | null = null;
 
       try {
-        payload = await fetchJson(path);
+        const response = await fetch(path, {
+          method: "GET",
+          cache: "no-store",
+          credentials: "same-origin",
+          headers,
+        });
+        const text = await response.text();
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            authFailed = true;
+          }
+
+          throw new Error(`${response.status} ${response.statusText} ${text.slice(0, 240)}`.trim());
+        }
+
+        payload = text.trim() ? (JSON.parse(text) as unknown) : {};
       } catch {
+        if (path === "/api/tenant/select") {
+          console.debug("[nr1/workspace] tenant legacy fallback ignored", { endpoint: path });
+        }
         continue;
       }
 
-      const tenantId = extractTenantIdFromPayload(payload);
+      const tenantCandidates = extractTenantCandidatesFromPayload(payload);
+      const selectedTenant = tenantCandidates[0] || null;
+
+      console.debug("[nr1/workspace] tenant candidates", {
+        endpoint: path,
+        count: tenantCandidates.length,
+        selectedRole: selectedTenant?.role || null,
+      });
+
+      const tenantId = selectedTenant?.tenantId || null;
 
       const establishmentId =
         nestedString(payload, ["establishment", "id"]) ||
@@ -1165,11 +1438,20 @@ useEffect(() => {
       }
 
       if (tenantId) {
+        console.debug("[nr1/workspace] tenant resolved", {
+          endpoint: path,
+          role: selectedTenant?.role || null,
+        });
+
         return {
           tenantId,
           establishmentId: establishmentId || fallbackEstablishmentId,
         };
       }
+    }
+
+    if (authFailed) {
+      throw new Error("Sessao local sem token de acesso. Faca login novamente e tente de novo.");
     }
 
     return {
@@ -1189,12 +1471,15 @@ useEffect(() => {
     return extractArray<SimpleEntity>(payload, ["items", "companies", "data"]);
   }, []);
 
-  const loadEstablishments = useCallback(async (nextContext: BackendContext): Promise<SimpleEntity[]> => {
+  const loadEstablishments = useCallback(async (
+    nextContext: BackendContext,
+    companyId: string = activeCompanyId
+  ): Promise<SimpleEntity[]> => {
     if (!nextContext.tenantId) return [];
 
     const path = buildUrl("/api/nr1/establishments", {
       tenantId: nextContext.tenantId,
-      companyId: activeCompanyId || undefined,
+      companyId: companyId || undefined,
     });
 
     const payload = await fetchJson(path, {}, nextContext);
@@ -1306,11 +1591,17 @@ useEffect(() => {
   }, [loadAuditEvents]);
 
   const reloadOperationalData = useCallback(
-    async (nextContext: BackendContext): Promise<void> => {
+    async (
+      nextContext: BackendContext,
+      options: { preferredCompanyId?: string } = {}
+    ): Promise<void> => {
+      const preferredCompanyId = options.preferredCompanyId || "";
+      const currentActiveCompanyId = activeCompanyIdRef.current || activeCompanyId;
+      const companyIdForEstablishments = preferredCompanyId || currentActiveCompanyId;
       const [nextCompanies, nextEstablishments, nextDepartments, nextActivities, nextAuditEvents] =
         await Promise.all([
           loadCompanies(nextContext),
-          loadEstablishments(nextContext),
+          loadEstablishments(nextContext, companyIdForEstablishments),
           loadDepartments(nextContext),
           loadActivities(nextContext),
           loadAuditEvents(nextContext),
@@ -1322,15 +1613,21 @@ useEffect(() => {
       setActivities(nextActivities);
       setAuditEvents(nextAuditEvents);
 
-      const firstCompanyId =
-        activeCompanyId ||
-        firstString(nextEstablishments[0], ["company_id"]) ||
-        firstString(nextCompanies[0], ["id"]) ||
-        "";
+      const nextCompanyId = resolvePreferredCompanyId({
+        preferredCompanyId,
+        currentActiveCompanyId,
+        loadedCompanies: nextCompanies,
+        loadedEstablishments: nextEstablishments,
+      });
 
-      if (firstCompanyId) {
-        setActiveCompanyId(firstCompanyId);
-        setEstablishmentForm((prev) => ({ ...prev, company_id: prev.company_id || firstCompanyId }));
+      if (nextCompanyId) {
+        activeCompanyIdRef.current = nextCompanyId;
+        setActiveCompanyId(nextCompanyId);
+        setStoredWorkspaceSelection(nextContext.tenantId, { companyId: nextCompanyId });
+        setEstablishmentForm((prev) => ({
+          ...prev,
+          company_id: preferredCompanyId || prev.company_id || nextCompanyId,
+        }));
       }
 
       const firstDepartmentId = firstString(nextDepartments[0], ["id"]) || "";
@@ -1455,7 +1752,12 @@ useEffect(() => {
         const selected = establishments.find((item) => item.id === establishmentId);
         const selectedCompanyId = firstString(selected, ["company_id"]);
         if (selectedCompanyId) {
+          activeCompanyIdRef.current = selectedCompanyId;
           setActiveCompanyId(selectedCompanyId);
+          setStoredWorkspaceSelection(nextContext.tenantId, {
+            companyId: selectedCompanyId,
+            establishmentId,
+          });
           setEstablishmentForm((prev) => ({ ...prev, company_id: selectedCompanyId }));
         }
 
@@ -1488,6 +1790,8 @@ useEffect(() => {
 
   function handlePreparedCnpjLookup(): void {
     const cnpjDigits = normalizeCnpj(companyForm.cnpj);
+    setFormError(null);
+    setSuccessMessage(null);
     setCnpjLookupMessage(null);
 
     if (!isValidCnpj(cnpjDigits)) {
@@ -1518,11 +1822,22 @@ useEffect(() => {
     setFormError(null);
     setSuccessMessage(null);
 
-    const currentContext = contextRef.current;
+    let currentContext: BackendContext;
+
+    try {
+      currentContext = await resolveContext();
+    } catch (error) {
+      setFormStatus("error");
+      setFormError(error instanceof Error ? error.message : "Erro ao resolver contexto do workspace.");
+      return;
+    }
+
+    setContext(currentContext);
+    contextRef.current = currentContext;
 
     if (!currentContext.tenantId) {
       setFormStatus("error");
-      setFormError("Contexto da empresa nao resolvido.");
+      setFormError("Contexto do workspace nao resolvido. Recarregue a pagina e tente novamente.");
       return;
     }
 
@@ -1571,35 +1886,57 @@ useEffect(() => {
         tenantId: currentContext.tenantId,
       });
 
-      const response = await fetchJson(
-        path,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            legal_name: companyForm.legal_name,
-            trade_name: companyForm.trade_name,
-            cnpj: cnpjDigits,
-            cnae_main: cnaeDigits,
-            company_size: companyForm.company_size,
-            risk_grade: companyForm.risk_grade,
-            employee_count: employeeCountValue,
-            has_cipa: companyForm.has_cipa,
-            has_sesmt: companyForm.has_sesmt,
-            has_public_service: companyForm.has_public_service,
-            has_remote_work: companyForm.has_remote_work,
-            has_third_parties: companyForm.has_third_parties,
-            has_external_activities: companyForm.has_external_activities,
-            status: "active",
-          }),
-        },
-        currentContext
-      );
+      const headers = new Headers({
+        accept: "application/json",
+        "content-type": "application/json",
+        "x-icanhelp-tenant": currentContext.tenantId,
+      });
+      const accessToken = await getBrowserAccessToken();
+
+      if (accessToken) {
+        headers.set("Authorization", "Bearer " + accessToken);
+      }
+
+      const companyResponse = await fetch(path, {
+        method: "POST",
+        headers,
+        cache: "no-store",
+        credentials: "same-origin",
+        body: JSON.stringify({
+          legal_name: companyForm.legal_name,
+          trade_name: companyForm.trade_name,
+          cnpj: cnpjDigits,
+          cnae_main: cnaeDigits,
+          company_size: companyForm.company_size,
+          risk_grade: companyForm.risk_grade,
+          employee_count: employeeCountValue,
+          has_cipa: companyForm.has_cipa,
+          has_sesmt: companyForm.has_sesmt,
+          has_public_service: companyForm.has_public_service,
+          has_remote_work: companyForm.has_remote_work,
+          has_third_parties: companyForm.has_third_parties,
+          has_external_activities: companyForm.has_external_activities,
+          status: "active",
+        }),
+      });
+      const responseText = await companyResponse.text();
+
+      if (!companyResponse.ok) {
+        throw new Error(responseText.trim() || `${companyResponse.status} ${companyResponse.statusText}`);
+      }
+
+      const response = responseText.trim() ? (JSON.parse(responseText) as unknown) : {};
 
       const created = extractFirstEntity(response);
       const createdCompanyId = firstString(created, ["id"]);
 
       if (createdCompanyId) {
+        activeCompanyIdRef.current = createdCompanyId;
         setActiveCompanyId(createdCompanyId);
+        setStoredWorkspaceSelection(currentContext.tenantId, {
+          companyId: createdCompanyId,
+          establishmentId: "",
+        });
         setEstablishmentForm((prev) => ({ ...prev, company_id: createdCompanyId }));
       }
 
@@ -1609,8 +1946,27 @@ useEffect(() => {
       }, "formal");
 
       setCompanyForm(INITIAL_COMPANY_FORM);
-      await reloadOperationalData(currentContext);
-      setSuccessMessage("Triagem da empresa cadastrada.");
+      await reloadOperationalData(currentContext, {
+        preferredCompanyId: createdCompanyId || undefined,
+      });
+
+      if (createdCompanyId) {
+        activeCompanyIdRef.current = createdCompanyId;
+        setActiveCompanyId(createdCompanyId);
+        setStoredWorkspaceSelection(currentContext.tenantId, {
+          companyId: createdCompanyId,
+          establishmentId: "",
+        });
+        setEstablishmentForm((prev) => ({ ...prev, company_id: createdCompanyId }));
+      }
+
+      if (showGuidedSetup) {
+        setGuidedStepKey("estabelecimento");
+        setOnboardingMicroStepIndex(0);
+        setSuccessMessage("Triagem da empresa cadastrada. Vamos para o proximo passo.");
+      } else {
+        setSuccessMessage("Triagem da empresa cadastrada.");
+      }
       setFormStatus("saved");
     } catch (error) {
       setFormStatus("error");
@@ -1625,11 +1981,12 @@ useEffect(() => {
     setSuccessMessage(null);
 
     const currentContext = contextRef.current;
-    const companyId = establishmentForm.company_id || activeCompanyId;
+    const companyId = establishmentForm.company_id || activeCompanyIdRef.current || activeCompanyId;
+    const preferredCompanyId = companyId;
 
     if (!currentContext.tenantId) {
       setFormStatus("error");
-      setFormError("Contexto da empresa nao resolvido.");
+      setFormError("Contexto do workspace nao resolvido.");
       return;
     }
 
@@ -1688,8 +2045,24 @@ useEffect(() => {
       }, "formal");
 
       setEstablishmentForm({ ...INITIAL_ESTABLISHMENT_FORM, company_id: companyId, state: establishmentForm.state || "SC" });
-      await reloadOperationalData(nextContext);
-      setSuccessMessage("Estabelecimento cadastrado.");
+      if (preferredCompanyId) {
+        activeCompanyIdRef.current = preferredCompanyId;
+        setActiveCompanyId(preferredCompanyId);
+        setStoredWorkspaceSelection(nextContext.tenantId, {
+          companyId: preferredCompanyId,
+          establishmentId: createdEstablishmentId || "",
+        });
+      }
+      await reloadOperationalData(nextContext, {
+        preferredCompanyId: preferredCompanyId || undefined,
+      });
+      if (showGuidedSetup) {
+        setGuidedStepKey("setor");
+        setOnboardingMicroStepIndex(0);
+        setSuccessMessage("Estabelecimento cadastrado. Vamos para o proximo passo.");
+      } else {
+        setSuccessMessage("Estabelecimento cadastrado.");
+      }
       setFormStatus("saved");
     } catch (error) {
       setFormStatus("error");
@@ -1760,8 +2133,16 @@ useEffect(() => {
       }, "formal");
 
       setDepartmentForm(INITIAL_DEPARTMENT_FORM);
-      await reloadOperationalData(currentContext);
-      setSuccessMessage("Setor cadastrado.");
+      await reloadOperationalData(currentContext, {
+        preferredCompanyId: activeCompanyIdRef.current || activeCompanyId || undefined,
+      });
+      if (showGuidedSetup) {
+        setGuidedStepKey("atividade");
+        setOnboardingMicroStepIndex(0);
+        setSuccessMessage("Setor cadastrado. Vamos para o proximo passo.");
+      } else {
+        setSuccessMessage("Setor cadastrado.");
+      }
       setFormStatus("saved");
     } catch (error) {
       setFormStatus("error");
@@ -1835,8 +2216,17 @@ useEffect(() => {
       }, "formal");
 
       setActivityForm({ ...INITIAL_ACTIVITY_FORM, department_id: departmentId });
-      await reloadOperationalData(currentContext);
-      setSuccessMessage("Atividade cadastrada.");
+      await reloadOperationalData(currentContext, {
+        preferredCompanyId: activeCompanyIdRef.current || activeCompanyId || undefined,
+      });
+      if (showGuidedSetup) {
+        setGuidedSetupChoice("dashboard");
+        setGuidedSetupOpen(false);
+        patchDraft({ activeSection: "diagnostico" }, "guided_setup_activity_completed");
+        setSuccessMessage("Atividade cadastrada. Diagnostico liberado.");
+      } else {
+        setSuccessMessage("Atividade cadastrada.");
+      }
       setFormStatus("saved");
     } catch (error) {
       setFormStatus("error");
@@ -1844,67 +2234,72 @@ useEffect(() => {
     }
   }
 
-  async function handleStartDiagnosisSession(): Promise<void> {
-    setDiagnosisStatus("saving");
-    setDiagnosisError(null);
-    setDiagnosisSuccess(null);
-
+  async function ensureDiagnosisSession(): Promise<string> {
     const currentContext = contextRef.current;
     const activityId = diagnosisActivityId || firstString(activities[0], ["id"]) || "";
     const selectedActivity = activities.find((item) => item.id === activityId) || activities[0] || null;
     const departmentId = firstString(selectedActivity, ["department_id"]) || firstString(departments[0], ["id"]) || "";
 
     if (!currentContext.tenantId || !currentContext.establishmentId) {
-      setDiagnosisStatus("error");
-      setDiagnosisError("Selecione um estabelecimento antes.");
-      return;
+      throw new Error("Salve a triagem ate estabelecimento, setor e atividade antes de iniciar o diagnostico.");
     }
 
     if (!departmentId || !activityId) {
-      setDiagnosisStatus("error");
-      setDiagnosisError("Cadastre e selecione uma atividade vinculada a um setor.");
-      return;
+      throw new Error("Cadastre e selecione uma atividade vinculada a um setor antes de gerar risco.");
     }
 
+    if (diagnosisSessionId) {
+      return diagnosisSessionId;
+    }
+
+    const path = buildUrl("/api/nr1/diagnosis-sessions", {
+      tenantId: currentContext.tenantId,
+    });
+
+    const response = await fetchJson(
+      path,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          establishment_id: currentContext.establishmentId,
+          department_id: departmentId,
+          activity_id: activityId,
+          current_stage: "psychosocial",
+          status: "open",
+        }),
+      },
+      currentContext
+    );
+
+    const sessionId = firstString(extractFirstEntity(response), ["id"]);
+
+    if (!sessionId) {
+      throw new Error("A rota nao retornou o id da sessao de diagnostico.");
+    }
+
+    setDiagnosisActivityId(activityId);
+    setDiagnosisSessionId(sessionId);
+    patchChecklist("diagnosis_started", true);
+
+    await recordAuditEvent("diagnosis_session_started_from_workspace", {
+      diagnosis_session_id: sessionId,
+      establishment_id: currentContext.establishmentId,
+      department_id: departmentId,
+      activity_id: activityId,
+    }, "formal");
+
+    await refreshAuditEvents();
+
+    return sessionId;
+  }
+
+  async function handleStartDiagnosisSession(): Promise<void> {
+    setDiagnosisStatus("saving");
+    setDiagnosisError(null);
+    setDiagnosisSuccess(null);
+
     try {
-      const path = buildUrl("/api/nr1/diagnosis-sessions", {
-        tenantId: currentContext.tenantId,
-      });
-
-      const response = await fetchJson(
-        path,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            establishment_id: currentContext.establishmentId,
-            department_id: departmentId,
-            activity_id: activityId,
-            current_stage: "psychosocial",
-            status: "open",
-          }),
-        },
-        currentContext
-      );
-
-      const sessionId = firstString(extractFirstEntity(response), ["id"]);
-
-      if (!sessionId) {
-        throw new Error("A rota nao retornou o id da sessao de diagnostico.");
-      }
-
-      setDiagnosisActivityId(activityId);
-      setDiagnosisSessionId(sessionId);
-      patchChecklist("diagnosis_started", true);
-
-      await recordAuditEvent("diagnosis_session_started_from_workspace", {
-        diagnosis_session_id: sessionId,
-        establishment_id: currentContext.establishmentId,
-        department_id: departmentId,
-        activity_id: activityId,
-      }, "formal");
-
-      await refreshAuditEvents();
-
+      await ensureDiagnosisSession();
       setDiagnosisSuccess("Sessao de diagnostico iniciada.");
       setDiagnosisStatus("saved");
     } catch (error) {
@@ -1913,49 +2308,51 @@ useEffect(() => {
     }
   }
 
+  async function saveDiagnosisContextBlock(sessionId: string): Promise<void> {
+    const currentContext = contextRef.current;
+
+    if (!currentContext.tenantId || !currentContext.establishmentId) {
+      throw new Error("Salve a triagem ate estabelecimento antes de salvar o diagnostico.");
+    }
+
+    const path = buildUrl("/api/nr1/diagnosis-context", {
+      tenantId: currentContext.tenantId,
+    });
+
+    await fetchJson(
+      path,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          establishment_id: currentContext.establishmentId,
+          diagnosis_session_id: sessionId,
+          work_description: diagnosisContextForm.work_description,
+          exposed_people_count: numberOrNull(diagnosisContextForm.exposed_people_count),
+          work_routine_type: diagnosisContextForm.work_routine_type,
+          process_changes_frequency: diagnosisContextForm.process_changes_frequency,
+          has_external_work: diagnosisContextForm.has_external_work,
+          has_multi_company_interaction: diagnosisContextForm.has_multi_company_interaction,
+          incident_history: diagnosisContextForm.incident_history,
+          notes: diagnosisContextForm.notes,
+        }),
+      },
+      currentContext
+    );
+
+    await recordAuditEvent("diagnosis_context_saved_from_workspace", {
+      diagnosis_session_id: sessionId,
+    }, "formal");
+  }
+
   async function handleSaveDiagnosisContext(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setDiagnosisStatus("saving");
     setDiagnosisError(null);
     setDiagnosisSuccess(null);
 
-    const currentContext = contextRef.current;
-
-    if (!currentContext.tenantId || !currentContext.establishmentId || !diagnosisSessionId) {
-      setDiagnosisStatus("error");
-      setDiagnosisError("Inicie uma sessao de diagnostico antes.");
-      return;
-    }
-
     try {
-      const path = buildUrl("/api/nr1/diagnosis-context", {
-        tenantId: currentContext.tenantId,
-      });
-
-      await fetchJson(
-        path,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            establishment_id: currentContext.establishmentId,
-            diagnosis_session_id: diagnosisSessionId,
-            work_description: diagnosisContextForm.work_description,
-            exposed_people_count: numberOrNull(diagnosisContextForm.exposed_people_count),
-            work_routine_type: diagnosisContextForm.work_routine_type,
-            process_changes_frequency: diagnosisContextForm.process_changes_frequency,
-            has_external_work: diagnosisContextForm.has_external_work,
-            has_multi_company_interaction: diagnosisContextForm.has_multi_company_interaction,
-            incident_history: diagnosisContextForm.incident_history,
-            notes: diagnosisContextForm.notes,
-          }),
-        },
-        currentContext
-      );
-
-      await recordAuditEvent("diagnosis_context_saved_from_workspace", {
-        diagnosis_session_id: diagnosisSessionId,
-      }, "formal");
-
+      const sessionId = await ensureDiagnosisSession();
+      await saveDiagnosisContextBlock(sessionId);
       await refreshAuditEvents();
 
       setDiagnosisSuccess("Contexto do trabalho salvo.");
@@ -1966,55 +2363,57 @@ useEffect(() => {
     }
   }
 
+  async function savePsychosocialDiagnosisBlock(sessionId: string): Promise<void> {
+    const currentContext = contextRef.current;
+
+    if (!currentContext.tenantId || !currentContext.establishmentId) {
+      throw new Error("Salve a triagem ate estabelecimento antes de salvar o diagnostico psicossocial.");
+    }
+
+    const path = buildUrl("/api/nr1/diagnosis-psychosocial", {
+      tenantId: currentContext.tenantId,
+    });
+
+    await fetchJson(
+      path,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          establishment_id: currentContext.establishmentId,
+          diagnosis_session_id: sessionId,
+          has_work_overload: psychosocialForm.has_work_overload,
+          has_excessive_pressure: psychosocialForm.has_excessive_pressure,
+          has_role_ambiguity: psychosocialForm.has_role_ambiguity,
+          has_low_autonomy: psychosocialForm.has_low_autonomy,
+          has_leadership_support_failure: psychosocialForm.has_leadership_support_failure,
+          has_peer_conflict: psychosocialForm.has_peer_conflict,
+          has_hostile_public_contact: psychosocialForm.has_hostile_public_contact,
+          has_constant_interruptions: psychosocialForm.has_constant_interruptions,
+          has_task_accumulation: psychosocialForm.has_task_accumulation,
+          has_communication_difficulty: psychosocialForm.has_communication_difficulty,
+          has_remote_isolation: psychosocialForm.has_remote_isolation,
+          has_badly_managed_change: psychosocialForm.has_badly_managed_change,
+          has_report_channel: psychosocialForm.has_report_channel,
+          notes: psychosocialForm.notes,
+        }),
+      },
+      currentContext
+    );
+
+    await recordAuditEvent("diagnosis_psychosocial_saved_from_workspace", {
+      diagnosis_session_id: sessionId,
+    }, "formal");
+  }
+
   async function handleSavePsychosocialDiagnosis(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setDiagnosisStatus("saving");
     setDiagnosisError(null);
     setDiagnosisSuccess(null);
 
-    const currentContext = contextRef.current;
-
-    if (!currentContext.tenantId || !currentContext.establishmentId || !diagnosisSessionId) {
-      setDiagnosisStatus("error");
-      setDiagnosisError("Inicie uma sessao de diagnostico antes.");
-      return;
-    }
-
     try {
-      const path = buildUrl("/api/nr1/diagnosis-psychosocial", {
-        tenantId: currentContext.tenantId,
-      });
-
-      await fetchJson(
-        path,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            establishment_id: currentContext.establishmentId,
-            diagnosis_session_id: diagnosisSessionId,
-            has_work_overload: psychosocialForm.has_work_overload,
-            has_excessive_pressure: psychosocialForm.has_excessive_pressure,
-            has_role_ambiguity: psychosocialForm.has_role_ambiguity,
-            has_low_autonomy: psychosocialForm.has_low_autonomy,
-            has_leadership_support_failure: psychosocialForm.has_leadership_support_failure,
-            has_peer_conflict: psychosocialForm.has_peer_conflict,
-            has_hostile_public_contact: psychosocialForm.has_hostile_public_contact,
-            has_constant_interruptions: psychosocialForm.has_constant_interruptions,
-            has_task_accumulation: psychosocialForm.has_task_accumulation,
-            has_communication_difficulty: psychosocialForm.has_communication_difficulty,
-            has_remote_isolation: psychosocialForm.has_remote_isolation,
-            has_badly_managed_change: psychosocialForm.has_badly_managed_change,
-            has_report_channel: psychosocialForm.has_report_channel,
-            notes: psychosocialForm.notes,
-          }),
-        },
-        currentContext
-      );
-
-      await recordAuditEvent("diagnosis_psychosocial_saved_from_workspace", {
-        diagnosis_session_id: diagnosisSessionId,
-      }, "formal");
-
+      const sessionId = await ensureDiagnosisSession();
+      await savePsychosocialDiagnosisBlock(sessionId);
       await refreshAuditEvents();
 
       setDiagnosisSuccess("Diagnostico psicossocial salvo.");
@@ -2258,7 +2657,7 @@ useEffect(() => {
       setDiagnosisError(error instanceof Error ? error.message : "Erro ao salvar revisao tecnica.");
     }
   }
-  async function handleCreatePsychosocialRisk(): Promise<void> {
+  async function handleGeneratePreliminaryRiskFromDiagnosis(): Promise<void> {
     setDiagnosisStatus("saving");
     setDiagnosisError(null);
     setDiagnosisSuccess(null);
@@ -2267,10 +2666,39 @@ useEffect(() => {
     const activityId = diagnosisActivityId || firstString(activities[0], ["id"]) || "";
     const selectedActivity = activities.find((item) => item.id === activityId) || activities[0] || null;
     const departmentId = firstString(selectedActivity, ["department_id"]) || firstString(departments[0], ["id"]) || "";
+    const activityName = firstString(selectedActivity, ["name", "title"]) || "Atividade analisada";
+    const department = departments.find((item) => item.id === departmentId) || departments[0] || null;
+    const departmentName = firstString(department, ["name", "title"]) || "Setor analisado";
+    const selectedHazards = [
+      ["has_work_overload", "Sobrecarga de trabalho"],
+      ["has_excessive_pressure", "Pressao excessiva"],
+      ["has_role_ambiguity", "Ambiguidade de papel"],
+      ["has_low_autonomy", "Baixa autonomia"],
+      ["has_leadership_support_failure", "Falha de apoio da lideranca"],
+      ["has_peer_conflict", "Conflito entre pares"],
+      ["has_hostile_public_contact", "Contato hostil com publico"],
+      ["has_constant_interruptions", "Interrupcoes constantes"],
+      ["has_task_accumulation", "Acumulo de tarefas"],
+      ["has_communication_difficulty", "Dificuldade de comunicacao"],
+      ["has_remote_isolation", "Isolamento no trabalho remoto"],
+      ["has_badly_managed_change", "Mudanca mal gerida"],
+    ]
+      .filter(([key]) => Boolean(psychosocialForm[key as keyof PsychosocialForm]))
+      .map(([, label]) => ({
+        title: label,
+        source: "diagnosis_psychosocial",
+      }));
+    const hasContextSignal = Boolean(
+      diagnosisContextForm.work_description.trim() ||
+      diagnosisContextForm.incident_history.trim() ||
+      diagnosisContextForm.notes.trim() ||
+      psychosocialForm.notes.trim() ||
+      selectedHazards.length > 0
+    );
 
-    if (!currentContext.tenantId || !currentContext.establishmentId || !diagnosisSessionId) {
+    if (!currentContext.tenantId || !currentContext.establishmentId) {
       setDiagnosisStatus("error");
-      setDiagnosisError("Inicie uma sessao de diagnostico antes.");
+      setDiagnosisError("Salve a triagem ate estabelecimento, setor e atividade antes de gerar risco.");
       return;
     }
 
@@ -2280,8 +2708,18 @@ useEffect(() => {
       return;
     }
 
+    if (!hasContextSignal) {
+      setDiagnosisStatus("error");
+      setDiagnosisError("Preencha pelo menos um sinal do diagnostico ou descreva o contexto antes de gerar risco preliminar.");
+      return;
+    }
+
     try {
-      const path = buildUrl("/api/nr1/risks", {
+      const sessionId = await ensureDiagnosisSession();
+      await saveDiagnosisContextBlock(sessionId);
+      await savePsychosocialDiagnosisBlock(sessionId);
+
+      const path = buildUrl("/api/nr1/diagnosis-review", {
         tenantId: currentContext.tenantId,
       });
 
@@ -2291,51 +2729,89 @@ useEffect(() => {
           method: "POST",
           body: JSON.stringify({
             establishment_id: currentContext.establishmentId,
-            department_id: departmentId,
-            activity_id: activityId,
-            diagnosis_session_id: diagnosisSessionId,
-            title: "Risco psicossocial identificado no diagnostico",
-            risk_category: "psychosocial",
-            hazard_description: "Indicadores psicossociais sinalizados no diagnostico guiado.",
-            source_circumstance: "Diagnóstico guiado psicossocial",
-            exposed_group: "Trabalhadores da atividade analisada",
-            possible_harms: "Estresse ocupacional, fadiga, sofrimento psiquico e reducao de desempenho.",
-            existing_controls: "Controles ainda nao formalizados no sistema.",
-            exposure_characterization: "Exposicao relacionada a organizacao do trabalho e interacoes da rotina.",
-            severity_level: "medium",
-            probability_level: "medium",
-            risk_level: "medium",
-            classification: "priorizar monitoramento",
-            recommended_measure: "Revisar carga de trabalho, apoio da lideranca, canais de comunicacao e medidas preventivas.",
-            suggested_responsible: "Gestao da empresa",
-            suggested_deadline: isoDatePlusDays(30),
-            status: "identified",
+            diagnosis_session_id: sessionId,
+            confirmed_exposed_group_json: [
+              {
+                title: departmentName,
+                activity: activityName,
+                exposed_people_count: numberOrNull(diagnosisContextForm.exposed_people_count),
+              },
+            ],
+            confirmed_hazards_json:
+              selectedHazards.length > 0
+                ? selectedHazards
+                : [
+                    {
+                      title: "Indicadores psicossociais observados no diagnostico guiado",
+                      description:
+                        diagnosisContextForm.incident_history ||
+                        diagnosisContextForm.work_description ||
+                        psychosocialForm.notes ||
+                        "Perigo identificado no fechamento do diagnostico guiado.",
+                    },
+                  ],
+            preliminary_priority: reviewForm.preliminary_priority,
+            reviewer_comment:
+              reviewForm.reviewer_comment ||
+              diagnosisContextForm.notes ||
+              psychosocialForm.notes ||
+              "Revisao gerada no fechamento do diagnostico guiado.",
+            reviewed_at: reviewForm.reviewed_at || new Date().toISOString(),
+            generate_risk: true,
+            generated_risk_title: "Risco preliminar gerado pelo diagnostico guiado",
+            generated_risk_category: "psychosocial",
+            generated_risk_source_circumstance: "Diagnostico guiado NR-1",
+            generated_risk_recommended_measure:
+              "Validar o risco preliminar com responsavel tecnico e definir plano de acao inicial.",
           }),
         },
         currentContext
       );
 
-      const riskId = firstString(extractFirstEntity(response), ["id"]);
+      const generatedRisk = (response as JsonObject).generatedRisk;
+      const riskId =
+        firstString(generatedRisk, ["riskId", "risk_id", "id"]) ||
+        firstString(response, ["riskId", "risk_id", "id"]);
 
       if (!riskId) {
-        throw new Error("A rota nao retornou o id do risco.");
+        throw new Error("A revisao foi salva, mas a rota nao retornou o id do risco preliminar.");
       }
 
       setDiagnosisRiskId(riskId);
+      setSelectedRiskId(riskId);
+      setActionPlanForm((prev) => ({
+        ...prev,
+        risk_id: riskId,
+        title: prev.title || "Plano de acao inicial para risco preliminar",
+        description:
+          prev.description ||
+          "Validar o risco preliminar gerado pelo diagnostico guiado e definir medidas de controle.",
+        priority: prev.priority || reviewForm.preliminary_priority || "medium",
+        due_date: prev.due_date || isoDatePlusDays(30),
+        responsible_name: prev.responsible_name || "Gestao da empresa",
+        monitoring_method:
+          prev.monitoring_method || "Acompanhar evolucao das medidas em reuniao de rotina e registrar evidencias.",
+        evidence_method:
+          prev.evidence_method || "Registrar ata, checklist, orientacao, comunicacao ou outra evidencia da medida adotada.",
+        completion_indicator:
+          prev.completion_indicator || "Risco revisado e plano de acao inicial definido com responsavel e prazo.",
+      }));
 
-      await recordAuditEvent("psychosocial_risk_created_from_workspace", {
-        diagnosis_session_id: diagnosisSessionId,
+      await refreshRiskActionData(riskId);
+
+      await recordAuditEvent("preliminary_risk_generated_from_diagnosis_review", {
+        diagnosis_session_id: sessionId,
         risk_id: riskId,
         activity_id: activityId,
       }, "formal");
 
       await refreshAuditEvents();
 
-      setDiagnosisSuccess("Risco psicossocial gerado no inventario.");
+      setDiagnosisSuccess("Risco preliminar gerado a partir do diagnostico. O proximo passo e revisar o plano de acao inicial.");
       setDiagnosisStatus("saved");
     } catch (error) {
       setDiagnosisStatus("error");
-      setDiagnosisError(error instanceof Error ? error.message : "Erro ao gerar risco psicossocial.");
+      setDiagnosisError(error instanceof Error ? error.message : "Erro ao gerar risco preliminar a partir do diagnostico.");
     }
   }
   const loadRisks = useCallback(async (nextContext: BackendContext): Promise<SimpleEntity[]> => {
@@ -2622,25 +3098,46 @@ useEffect(() => {
 
       try {
         const resolvedContext = await resolveContext();
+        const storedSelection = getStoredWorkspaceSelection(resolvedContext.tenantId);
         const loadedCompanies = await loadCompanies(resolvedContext);
+        const currentActiveCompanyId = activeCompanyIdRef.current;
+        const storedCompanyExists = Boolean(
+          storedSelection.companyId && loadedCompanies.some((item) => item.id === storedSelection.companyId)
+        );
 
-        const firstCompanyId = firstString(loadedCompanies[0], ["id"]) || "";
-        if (firstCompanyId) {
+        const firstCompanyId = resolvePreferredCompanyId({
+          preferredCompanyId: storedCompanyExists ? storedSelection.companyId : "",
+          currentActiveCompanyId,
+          loadedCompanies,
+          loadedEstablishments: [],
+        });
+        if (firstCompanyId && !activeCompanyIdRef.current) {
+          activeCompanyIdRef.current = firstCompanyId;
           setActiveCompanyId(firstCompanyId);
-          setEstablishmentForm((prev) => ({ ...prev, company_id: firstCompanyId }));
+          setEstablishmentForm((prev) => ({ ...prev, company_id: prev.company_id || firstCompanyId }));
         }
 
-        const loadedEstablishments = await loadEstablishments(resolvedContext);
+        const companyIdForEstablishments = activeCompanyIdRef.current || firstCompanyId;
+        const loadedEstablishments = await loadEstablishments(resolvedContext, companyIdForEstablishments);
+        const storedEstablishment = loadedEstablishments.find((item) => item.id === storedSelection.establishmentId);
         const fallbackEstablishmentId =
+          firstString(storedEstablishment, ["id"]) ||
           resolvedContext.establishmentId ||
           firstString(loadedEstablishments[0], ["id"]);
 
         const selectedEstablishmentCompanyId =
-          firstString(loadedEstablishments.find((item) => item.id === fallbackEstablishmentId), ["company_id"]) ||
-          firstString(loadedEstablishments[0], ["company_id"]) ||
-          firstCompanyId;
+          resolvePreferredCompanyId({
+            preferredCompanyId: storedCompanyExists ? storedSelection.companyId : "",
+            currentActiveCompanyId: activeCompanyIdRef.current || firstCompanyId,
+            loadedCompanies,
+            loadedEstablishments,
+            fallbackCompanyId:
+              firstString(loadedEstablishments.find((item) => item.id === fallbackEstablishmentId), ["company_id"]) ||
+              firstString(loadedEstablishments[0], ["company_id"]),
+          });
 
-        if (selectedEstablishmentCompanyId) {
+        if (selectedEstablishmentCompanyId && !activeCompanyIdRef.current) {
+          activeCompanyIdRef.current = selectedEstablishmentCompanyId;
           setActiveCompanyId(selectedEstablishmentCompanyId);
           setEstablishmentForm((prev) => ({ ...prev, company_id: selectedEstablishmentCompanyId }));
         }
@@ -2649,6 +3146,13 @@ useEffect(() => {
           tenantId: resolvedContext.tenantId,
           establishmentId: fallbackEstablishmentId,
         };
+
+        if (selectedEstablishmentCompanyId || fallbackEstablishmentId) {
+          setStoredWorkspaceSelection(nextContext.tenantId, {
+            companyId: selectedEstablishmentCompanyId || firstCompanyId,
+            establishmentId: fallbackEstablishmentId || "",
+          });
+        }
 
         const [loadedDepartments, loadedActivities, loadedDraft, loadedAuditEvents] =
           await Promise.all([
@@ -3058,7 +3562,12 @@ useEffect(() => {
                 <select
                   value={activeCompanyId}
                   onChange={(event) => {
+                    activeCompanyIdRef.current = event.target.value;
                     setActiveCompanyId(event.target.value);
+                    setStoredWorkspaceSelection(contextRef.current.tenantId, {
+                      companyId: event.target.value,
+                      establishmentId: "",
+                    });
                     setEstablishmentForm((prev) => ({ ...prev, company_id: event.target.value }));
                   }}
                   className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
@@ -3151,6 +3660,16 @@ useEffect(() => {
                   >
                     Sair da jornada guiada
                   </button>
+                  {visibleFormError ? (
+                    <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                      {visibleFormError}
+                    </div>
+                  ) : null}
+                  {successMessage ? (
+                    <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                      {successMessage}
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
               {(!showGuidedSetup || onboardingCurrentStep.key === "empresa") ? (
@@ -3171,6 +3690,8 @@ useEffect(() => {
                               setCompanyForm((prev) => ({ ...prev, cnpj: event.target.value }));
                               setCnpjLookupStatus("idle");
                               setCnpjLookupMessage(null);
+                              setFormError(null);
+                              setSuccessMessage(null);
                             }}
                             placeholder="00.000.000/0000-00"
                             className="mt-2 w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
@@ -3366,10 +3887,7 @@ useEffect(() => {
                     type={showGuidedSetup && !isLastOnboardingMicroStep ? "button" : "submit"}
                     onClick={
                       showGuidedSetup && !isLastOnboardingMicroStep
-                        ? () => {
-                            setGuidedSetupChoice("review");
-                            setOnboardingMicroStepIndex((prev) => prev + 1);
-                          }
+                        ? handleContinueGuidedMicroStep
                         : undefined
                     }
                     disabled={formStatus === "saving"}
@@ -3418,7 +3936,15 @@ useEffect(() => {
                 <div className={showGuidedSetup ? "hidden" : "mt-5 grid gap-3"}>
                   <select
                     value={establishmentForm.company_id || activeCompanyId}
-                    onChange={(event) => setEstablishmentForm((prev) => ({ ...prev, company_id: event.target.value }))}
+                    onChange={(event) => {
+                      activeCompanyIdRef.current = event.target.value;
+                      setActiveCompanyId(event.target.value);
+                      setStoredWorkspaceSelection(contextRef.current.tenantId, {
+                        companyId: event.target.value,
+                        establishmentId: "",
+                      });
+                      setEstablishmentForm((prev) => ({ ...prev, company_id: event.target.value }));
+                    }}
                     className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
                   >
                     <option value="">Empresa vinculada</option>
@@ -3473,10 +3999,7 @@ useEffect(() => {
                     type={showGuidedSetup && !isLastOnboardingMicroStep ? "button" : "submit"}
                     onClick={
                       showGuidedSetup && !isLastOnboardingMicroStep
-                        ? () => {
-                            setGuidedSetupChoice("review");
-                            setOnboardingMicroStepIndex((prev) => prev + 1);
-                          }
+                        ? handleContinueGuidedMicroStep
                         : undefined
                     }
                     disabled={formStatus === "saving"}
@@ -3571,10 +4094,7 @@ useEffect(() => {
                     type={showGuidedSetup && !isLastOnboardingMicroStep ? "button" : "submit"}
                     onClick={
                       showGuidedSetup && !isLastOnboardingMicroStep
-                        ? () => {
-                            setGuidedSetupChoice("review");
-                            setOnboardingMicroStepIndex((prev) => prev + 1);
-                          }
+                        ? handleContinueGuidedMicroStep
                         : undefined
                     }
                     disabled={formStatus === "saving"}
@@ -3688,10 +4208,7 @@ useEffect(() => {
                     type={showGuidedSetup && !isLastOnboardingMicroStep ? "button" : "submit"}
                     onClick={
                       showGuidedSetup && !isLastOnboardingMicroStep
-                        ? () => {
-                            setGuidedSetupChoice("review");
-                            setOnboardingMicroStepIndex((prev) => prev + 1);
-                          }
+                        ? handleContinueGuidedMicroStep
                         : undefined
                     }
                     disabled={formStatus === "saving"}
@@ -3741,7 +4258,11 @@ useEffect(() => {
                     <label className="text-sm font-semibold text-slate-700">Atividade analisada</label>
                     <select
                       value={diagnosisActivityId || firstString(activities[0], ["id"]) || ""}
-                      onChange={(event) => setDiagnosisActivityId(event.target.value)}
+                      onChange={(event) => {
+                        setDiagnosisActivityId(event.target.value);
+                        setDiagnosisSessionId("");
+                        setDiagnosisRiskId("");
+                      }}
                       className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                     >
                       <option value="">Selecione uma atividade</option>
@@ -3837,7 +4358,7 @@ useEffect(() => {
 
                 <button
                   type="submit"
-                  disabled={diagnosisStatus === "saving" || !diagnosisSessionId}
+                  disabled={diagnosisStatus === "saving"}
                   className="mt-5 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                 >
                   Salvar contexto
@@ -3887,7 +4408,7 @@ useEffect(() => {
 
                 <button
                   type="submit"
-                  disabled={diagnosisStatus === "saving" || !diagnosisSessionId}
+                  disabled={diagnosisStatus === "saving"}
                   className="mt-5 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                 >
                   Salvar psicossocial
@@ -3897,24 +4418,24 @@ useEffect(() => {
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h3 className="text-lg font-semibold">3. Encaminhar para inventario de riscos</h3>
                 <p className="mt-1 text-sm text-slate-500">
-                  Cria um risco psicossocial vinculado a atividade, setor, estabelecimento e sessao de diagnostico.
+                  Fecha a revisao do diagnostico e gera um risco preliminar real vinculado a atividade, setor, estabelecimento e sessao.
                 </p>
 
                 <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                  A data sugerida sera gravada em formato ISO, conforme contrato real da rota de riscos.
+                  A acao usa a rota real de revisao do diagnostico com geracao de risco e prepara o proximo passo para plano de acao.
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => void handleCreatePsychosocialRisk()}
-                  disabled={diagnosisStatus === "saving" || !diagnosisSessionId}
+                  onClick={() => void handleGeneratePreliminaryRiskFromDiagnosis()}
+                  disabled={diagnosisStatus === "saving"}
                   className="mt-5 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
                 >
-                  Gerar risco psicossocial
+                  Gerar risco preliminar a partir do diagnóstico
                 </button>
 
                 {diagnosisRiskId ? (
-                  <p className="mt-3 text-sm text-slate-600">Risco criado: {diagnosisRiskId}</p>
+                  <p className="mt-3 text-sm text-slate-600">Risco preliminar: {diagnosisRiskId}</p>
                 ) : null}
               </div>
             </section>
