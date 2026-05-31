@@ -82,6 +82,120 @@ const schema = z.object({
   signed_proposal_file: z.string().max(500).optional().default(""),
 });
 
+function getPasiniBearerToken(request: NextRequest) {
+  const authorization = request.headers.get("authorization") || "";
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  return match?.[1] || "";
+}
+
+export async function GET(request: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const privilegedKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const tenantId = QUERINO_PASINI_TENANT_ID;
+
+  if (!supabaseUrl || !anonKey || !privilegedKey || !tenantId) {
+    return NextResponse.json(
+      { error: "Configuracao indisponivel." },
+      { status: 500 }
+    );
+  }
+
+  const bearerToken = getPasiniBearerToken(request);
+
+  if (!bearerToken) {
+    return NextResponse.json(
+      { error: "Acesso nao autenticado." },
+      { status: 401 }
+    );
+  }
+
+  const authClient = createClient(supabaseUrl, anonKey, {
+    global: {
+      headers: {
+        Authorization: "Bearer " + bearerToken,
+      },
+    },
+  });
+
+  const { data: userData, error: userError } = await authClient.auth.getUser();
+
+  if (userError || !userData.user) {
+    return NextResponse.json(
+      { error: "Sessao invalida." },
+      { status: 401 }
+    );
+  }
+
+  const supabase = createClient(supabaseUrl, privilegedKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("tenant_memberships")
+    .select("id, role")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userData.user.id)
+    .in("role", ["owner", "admin"])
+    .maybeSingle();
+
+  if (membershipError || !membership) {
+    return NextResponse.json(
+      { error: "Acesso restrito a consultoria." },
+      { status: 403 }
+    );
+  }
+
+  const status = request.nextUrl.searchParams.get("status")?.trim();
+
+  let query = supabase
+    .from("pasini_recruitment_requests")
+    .select(
+      [
+        "id",
+        "status",
+        "company_legal_name",
+        "company_trade_name",
+        "company_cnpj",
+        "requester_name",
+        "requester_role_title",
+        "requester_email",
+        "requester_phone",
+        "job_title",
+        "position_count",
+        "vacancy_information_status",
+        "recommended_package",
+        "selected_package",
+        "payment_terms",
+        "govbr_signature_status",
+        "created_at",
+        "updated_at",
+      ].join(",")
+    )
+    .eq("tenant_id", tenantId)
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (status) {
+    query = query.eq("status", status);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    return NextResponse.json(
+      { error: "Nao foi possivel listar as solicitacoes." },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({
+    requests: data || [],
+  });
+}
 export async function POST(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const privilegedKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -240,6 +354,7 @@ export async function POST(request: NextRequest) {
     govbr_signature_status: "not_applicable",
   });
 }
+
 
 
 
