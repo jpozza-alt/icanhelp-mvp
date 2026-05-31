@@ -1315,9 +1315,6 @@ useEffect(() => {
       ok: companyEmployeeCountValue !== null && companyEmployeeCountValue > 0,
     },
   ];
-  const showCompanyFinalFeedback =
-    isGuidedCompanyFinalMicroStep;
-
   function handleContinueGuidedMicroStep(): void {
     setCompanyFinalSubmitAttempted(false);
     setFormError(null);
@@ -3896,6 +3893,24 @@ useEffect(() => {
                         <p className="mt-2 text-xs leading-5 text-[#6f665b]">
                           O historico sera coletado como indicador agregado: afastamentos, acidentes, CAT, atestados recorrentes, setores mais afetados, motivos agrupados e evidencias existentes. Nao deve coletar nome de trabalhador, prontuario medico, CID individual ou diagnostico clinico individual.
                         </p>
+                        <div data-testid="nr1-company-final-checklist" className="mt-4 rounded-2xl border border-[#d9c9b8] bg-white p-4">
+                          <p className="text-sm font-semibold text-[#10243e]">Conferencia final da triagem</p>
+                          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            {companyRequiredFieldSummary.map((item) => (
+                              <div key={item.label} className="flex items-center justify-between gap-3 rounded-xl bg-[#fffaf3] px-3 py-2 text-sm">
+                                <span className="text-[#10243e]">{item.label}</span>
+                                <span className={`font-semibold ${item.ok ? "text-emerald-700" : "text-red-700"}`}>
+                                  {item.ok ? "OK" : "Pendente"}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          {visibleFormError ? (
+                            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                              {visibleFormError}
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                     ) : null}
                   </div>
@@ -3962,27 +3977,6 @@ useEffect(() => {
                     ))}
                   </div>
                 </div>
-
-                {showCompanyFinalFeedback ? (
-                  <div className="mt-5 rounded-2xl border border-[#d9c9b8] bg-white p-4">
-                    <p className="text-sm font-semibold text-[#10243e]">Revise os campos obrigatorios</p>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      {companyRequiredFieldSummary.map((item) => (
-                        <div key={item.label} className="flex items-center justify-between gap-3 rounded-xl bg-[#fffaf3] px-3 py-2 text-sm">
-                          <span className="text-[#10243e]">{item.label}</span>
-                          <span className={`font-semibold ${item.ok ? "text-emerald-700" : "text-red-700"}`}>
-                            {item.ok ? "OK" : "Pendente"}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    {visibleFormError ? (
-                      <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-                        {visibleFormError}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
 
                 <div className="mt-5 flex items-center justify-between gap-3">
                   {showGuidedSetup && onboardingMicroStepIndex > 0 ? (
