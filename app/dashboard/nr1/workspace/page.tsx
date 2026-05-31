@@ -3474,7 +3474,7 @@ useEffect(() => {
 
       <div className={showGuidedSetup ? "" : "mx-auto grid max-w-7xl gap-6 px-6 py-6 xl:grid-cols-[280px_1fr]"}>
         {showWorkspaceDashboardContent ? (
-        <aside className="h-fit rounded-3xl border border-[#132238] bg-[#132238] p-5 text-white shadow-sm">
+        <aside className="sticky top-6 h-fit max-h-[calc(100vh-3rem)] overflow-y-auto rounded-3xl border border-[#132238] bg-[#132238] p-5 text-white shadow-sm">
           <div className="border-b border-white/10 pb-5">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#c7a96b]">icanHelp NR-1</p>
             <p className="mt-2 text-sm leading-5 text-white/70">
@@ -5050,4 +5050,3 @@ useEffect(() => {
     </main>
 );
 }
-
