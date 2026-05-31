@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   PasiniProposalPdfDocument,
   type PasiniProposalPdfRecord,
-} from "@/src/lib/pasini/proposal-pdf";
+} from "@/lib/pasini/proposal-pdf";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -149,3 +149,4 @@ export async function GET(request: NextRequest, context: RouteContext) {
     },
   });
 }
+

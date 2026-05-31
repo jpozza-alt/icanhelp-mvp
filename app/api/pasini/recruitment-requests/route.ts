@@ -57,10 +57,15 @@ const schema = z.object({
     .or(z.literal(""))
     .default(""),
 
-  mandatory_declarations: z.array(z.literal("analysis_authorization")).min(1),
+  mandatory_declarations: z
+    .union([
+      z.array(z.literal("analysis_authorization")).min(1),
+      z.literal(true).transform(() => ["analysis_authorization"]),
+    ])
+    .default(["analysis_authorization"]),
   final_confirmation: z.literal(true),
-  lgpd_acceptance: z.literal(true),
-  terms_acceptance: z.literal(true),
+  lgpd_acceptance: z.literal(true).optional().default(true),
+  terms_acceptance: z.literal(true).optional().default(true),
 
   acceptance_name: z.string().min(2).max(180),
   acceptance_cpf: z.string().max(32).optional().default(""),
@@ -262,7 +267,7 @@ export async function POST(request: NextRequest) {
     .insert({
       tenant_id: QUERINO_PASINI_TENANT_ID,
       source: "public_landing",
-      status: "proposal_draft_pending_consultancy_review",
+      status: "pending_consultancy_review",
 
       selected_package: parsed.selected_package,
       recommended_package: parsed.recommended_package,
@@ -333,7 +338,7 @@ export async function POST(request: NextRequest) {
         recommended_package: parsed.recommended_package,
         vacancy_complexity_level: parsed.vacancy_complexity_level,
         vacancy_information_status: parsed.vacancy_information_status,
-        request_status: "proposal_draft_pending_consultancy_review",
+        request_status: "pending_consultancy_review",
         govbr_signature_status: "not_applicable",
       },
     })
@@ -350,10 +355,13 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     ok: true,
     request_id: data.id,
-    status: "proposal_draft_pending_consultancy_review",
+    status: "pending_consultancy_review",
     govbr_signature_status: "not_applicable",
   });
 }
+
+
+
 
 
 
