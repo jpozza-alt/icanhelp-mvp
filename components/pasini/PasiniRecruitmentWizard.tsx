@@ -529,25 +529,114 @@ export default function PasiniRecruitmentWizard() {
         )}
 
         {step === 2 && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm leading-7 text-white/72 md:col-span-2">
-              Situacao informada:{" "}
-              <span className="font-semibold text-[#dcbe7e]">
-                {vacancyStatuses.find((item) => item.key === form.vacancy_information_status)?.title}
-              </span>
+          <div className="grid gap-4">
+            <div className="rounded-3xl border border-[#dcbe7e]/25 bg-[#dcbe7e]/10 p-4 text-sm leading-6 text-white/75">
+              Dados basicos da vaga. Abra cada bloco e complete somente o que souber.
             </div>
 
-            <Field required label="Cargo da vaga" name="job_title" value={form.job_title} onChange={handleChange} />
-            <Field label="Setor da vaga" name="department_name" value={form.department_name} onChange={handleChange} />
-            <Field type="number" required label="Quantidade de vagas" name="position_count" value={String(form.position_count)} onChange={handleChange} />
-            <Field label="Motivo da contratacao" name="hiring_reason" value={form.hiring_reason} onChange={handleChange} />
-            <Field label="Tipo de contratacao" name="employment_type" value={form.employment_type} onChange={handleChange} />
-            <Field label="Modelo de trabalho" name="work_model" value={form.work_model} onChange={handleChange} />
-            <Field label="Horario de trabalho" name="work_schedule" value={form.work_schedule} onChange={handleChange} />
-            <Field label="Faixa salarial" name="salary_range" value={form.salary_range} onChange={handleChange} />
-            <TextArea label="Beneficios oferecidos" name="benefits" value={form.benefits} onChange={handleChange} />
-            <TextArea label="Valores ou observacoes sobre beneficios" name="benefits_notes" value={form.benefits_notes} onChange={handleChange} />
-            <TextArea label="Principais atividades do cargo" name="main_activities" value={form.main_activities} onChange={handleChange} />
+            <ExpandableSection title="Identificacao da vaga" description="Cargo, setor e quantidade de vagas." defaultOpen>
+              <div className="grid gap-4 md:grid-cols-2">
+                <Field label="Cargo ou funcao" name="job_title" value={form.job_title} onChange={handleChange} />
+                <Field label="Setor ou departamento" name="department_name" value={form.department_name} onChange={handleChange} />
+              </div>
+              <Field label="Quantidade de vagas" name="position_count" value={String(form.position_count)} onChange={handleChange} />
+            </ExpandableSection>
+
+            <ExpandableSection title="Contratacao e formato de trabalho" description="Motivo, tipo de contrato, modelo e jornada.">
+              <SelectField
+                label="Motivo da contratacao"
+                name="hiring_reason"
+                value={form.hiring_reason}
+                onChange={handleChange}
+                options={[
+                  { value: "substituicao", label: "Substituicao de colaborador" },
+                  { value: "aumento_demanda", label: "Aumento de demanda" },
+                  { value: "nova_area", label: "Nova area ou nova funcao" },
+                  { value: "banco_talentos", label: "Banco de talentos" },
+                  { value: "temporaria", label: "Demanda temporaria" },
+                  { value: "outro", label: "Outro motivo" },
+                ]}
+              />
+              <div className="grid gap-4 md:grid-cols-2">
+                <SelectField
+                  label="Tipo de contrato"
+                  name="employment_type"
+                  value={form.employment_type}
+                  onChange={handleChange}
+                  options={[
+                    { value: "CLT", label: "CLT" },
+                    { value: "PJ", label: "PJ" },
+                    { value: "temporario", label: "Temporario" },
+                    { value: "estagio", label: "Estagio" },
+                    { value: "aprendiz", label: "Aprendiz" },
+                    { value: "outro", label: "Outro" },
+                  ]}
+                />
+                <SelectField
+                  label="Modelo de trabalho"
+                  name="work_model"
+                  value={form.work_model}
+                  onChange={handleChange}
+                  options={[
+                    { value: "Presencial", label: "Presencial" },
+                    { value: "Hibrido", label: "Hibrido" },
+                    { value: "Remoto", label: "Remoto" },
+                    { value: "Externo", label: "Externo" },
+                    { value: "A definir", label: "A definir" },
+                  ]}
+                />
+              </div>
+              <SelectField
+                label="Jornada"
+                name="work_schedule"
+                value={form.work_schedule}
+                onChange={handleChange}
+                options={[
+                  { value: "Comercial", label: "Horario comercial" },
+                  { value: "Escala", label: "Escala" },
+                  { value: "Turnos", label: "Turnos" },
+                  { value: "Meio periodo", label: "Meio periodo" },
+                  { value: "A definir", label: "A definir" },
+                ]}
+              />
+            </ExpandableSection>
+
+            <ExpandableSection title="Remuneracao e beneficios" description="Faixa salarial, beneficios e observacoes.">
+              <div className="grid gap-4 md:grid-cols-2">
+                <SelectField
+                  label="Faixa salarial"
+                  name="salary_range"
+                  value={form.salary_range}
+                  onChange={handleChange}
+                  options={[
+                    { value: "A combinar", label: "A combinar" },
+                    { value: "A definir", label: "A definir" },
+                    { value: "Ate 2000", label: "Ate R$ 2.000" },
+                    { value: "2000 a 3000", label: "R$ 2.000 a R$ 3.000" },
+                    { value: "3000 a 5000", label: "R$ 3.000 a R$ 5.000" },
+                    { value: "Acima de 5000", label: "Acima de R$ 5.000" },
+                  ]}
+                />
+                <SelectField
+                  label="Beneficios"
+                  name="benefits"
+                  value={form.benefits}
+                  onChange={handleChange}
+                  options={[
+                    { value: "A definir", label: "A definir" },
+                    { value: "Vale alimentacao e vale transporte", label: "Vale alimentacao e vale transporte" },
+                    { value: "Beneficios internos da empresa", label: "Beneficios internos da empresa" },
+                    { value: "Sem beneficios informados", label: "Sem beneficios informados" },
+                    { value: "Outro", label: "Outro" },
+                  ]}
+                />
+              </div>
+              <TextArea label="Observacoes sobre beneficios ou condicoes da vaga" name="benefits_notes" value={form.benefits_notes} onChange={handleChange} />
+            </ExpandableSection>
+
+            <ExpandableSection title="Atividades principais" description="O que a pessoa fara no dia a dia.">
+              <TextArea label="Atividades principais da vaga" name="main_activities" value={form.main_activities} onChange={handleChange} />
+            </ExpandableSection>
           </div>
         )}
 
@@ -752,6 +841,41 @@ function ExpandableSection({
     </details>
   );
 }
+
+function SelectField({
+  label,
+  name,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <label className="flex flex-col gap-2 text-sm font-medium text-white/80">
+      {label}
+      <select
+        name={name}
+        value={value}
+        onChange={onChange}
+        className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition focus:border-[#dcbe7e]/70 focus:bg-white/[0.06]"
+      >
+        <option value="" className="text-[#101b3b]">
+          Selecione uma opcao
+        </option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value} className="text-[#101b3b]">
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
 function Field(props: {
   label: string;
   name: keyof FormState;
@@ -793,6 +917,8 @@ function TextArea(props: {
     </label>
   );
 }
+
+
 
 
 
