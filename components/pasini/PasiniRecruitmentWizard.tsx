@@ -1,5 +1,7 @@
 "use client";
 
+
+import type { ReactNode } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import { useMemo, useState } from "react";
 
@@ -550,14 +552,32 @@ export default function PasiniRecruitmentWizard() {
         )}
 
         {step === 3 && (
-          <div className="grid gap-4 md:grid-cols-2">
-            <TextArea label="Experiencia necessaria" name="required_experience" value={form.required_experience} onChange={handleChange} />
-            <TextArea label="Formacao necessaria" name="required_education" value={form.required_education} onChange={handleChange} />
-            <TextArea label="Conhecimentos tecnicos desejados" name="technical_skills" value={form.technical_skills} onChange={handleChange} />
-            <TextArea label="Sistemas, ferramentas ou equipamentos necessarios" name="systems_tools_equipment" value={form.systems_tools_equipment} onChange={handleChange} />
-            <TextArea label="Caracteristicas comportamentais esperadas" name="behavioral_profile" value={form.behavioral_profile} onChange={handleChange} />
-            <TextArea label="Criterios eliminatorios" name="elimination_criteria" value={form.elimination_criteria} onChange={handleChange} />
-            <TextArea label="Criterios desejaveis" name="desirable_criteria" value={form.desirable_criteria} onChange={handleChange} />
+          <div className="grid gap-4">
+            <div className="rounded-3xl border border-[#dcbe7e]/25 bg-[#dcbe7e]/10 p-4 text-sm leading-6 text-white/75">
+              Preencha somente o que souber. Os blocos abaixo organizam o perfil da vaga sem deixar a tela pesada.
+            </div>
+
+            <ExpandableSection title="Experiencia necessaria" description="Informe o tipo de vivencia profissional esperada para a vaga." defaultOpen>
+              <TextArea label="Experiencia necessaria" name="required_experience" value={form.required_experience} onChange={handleChange} />
+            </ExpandableSection>
+
+            <ExpandableSection title="Formacao e conhecimentos tecnicos" description="Registre escolaridade, cursos, conhecimentos e requisitos tecnicos.">
+              <TextArea label="Formacao necessaria" name="required_education" value={form.required_education} onChange={handleChange} />
+              <TextArea label="Conhecimentos tecnicos desejados" name="technical_skills" value={form.technical_skills} onChange={handleChange} />
+            </ExpandableSection>
+
+            <ExpandableSection title="Ferramentas, sistemas e equipamentos" description="Liste sistemas, maquinas, ferramentas ou equipamentos que a pessoa precisa usar.">
+              <TextArea label="Sistemas, ferramentas ou equipamentos necessarios" name="systems_tools_equipment" value={form.systems_tools_equipment} onChange={handleChange} />
+            </ExpandableSection>
+
+            <ExpandableSection title="Perfil comportamental" description="Descreva atitudes, postura, comunicacao e caracteristicas importantes.">
+              <TextArea label="Caracteristicas comportamentais esperadas" name="behavioral_profile" value={form.behavioral_profile} onChange={handleChange} />
+            </ExpandableSection>
+
+            <ExpandableSection title="Criterios de selecao" description="Separe o que elimina candidatos do que apenas ajuda na escolha.">
+              <TextArea label="Criterios eliminatorios" name="elimination_criteria" value={form.elimination_criteria} onChange={handleChange} />
+              <TextArea label="Criterios desejaveis" name="desirable_criteria" value={form.desirable_criteria} onChange={handleChange} />
+            </ExpandableSection>
           </div>
         )}
 
@@ -700,6 +720,38 @@ export default function PasiniRecruitmentWizard() {
   );
 }
 
+
+function ExpandableSection({
+  title,
+  description,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  description?: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+}) {
+  return (
+    <details
+      className="group rounded-3xl border border-white/10 bg-white/[0.04] p-4 open:bg-white/[0.06]"
+      open={defaultOpen}
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left">
+        <span>
+          <span className="block text-sm font-semibold text-white">{title}</span>
+          {description ? (
+            <span className="mt-1 block text-xs leading-5 text-white/50">{description}</span>
+          ) : null}
+        </span>
+        <span className="rounded-full border border-[#dcbe7e]/40 px-3 py-1 text-xs font-semibold text-[#dcbe7e]">
+          abrir
+        </span>
+      </summary>
+      <div className="mt-4 grid gap-4">{children}</div>
+    </details>
+  );
+}
 function Field(props: {
   label: string;
   name: keyof FormState;
@@ -741,6 +793,7 @@ function TextArea(props: {
     </label>
   );
 }
+
 
 
 
