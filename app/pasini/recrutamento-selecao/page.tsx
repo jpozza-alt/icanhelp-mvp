@@ -5,7 +5,7 @@ const logoPath = "/api/pasini/brand-logo";
 export const metadata = {
   title: "Solicitação de Análise | Querino & Pasini Consultoria",
   description:
-    "Envie um briefing para análise da Querino & Pasini Consultoria. A contratação será formalizada somente após proposta ou ordem de serviço assinada via gov.br.",
+    "Envie um briefing para análise da Querino & Pasini Consultoria. A contratação será formalizada somente após proposta ou ordem de serviço assinada digitalmente.",
 };
 
 export default function PasiniRecruitmentPage() {
@@ -47,7 +47,11 @@ export default function PasiniRecruitmentPage() {
             </h1>
 
             <p className="mt-7 max-w-2xl text-base leading-8 text-[#F2F2F2]/74 md:text-lg">
-              A Querino & Pasini conduz processos de recrutamento e seleção com método, escuta e direcionamento. Este formulário organiza o briefing inicial da vaga para análise da consultoria.   envio não formaliza a contratação; a contratação ocorre somente após proposta ou ordem de serviço assinada via gov.br.
+              A Querino & Pasini conduz processos de recrutamento e seleção com
+                  método, escuta e direcionamento. Este formulário organiza o briefing
+                  inicial da vaga para análise da consultoria. O envio não formaliza a
+                  contratação; a contratação ocorre somente após proposta ou ordem
+                  de serviço assinada digitalmente.
             </p>
 
             <div className="mt-10 flex flex-col gap-3 sm:flex-row">
@@ -138,6 +142,9 @@ export default function PasiniRecruitmentPage() {
     </main>
   );
 }
+
+
+
 
 
 
