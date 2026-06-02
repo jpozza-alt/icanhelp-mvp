@@ -1,6 +1,6 @@
 import PasiniRecruitmentWizard from "../../../components/pasini/PasiniRecruitmentWizard";
 
-const logoPath = "/querino-pasini-logo.png";
+const logoPath = "/api/pasini/brand-logo";
 
 export const metadata = {
   title: "Solicitação de Análise | Querino & Pasini Consultoria",
@@ -138,6 +138,7 @@ export default function PasiniRecruitmentPage() {
     </main>
   );
 }
+
 
 
 
