@@ -121,7 +121,7 @@ const initialForm: FormState = {
   signed_proposal_file: "",
 };
 
-const steps = ["Diagnostico da contratacao", "Empresa", "Vaga", "Perfil", "Fechamento e gov.br"];
+const steps = ["Diagnóstico da contratação", "Empresa", "Vaga", "Perfil", "Fechamento e gov.br"];
 
 const packages: Array<{
   key: PackageKey;
@@ -139,13 +139,13 @@ const packages: Array<{
     key: "strategic",
     title: "Estrategico",
     priceRule: "1,5 salario da vaga",
-    description: "Apoio ampliado para perfis que exigem maior criterio de selecao.",
+    description: "Apoio ampliado para perfis que exigem maior critério de seleção.",
   },
   {
     key: "premium",
     title: "Premium",
     priceRule: "2 salarios da vaga",
-    description: "Conducao consultiva para vagas sensiveis, liderancas ou funcoes-chave.",
+    description: "Conducao consultiva para vagas sensiveis, lideranças ou funcoes-chave.",
   },
 ];
 
@@ -170,12 +170,12 @@ const vacancyStatuses: Array<{
 }> = [
   {
     key: "complete",
-    title: "Ja temos as informacoes da vaga",
-    description: "A empresa ja possui descricao de cargo, briefing ou material organizado.",
+    title: "Já temos as informações da vaga",
+    description: "A empresa já possui descrição de cargo, briefing ou material organizado.",
   },
   {
     key: "partial",
-    title: "Temos parte das informacoes",
+    title: "Temos parte das informações",
     description: "A empresa tem dados iniciais, mas ainda precisa complementar alguns pontos.",
   },
   {
@@ -192,17 +192,17 @@ const complexityOptions: Array<{
 }> = [
   {
     key: "standard",
-    title: "Nao",
-    description: "Vaga comum, sem indicios de confidencialidade, lideranca ou alta dificuldade.",
+    title: "Não",
+    description: "Vaga comum, sem indicios de confidencialidade, liderança ou alta dificuldade.",
   },
   {
     key: "strategic",
     title: "Sim",
-    description: "Vaga estrategica, de lideranca, confidencial, sensivel ou dificil de preencher.",
+    description: "Vaga estrategica, de liderança, confidencial, sensivel ou difícil de preencher.",
   },
   {
     key: "unknown",
-    title: "Nao sei avaliar",
+    title: "Não sei avaliar",
     description: "A empresa prefere que a consultoria avalie a complexidade no fechamento.",
   },
 ];
@@ -217,21 +217,21 @@ function getPackageRecommendation(
   if (complexity === "strategic") {
     return {
       packageKey: "premium",
-      reason: "A vaga foi marcada como estrategica, confidencial, de lideranca, sensivel ou dificil de preencher.",
+      reason: "A vaga foi marcada como estrategica, confidencial, de liderança, sensivel ou difícil de preencher.",
     };
   }
 
   if (complexity === "unknown") {
     return {
       packageKey: "strategic",
-      reason: "A complexidade da vaga ainda nao esta clara. O plano Estrategico e o ponto intermediario recomendado.",
+      reason: "A complexidade da vaga ainda não esta clara. O plano Estrategico e o ponto intermediario recomendado.",
     };
   }
 
   if (vacancyStatus === "complete") {
     return {
       packageKey: "essential",
-      reason: "A empresa informou que ja possui descricao, briefing ou material organizado da vaga.",
+      reason: "A empresa informou que já possui descricao, briefing ou material organizado da vaga.",
     };
   }
 
@@ -252,7 +252,7 @@ function packageLabel(packageKey: "" | PackageKey) {
   if (packageKey === "essential") return "Essencial";
   if (packageKey === "strategic") return "Estrategico";
   if (packageKey === "premium") return "Premium";
-  return "nao selecionado";
+  return "não selecionado";
 }
 const declarations: Array<{
   key: DeclarationKey;
@@ -261,7 +261,7 @@ const declarations: Array<{
   {
     key: "analysis_authorization",
     label:
-      "Declaro que as informacoes fornecidas sao verdadeiras e autorizo a analise da solicitacao para elaboracao da Proposta ou Ordem de Servico. Estou ciente de que este envio nao formaliza automaticamente a contratacao, que somente ocorrera apos assinatura digital via gov.br.",
+      "Declaro que as informações fornecidas são verdadeiras e autorizo a análise da solicitação para elaboração da Proposta ou Ordem de Serviço. Estou ciente de que este envio não formaliza automaticamente a contratação, que somente ocorrerá após assinatura digital via gov.br.",
   },
 ];
 export default function PasiniRecruitmentWizard() {
@@ -383,20 +383,20 @@ export default function PasiniRecruitmentWizard() {
       const result = await response.json();
 
       if (!form.selected_package) {
-        throw new Error("Escolha o plano final de contratacao antes de enviar.");
+        throw new Error("Escolha o plano final de contratação antes de enviar.");
       }
 
       if (!response.ok || !result.ok) {
-        throw new Error(result.error || "Nao foi possivel enviar a solicitacao.");
+        throw new Error(result.error || "Não foi possível enviar a solicitação.");
       }
 
       setStatus("success");
-      setMessage("Pedido enviado com sucesso. Uma minuta de proposta sera preparada para analise da consultoria. Apos aprovacao interna, a proposta podera ser enviada por WhatsApp para assinatura via gov.br.");
+      setMessage("Pedido enviado com sucesso. Uma minuta de proposta será preparada para análise da consultoria. Após aprovação interna, a proposta poderá ser enviada por WhatsApp para assinatura via gov.br.");
       setForm(initialForm);
       setStep(0);
     } catch (error) {
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Erro inesperado ao enviar a solicitacao.");
+      setMessage(error instanceof Error ? error.message : "Erro inesperado ao enviar a solicitação.");
     }
   }
 
@@ -435,7 +435,7 @@ export default function PasiniRecruitmentWizard() {
             Gov.br
           </p>
           <p className="mt-2 text-xs leading-6 text-white/55">
-            A proposta sera preparada para assinatura digital apos o envio.
+            A proposta será preparada para assinatura digital após o envio.
           </p>
         </div>
       </aside>
@@ -454,7 +454,7 @@ export default function PasiniRecruitmentWizard() {
           <div className="grid gap-7">
             <div>
               <p className="text-sm font-semibold text-white/86">
-                A empresa ja possui informacoes da vaga?
+                A empresa já possui informações da vaga?
               </p>
               <div className="mt-3 grid gap-3 md:grid-cols-3">
                 {vacancyStatuses.map((item) => (
@@ -477,7 +477,7 @@ export default function PasiniRecruitmentWizard() {
 
             <div>
               <p className="text-sm font-semibold text-white/86">
-                Essa vaga e estrategica, de lideranca, confidencial ou dificil de preencher?
+                Essa vaga é estratégica, de liderança, confidencial ou difícil de preencher?
               </p>
               <div className="mt-3 grid gap-3 md:grid-cols-3">
                 {complexityOptions.map((item) => (
@@ -507,7 +507,7 @@ export default function PasiniRecruitmentWizard() {
               </p>
               <p className="mt-3 text-white/70">{form.package_recommendation_reason}</p>
               <p className="mt-4 text-xs leading-6 text-white/50">
-                Esta e apenas uma sugestao. O plano final sera confirmado no fechamento, antes da proposta ou ordem de servico para assinatura gov.br.
+                Esta e apenas uma sugestao. O plano final será confirmado no fechamento, antes da proposta ou ordem de serviço para assinatura gov.br.
               </p>
             </div>
           </div>
@@ -515,10 +515,10 @@ export default function PasiniRecruitmentWizard() {
 
         {step === 1 && (
           <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Razao social" name="company_legal_name" value={form.company_legal_name} onChange={handleChange} />
+            <Field label="Razão social" name="company_legal_name" value={form.company_legal_name} onChange={handleChange} />
             <Field label="Nome fantasia" name="company_trade_name" value={form.company_trade_name} onChange={handleChange} />
             <Field label="CNPJ" name="company_cnpj" value={form.company_cnpj} onChange={handleChange} />
-            <Field label="Endereco completo" name="company_address" value={form.company_address} onChange={handleChange} />
+            <Field label="Endereço completo" name="company_address" value={form.company_address} onChange={handleChange} />
             <Field required label="Nome do solicitante" name="requester_name" value={form.requester_name} onChange={handleChange} />
             <Field label="Cargo do solicitante" name="requester_role_title" value={form.requester_role_title} onChange={handleChange} />
             <Field label="CPF do solicitante" name="requester_cpf" value={form.requester_cpf} onChange={handleChange} />
@@ -531,10 +531,10 @@ export default function PasiniRecruitmentWizard() {
         {step === 2 && (
           <div className="grid gap-4">
             <div className="rounded-3xl border border-[#dcbe7e]/25 bg-[#dcbe7e]/10 p-4 text-sm leading-6 text-white/75">
-              Dados basicos da vaga. Abra cada bloco e complete somente o que souber.
+              Dados básicos da vaga. Abra cada bloco e complete somente o que souber.
             </div>
 
-            <ExpandableSection title="Identificacao da vaga" description="Cargo, setor e quantidade de vagas." defaultOpen>
+            <ExpandableSection title="Identificação da vaga" description="Cargo, setor e quantidade de vagas." defaultOpen>
               <div className="grid gap-4 md:grid-cols-2">
                 <Field label="Cargo ou funcao" name="job_title" value={form.job_title} onChange={handleChange} />
                 <Field label="Setor ou departamento" name="department_name" value={form.department_name} onChange={handleChange} />
@@ -542,9 +542,9 @@ export default function PasiniRecruitmentWizard() {
               <Field label="Quantidade de vagas" name="position_count" value={String(form.position_count)} onChange={handleChange} />
             </ExpandableSection>
 
-            <ExpandableSection title="Contratacao e formato de trabalho" description="Motivo, tipo de contrato, modelo e jornada.">
+            <ExpandableSection title="Contratação e formato de trabalho" description="Motivo, tipo de contrato, modelo e jornada.">
               <SelectField
-                label="Motivo da contratacao"
+                label="Motivo da contratação"
                 name="hiring_reason"
                 value={form.hiring_reason}
                 onChange={handleChange}
@@ -601,7 +601,7 @@ export default function PasiniRecruitmentWizard() {
               />
             </ExpandableSection>
 
-            <ExpandableSection title="Remuneracao e beneficios" description="Faixa salarial, beneficios e observacoes.">
+            <ExpandableSection title="Remuneração e benefícios" description="Faixa salarial, beneficios e observacoes.">
               <div className="grid gap-4 md:grid-cols-2">
                 <SelectField
                   label="Faixa salarial"
@@ -618,20 +618,20 @@ export default function PasiniRecruitmentWizard() {
                   ]}
                 />
                 <SelectField
-                  label="Beneficios"
+                  label="Benefícios"
                   name="benefits"
                   value={form.benefits}
                   onChange={handleChange}
                   options={[
                     { value: "A definir", label: "A definir" },
                     { value: "Vale alimentacao e vale transporte", label: "Vale alimentacao e vale transporte" },
-                    { value: "Beneficios internos da empresa", label: "Beneficios internos da empresa" },
+                    { value: "Benefícios internos da empresa", label: "Benefícios internos da empresa" },
                     { value: "Sem beneficios informados", label: "Sem beneficios informados" },
                     { value: "Outro", label: "Outro" },
                   ]}
                 />
               </div>
-              <TextArea label="Observacoes sobre beneficios ou condicoes da vaga" name="benefits_notes" value={form.benefits_notes} onChange={handleChange} />
+              <TextArea label="Observações sobre benefícios ou condicoes da vaga" name="benefits_notes" value={form.benefits_notes} onChange={handleChange} />
             </ExpandableSection>
 
             <ExpandableSection title="Atividades principais" description="O que a pessoa fara no dia a dia.">
@@ -646,13 +646,13 @@ export default function PasiniRecruitmentWizard() {
               Preencha somente o que souber. Os blocos abaixo organizam o perfil da vaga sem deixar a tela pesada.
             </div>
 
-            <ExpandableSection title="Experiencia necessaria" description="Informe o tipo de vivencia profissional esperada para a vaga." defaultOpen>
-              <TextArea label="Experiencia necessaria" name="required_experience" value={form.required_experience} onChange={handleChange} />
+            <ExpandableSection title="Experiência necessária" description="Informe o tipo de vivencia profissional esperada para a vaga." defaultOpen>
+              <TextArea label="Experiência necessária" name="required_experience" value={form.required_experience} onChange={handleChange} />
             </ExpandableSection>
 
-            <ExpandableSection title="Formacao e conhecimentos tecnicos" description="Registre escolaridade, cursos, conhecimentos e requisitos tecnicos.">
-              <TextArea label="Formacao necessaria" name="required_education" value={form.required_education} onChange={handleChange} />
-              <TextArea label="Conhecimentos tecnicos desejados" name="technical_skills" value={form.technical_skills} onChange={handleChange} />
+            <ExpandableSection title="Formação e conhecimentos técnicos" description="Registre escolaridade, cursos, conhecimentos e requisitos técnicos.">
+              <TextArea label="Formação necessária" name="required_education" value={form.required_education} onChange={handleChange} />
+              <TextArea label="Conhecimentos técnicos desejádos" name="technical_skills" value={form.technical_skills} onChange={handleChange} />
             </ExpandableSection>
 
             <ExpandableSection title="Ferramentas, sistemas e equipamentos" description="Liste sistemas, maquinas, ferramentas ou equipamentos que a pessoa precisa usar.">
@@ -663,9 +663,9 @@ export default function PasiniRecruitmentWizard() {
               <TextArea label="Caracteristicas comportamentais esperadas" name="behavioral_profile" value={form.behavioral_profile} onChange={handleChange} />
             </ExpandableSection>
 
-            <ExpandableSection title="Criterios de selecao" description="Separe o que elimina candidatos do que apenas ajuda na escolha.">
-              <TextArea label="Criterios eliminatorios" name="elimination_criteria" value={form.elimination_criteria} onChange={handleChange} />
-              <TextArea label="Criterios desejaveis" name="desirable_criteria" value={form.desirable_criteria} onChange={handleChange} />
+            <ExpandableSection title="Critérios de seleção" description="Separe o que elimina candidatos do que apenas ajuda na escolha.">
+              <TextArea label="Critérios eliminatórios" name="elimination_criteria" value={form.elimination_criteria} onChange={handleChange} />
+              <TextArea label="Critérios desejáveis" name="desirable_criteria" value={form.desirable_criteria} onChange={handleChange} />
             </ExpandableSection>
           </div>
         )}
@@ -673,7 +673,7 @@ export default function PasiniRecruitmentWizard() {
         {step === 4 && (
           <div className="grid gap-5 md:grid-cols-2">
             <div className="md:col-span-2">
-              <p className="text-sm font-semibold text-white/86">Plano pretendido para analise</p>
+              <p className="text-sm font-semibold text-white/86">Plano pretendido para análise</p>
               <div className="mt-3 grid gap-3 md:grid-cols-3">
                 {packages.map((item) => (
                   <button
@@ -703,7 +703,7 @@ export default function PasiniRecruitmentWizard() {
               />
             )}
 
-            <TextArea label="Servicos adicionais desejados" name="additional_services" value={form.additional_services} onChange={handleChange} />
+            <TextArea label="Serviços adicionais desejádos" name="additional_services" value={form.additional_services} onChange={handleChange} />
             <Field label="Modelo de recrutamento" name="recruitment_model" value={form.recruitment_model} onChange={handleChange} />
             <Field label="Valor estimado ou referencia comercial" name="approved_price" value={form.approved_price} onChange={handleChange} />
                         <label className="flex flex-col gap-2 text-sm font-medium text-white/80">
@@ -735,14 +735,14 @@ export default function PasiniRecruitmentWizard() {
               <span className="font-semibold text-[#dcbe7e]">
                 {packageLabel(form.selected_package)}
               </span>
-              . Este envio gera pedido de analise. A contratacao somente sera formalizada apos Proposta ou Ordem de Servico assinada via gov.br.
+              . Este envio gera pedido de análise. A contratação somente será formalizada após Proposta ou Ordem de Serviço assinada via gov.br.
             </div>
 
-            <Field required label="Nome completo do responsavel autorizador" name="acceptance_name" value={form.acceptance_name} onChange={handleChange} />
-            <Field label="CPF do responsavel autorizador" name="acceptance_cpf" value={form.acceptance_cpf} onChange={handleChange} />
-            <Field label="Cargo do responsavel autorizador" name="acceptance_role_title" value={form.acceptance_role_title} onChange={handleChange} />
-            <Field required type="email" label="E-mail do responsavel autorizador" name="acceptance_email" value={form.acceptance_email} onChange={handleChange} />
-            <Field required type="date" label="Data da solicitacao" name="acceptance_date" value={form.acceptance_date} onChange={handleChange} />
+            <Field required label="Nome completo do responsável autorizador" name="acceptance_name" value={form.acceptance_name} onChange={handleChange} />
+            <Field label="CPF do responsável autorizador" name="acceptance_cpf" value={form.acceptance_cpf} onChange={handleChange} />
+            <Field label="Cargo do responsável autorizador" name="acceptance_role_title" value={form.acceptance_role_title} onChange={handleChange} />
+            <Field required type="email" label="E-mail do responsável autorizador" name="acceptance_email" value={form.acceptance_email} onChange={handleChange} />
+            <Field required type="date" label="Data da solicitação" name="acceptance_date" value={form.acceptance_date} onChange={handleChange} />
 
             <input type="hidden" name="govbr_signature_status" value={form.govbr_signature_status} />
             <input type="hidden" name="signed_proposal_file" value={form.signed_proposal_file} />
@@ -800,7 +800,7 @@ export default function PasiniRecruitmentWizard() {
               disabled={status === "submitting"}
               className="rounded-full bg-[#dcbe7e] px-5 py-3 text-sm font-semibold text-[#101b3b] transition hover:bg-[#F2F2F2] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {status === "submitting" ? "Enviando..." : "Enviar solicitacao"}
+              {status === "submitting" ? "Enviando..." : "Enviar solicitação"}
             </button>
           )}
         </div>
@@ -917,6 +917,8 @@ function TextArea(props: {
     </label>
   );
 }
+
+
 
 
 
