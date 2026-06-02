@@ -43,11 +43,11 @@ export default function PasiniRecruitmentPage() {
             </p>
 
             <h1 className="mt-6 max-w-3xl text-4xl font-semibold leading-[1.02] tracking-[-0.035em] text-white md:text-6xl">
-              Gestao forte nao acontece por acaso.
+              Recrutar bem nao acontece por acaso.
             </h1>
 
             <p className="mt-7 max-w-2xl text-base leading-8 text-[#F2F2F2]/74 md:text-lg">
-              Ela e construida com metodo, estrategia e direcionamento. Este formulario organiza o briefing inicial para analise da consultoria. O envio nao formaliza a contratacao; a contratacao ocorre somente apos proposta ou ordem de servico assinada via gov.br.
+              A Querino & Pasini conduz processos de recrutamento e selecao com metodo, escuta e direcionamento. Este formulario organiza o briefing inicial da vaga para analise da consultoria. O envio nao formaliza a contratacao; a contratacao ocorre somente apos proposta ou ordem de servico assinada via gov.br.
             </p>
 
             <div className="mt-10 flex flex-col gap-3 sm:flex-row">
@@ -113,12 +113,13 @@ export default function PasiniRecruitmentPage() {
               </p>
 
               <h2 className="mt-5 max-w-md text-3xl font-semibold leading-tight text-white md:text-4xl">
-                Um fluxo simples, com presenca visual de marca premium.
+                Um processo seletivo simples, profissional e bem conduzido.
               </h2>
 
               <p className="mt-6 max-w-md text-sm leading-8 text-white/68">
-                Sem excesso de cards, sem moldura na logo e com uso controlado das cores da identidade visual:
-                azul profundo, dourado principal, terracota profundo, cinza claro e branco.
+                A experiencia foi pensada para facilitar o envio das informacoes da vaga, com linguagem clara,
+                etapas guiadas e presenca institucional da Querino & Pasini Consultoria.
+                Menos ruido, mais clareza para analisar perfil, escopo, complexidade e proximos passos.
               </p>
             </div>
 
@@ -137,6 +138,8 @@ export default function PasiniRecruitmentPage() {
     </main>
   );
 }
+
+
 
 
 
