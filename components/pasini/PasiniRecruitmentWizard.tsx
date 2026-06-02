@@ -70,7 +70,7 @@ const today = new Date().toISOString().slice(0, 10);
 const initialForm: FormState = {
   selected_package: "",
   recommended_package: "strategic",
-  package_recommendation_reason: "Recomendacao inicial: informacoes parciais da vaga.",
+  package_recommendation_reason: "Recomendação inicial: informações parciais da vaga.",
   vacancy_complexity_level: "standard",
   package_override_reason: "",
   vacancy_information_status: "partial",
@@ -121,7 +121,7 @@ const initialForm: FormState = {
   signed_proposal_file: "",
 };
 
-const steps = ["Diagnóstico da contratação", "Empresa", "Vaga", "Perfil", "Fechamento e gov.br"];
+const steps = ["Diagnóstico da contratação", "Empresa", "Vaga", "Perfil", "Fechamento e assinatura digital"];
 
 const packages: Array<{
   key: PackageKey;
@@ -132,20 +132,20 @@ const packages: Array<{
   {
     key: "essential",
     title: "Essencial",
-    priceRule: "100% do salario da vaga",
-    description: "Conducao objetiva para vagas com perfil bem definido.",
+    priceRule: "100% do salário da vaga",
+    description: "Condução objetiva para vagas com perfil bem definido.",
   },
   {
     key: "strategic",
-    title: "Estrategico",
-    priceRule: "1,5 salario da vaga",
+    title: "Estratégico",
+    priceRule: "1,5 salário da vaga",
     description: "Apoio ampliado para perfis que exigem maior critério de seleção.",
   },
   {
     key: "premium",
     title: "Premium",
-    priceRule: "2 salarios da vaga",
-    description: "Conducao consultiva para vagas sensiveis, lideranças ou funcoes-chave.",
+    priceRule: "2 salários da vaga",
+    description: "Condução consultiva para vagas sensíveis, lideranças ou funções-chave.",
   },
 ];
 
@@ -193,12 +193,12 @@ const complexityOptions: Array<{
   {
     key: "standard",
     title: "Não",
-    description: "Vaga comum, sem indicios de confidencialidade, liderança ou alta dificuldade.",
+    description: "Vaga comum, sem indícios de confidencialidade, liderança ou alta dificuldade.",
   },
   {
     key: "strategic",
     title: "Sim",
-    description: "Vaga estrategica, de liderança, confidencial, sensivel ou difícil de preencher.",
+    description: "Vaga estratégica, de liderança, confidencial, sensível ou difícil de preencher.",
   },
   {
     key: "unknown",
@@ -217,21 +217,21 @@ function getPackageRecommendation(
   if (complexity === "strategic") {
     return {
       packageKey: "premium",
-      reason: "A vaga foi marcada como estrategica, confidencial, de liderança, sensivel ou difícil de preencher.",
+      reason: "A vaga foi marcada como estratégica, confidencial, de liderança, sensível ou difícil de preencher.",
     };
   }
 
   if (complexity === "unknown") {
     return {
       packageKey: "strategic",
-      reason: "A complexidade da vaga ainda não esta clara. O plano Estrategico e o ponto intermediario recomendado.",
+      reason: "A complexidade da vaga ainda não está clara. O plano Estratégico é o ponto intermediário recomendado.",
     };
   }
 
   if (vacancyStatus === "complete") {
     return {
       packageKey: "essential",
-      reason: "A empresa informou que já possui descricao, briefing ou material organizado da vaga.",
+      reason: "A empresa informou que já possui descrição, briefing ou material organizado da vaga.",
     };
   }
 
@@ -244,13 +244,13 @@ function getPackageRecommendation(
 
   return {
     packageKey: "strategic",
-    reason: "A empresa informou que possui parte das informacoes, mas precisa complementar o briefing.",
+    reason: "A empresa informou que possui parte das informações, mas precisa complementar o briefing.",
   };
 }
 
 function packageLabel(packageKey: "" | PackageKey) {
   if (packageKey === "essential") return "Essencial";
-  if (packageKey === "strategic") return "Estrategico";
+  if (packageKey === "strategic") return "Estratégico";
   if (packageKey === "premium") return "Premium";
   return "não selecionado";
 }
@@ -261,7 +261,7 @@ const declarations: Array<{
   {
     key: "analysis_authorization",
     label:
-      "Declaro que as informações fornecidas são verdadeiras e autorizo a análise da solicitação para elaboração da Proposta ou Ordem de Serviço. Estou ciente de que este envio não formaliza automaticamente a contratação, que somente ocorrerá após assinatura digital via gov.br.",
+      "Declaro que as informações fornecidas são verdadeiras e autorizo a análise da solicitação para elaboração da Proposta ou Ordem de Serviço. Estou ciente de que este envio não formaliza automaticamente a contratação, que somente ocorrerá após assinatura digital.",
   },
 ];
 export default function PasiniRecruitmentWizard() {
@@ -391,7 +391,7 @@ export default function PasiniRecruitmentWizard() {
       }
 
       setStatus("success");
-      setMessage("Pedido enviado com sucesso. Uma minuta de proposta será preparada para análise da consultoria. Após aprovação interna, a proposta poderá ser enviada por WhatsApp para assinatura via gov.br.");
+      setMessage("Pedido enviado com sucesso. Uma minuta de proposta será preparada para análise da consultoria. Após aprovação interna, a proposta poderá ser encaminhada por WhatsApp para assinatura digital.");
       setForm(initialForm);
       setStep(0);
     } catch (error) {
@@ -432,7 +432,7 @@ export default function PasiniRecruitmentWizard() {
 
         <div className="mt-8 border-t border-white/10 pt-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/40">
-            Gov.br
+            Assinatura digital
           </p>
           <p className="mt-2 text-xs leading-6 text-white/55">
             A proposta será preparada para assinatura digital após o envio.
@@ -507,7 +507,7 @@ export default function PasiniRecruitmentWizard() {
               </p>
               <p className="mt-3 text-white/70">{form.package_recommendation_reason}</p>
               <p className="mt-4 text-xs leading-6 text-white/50">
-                Esta e apenas uma sugestao. O plano final será confirmado no fechamento, antes da proposta ou ordem de serviço para assinatura gov.br.
+                Esta é apenas uma sugestão. O plano final será confirmado no fechamento, antes da proposta ou ordem de serviço para assinatura digital.
               </p>
             </div>
           </div>
@@ -601,7 +601,7 @@ export default function PasiniRecruitmentWizard() {
               />
             </ExpandableSection>
 
-            <ExpandableSection title="Remuneração e benefícios" description="Faixa salarial, beneficios e observacoes.">
+            <ExpandableSection title="Remuneração e benefícios" description="Faixa salarial, benefícios e observações.">
               <div className="grid gap-4 md:grid-cols-2">
                 <SelectField
                   label="Faixa salarial"
@@ -624,14 +624,14 @@ export default function PasiniRecruitmentWizard() {
                   onChange={handleChange}
                   options={[
                     { value: "A definir", label: "A definir" },
-                    { value: "Vale alimentacao e vale transporte", label: "Vale alimentacao e vale transporte" },
+                    { value: "Vale alimentação e vale transporte", label: "Vale alimentação e vale transporte" },
                     { value: "Benefícios internos da empresa", label: "Benefícios internos da empresa" },
-                    { value: "Sem beneficios informados", label: "Sem beneficios informados" },
+                    { value: "Sem benefícios informados", label: "Sem benefícios informados" },
                     { value: "Outro", label: "Outro" },
                   ]}
                 />
               </div>
-              <TextArea label="Observações sobre benefícios ou condicoes da vaga" name="benefits_notes" value={form.benefits_notes} onChange={handleChange} />
+              <TextArea label="Observações sobre benefícios ou condições da vaga" name="benefits_notes" value={form.benefits_notes} onChange={handleChange} />
             </ExpandableSection>
 
             <ExpandableSection title="Atividades principais" description="O que a pessoa fara no dia a dia.">
@@ -646,7 +646,7 @@ export default function PasiniRecruitmentWizard() {
               Preencha somente o que souber. Os blocos abaixo organizam o perfil da vaga sem deixar a tela pesada.
             </div>
 
-            <ExpandableSection title="Experiência necessária" description="Informe o tipo de vivencia profissional esperada para a vaga." defaultOpen>
+            <ExpandableSection title="Experiência necessária" description="Informe o tipo de vivência profissional esperada para a vaga." defaultOpen>
               <TextArea label="Experiência necessária" name="required_experience" value={form.required_experience} onChange={handleChange} />
             </ExpandableSection>
 
@@ -735,7 +735,7 @@ export default function PasiniRecruitmentWizard() {
               <span className="font-semibold text-[#dcbe7e]">
                 {packageLabel(form.selected_package)}
               </span>
-              . Este envio gera pedido de análise. A contratação somente será formalizada após Proposta ou Ordem de Serviço assinada via gov.br.
+              . Este envio gera pedido de análise. A contratação somente será formalizada após Proposta ou Ordem de Serviço assinada digitalmente.
             </div>
 
             <Field required label="Nome completo do responsável autorizador" name="acceptance_name" value={form.acceptance_name} onChange={handleChange} />
@@ -917,6 +917,8 @@ function TextArea(props: {
     </label>
   );
 }
+
+
 
 
 
