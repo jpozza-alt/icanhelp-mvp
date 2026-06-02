@@ -93,6 +93,103 @@ function getPasiniBearerToken(request: NextRequest) {
   return match?.[1] || "";
 }
 
+
+function escapePasiniEmailHtml(value: unknown) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+async function sendPasiniNewRequestNotification(input: {
+  companyLegalName: string;
+  companyTradeName?: string | null;
+  requesterName: string;
+  requesterEmail: string;
+  jobTitle: string;
+  departmentName?: string | null;
+  selectedPackage?: string | null;
+  paymentTerms?: string | null;
+}) {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.PASINI_NOTIFICATION_FROM?.trim();
+  const recipients = (process.env.PASINI_NOTIFICATION_EMAILS ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (!apiKey || !from || recipients.length === 0) {
+    return;
+  }
+
+  const panelUrl =
+    process.env.PASINI_REQUESTS_PANEL_URL?.trim() ||
+    "http://localhost:3000/pasini/solicitacoes";
+
+  const company = escapePasiniEmailHtml(input.companyLegalName);
+  const tradeName = escapePasiniEmailHtml(input.companyTradeName || "Nao informado");
+  const requester = escapePasiniEmailHtml(input.requesterName);
+  const requesterEmail = escapePasiniEmailHtml(input.requesterEmail);
+  const jobTitle = escapePasiniEmailHtml(input.jobTitle);
+  const department = escapePasiniEmailHtml(input.departmentName || "Nao informado");
+  const selectedPackage = escapePasiniEmailHtml(input.selectedPackage || "Nao informado");
+  const paymentTerms = escapePasiniEmailHtml(input.paymentTerms || "Nao informado");
+  const safePanelUrl = escapePasiniEmailHtml(panelUrl);
+
+  const html = [
+    "<h2>Novo pedido de analise recebido</h2>",
+    "<p>Uma nova solicitacao de recrutamento e selecao foi enviada pela landing Querino & Pasini.</p>",
+    "<ul>",
+    "<li><strong>Empresa:</strong> " + company + "</li>",
+    "<li><strong>Nome fantasia:</strong> " + tradeName + "</li>",
+    "<li><strong>Vaga:</strong> " + jobTitle + "</li>",
+    "<li><strong>Setor:</strong> " + department + "</li>",
+    "<li><strong>Solicitante:</strong> " + requester + "</li>",
+    "<li><strong>E-mail do solicitante:</strong> " + requesterEmail + "</li>",
+    "<li><strong>Plano selecionado:</strong> " + selectedPackage + "</li>",
+    "<li><strong>Forma de pagamento:</strong> " + paymentTerms + "</li>",
+    "</ul>",
+    "<p><a href=\"" + safePanelUrl + "\">Abrir painel de solicitacoes</a></p>",
+    "<p>Status inicial: pendente de analise da consultoria.</p>",
+  ].join("");
+
+  const text = [
+    "Novo pedido de analise recebido",
+    "",
+    "Empresa: " + input.companyLegalName,
+    "Nome fantasia: " + (input.companyTradeName || "Nao informado"),
+    "Vaga: " + input.jobTitle,
+    "Setor: " + (input.departmentName || "Nao informado"),
+    "Solicitante: " + input.requesterName,
+    "E-mail do solicitante: " + input.requesterEmail,
+    "Plano selecionado: " + (input.selectedPackage || "Nao informado"),
+    "Forma de pagamento: " + (input.paymentTerms || "Nao informado"),
+    "",
+    "Painel: " + panelUrl,
+    "Status inicial: pendente de analise da consultoria.",
+  ].join("\n");
+
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: recipients,
+        subject: ("Novo pedido de recrutamento - " + input.companyLegalName).slice(0, 120),
+        html,
+        text,
+      }),
+    });
+  } catch {
+    return;
+  }
+}
+
 export async function GET(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -351,6 +448,17 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
+    await sendPasiniNewRequestNotification({
+      companyLegalName: parsed.company_legal_name,
+      companyTradeName: parsed.company_trade_name,
+      requesterName: parsed.requester_name,
+      requesterEmail: parsed.requester_email,
+      jobTitle: parsed.job_title,
+      departmentName: parsed.department_name,
+      selectedPackage: parsed.selected_package,
+      paymentTerms: parsed.payment_terms,
+    });
+
 
   return NextResponse.json({
     ok: true,
@@ -359,6 +467,8 @@ export async function POST(request: NextRequest) {
     govbr_signature_status: "not_applicable",
   });
 }
+
+
 
 
 
