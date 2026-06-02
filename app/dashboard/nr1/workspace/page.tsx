@@ -3446,7 +3446,7 @@ useEffect(() => {
                     ? "bg-red-100 text-red-700"
                     : saveStatus === "dirty"
                       ? "bg-amber-100 text-amber-700"
-                      : saveStatus === "saving" || saveStatus === "loading"
+                      : saveStatus === "saving"
                         ? "bg-[#ead8c8] text-[#10243e]"
                         : "bg-[#e9f0e5] text-[#2f6f4e]"
                 }`}
@@ -3455,7 +3455,7 @@ useEffect(() => {
                   ? "Revisar"
                   : saveStatus === "dirty"
                     ? "Pendente"
-                    : saveStatus === "saving" || saveStatus === "loading"
+                    : saveStatus === "saving"
                       ? "Processando"
                       : "Seguro"}
               </span>
@@ -5019,6 +5019,7 @@ useEffect(() => {
     </main>
 );
 }
+
 
 
 

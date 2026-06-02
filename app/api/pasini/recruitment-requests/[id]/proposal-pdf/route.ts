@@ -129,12 +129,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
   const logoDataUri = await getLogoDataUri();
 
-  const pdfStream = await renderToStream(
-    createElement(PasiniProposalPdfDocument, {
-      record: record as PasiniProposalPdfRecord,
-      logoDataUri,
-    }),
-  );
+  const pdfElement = createElement(PasiniProposalPdfDocument, {
+    record: record as PasiniProposalPdfRecord,
+    logoDataUri,
+  }) as unknown as Parameters<typeof renderToStream>[0];
+
+  const pdfStream = await renderToStream(pdfElement);
 
   const shortId = requestId.slice(0, 8);
   const filename = `minuta-proposta-querino-pasini-${shortId}.pdf`;
@@ -149,4 +149,5 @@ export async function GET(request: NextRequest, context: RouteContext) {
     },
   });
 }
+
 
