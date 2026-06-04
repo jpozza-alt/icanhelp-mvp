@@ -86,6 +86,12 @@ const schema = z.object({
 
   signed_proposal_file: z.string().max(500).optional().default(""),
 });
+const consultancyDecisionSchema = z.object({
+  request_id: z.string().uuid(),
+  action: z.enum(["approve_for_acceptance", "return_with_conditions"]),
+  commercial_conditions: z.string().max(5000).optional().default(""),
+  consultancy_feedback: z.string().max(5000).optional().default(""),
+});
 
 function getPasiniBearerToken(request: NextRequest) {
   const authorization = request.headers.get("authorization") || "";
@@ -259,6 +265,12 @@ export async function GET(request: NextRequest) {
       [
         "id",
         "status",
+        "proposal_status",
+        "proposal_version",
+        "consultancy_decision",
+        "consultancy_feedback",
+        "commercial_conditions",
+        "client_acceptance_status",
         "company_legal_name",
         "company_trade_name",
         "company_cnpj",
@@ -296,6 +308,136 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     requests: data || [],
+  });
+}
+
+export async function PATCH(request: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const privilegedKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const tenantId = QUERINO_PASINI_TENANT_ID;
+
+  if (!supabaseUrl || !anonKey || !privilegedKey || !tenantId) {
+    return NextResponse.json(
+      { ok: false, error: "Configuracao indisponivel." },
+      { status: 500 },
+    );
+  }
+
+  const bearerToken = getPasiniBearerToken(request);
+
+  if (!bearerToken) {
+    return NextResponse.json(
+      { ok: false, error: "Acesso nao autenticado." },
+      { status: 401 },
+    );
+  }
+
+  const authClient = createClient(supabaseUrl, anonKey, {
+    global: {
+      headers: {
+        Authorization: "Bearer " + bearerToken,
+      },
+    },
+  });
+
+  const { data: userData, error: userError } = await authClient.auth.getUser();
+
+  if (userError || !userData.user) {
+    return NextResponse.json(
+      { ok: false, error: "Sessao invalida." },
+      { status: 401 },
+    );
+  }
+
+  const supabase = createClient(supabaseUrl, privilegedKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+
+  const { data: membership, error: membershipError } = await supabase
+    .from("tenant_memberships")
+    .select("id, role")
+    .eq("tenant_id", tenantId)
+    .eq("user_id", userData.user.id)
+    .in("role", ["owner", "admin"])
+    .maybeSingle();
+
+  if (membershipError || !membership) {
+    return NextResponse.json(
+      { ok: false, error: "Acesso restrito a consultoria." },
+      { status: 403 },
+    );
+  }
+
+  let body: unknown;
+
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: "JSON invalido." },
+      { status: 400 },
+    );
+  }
+
+  const validation = consultancyDecisionSchema.safeParse(body);
+
+  if (!validation.success) {
+    return NextResponse.json(
+      { ok: false, error: "Dados invalidos para decisao comercial." },
+      { status: 400 },
+    );
+  }
+
+  const parsed = validation.data;
+  const now = new Date().toISOString();
+  const isApproval = parsed.action === "approve_for_acceptance";
+
+  const updatePayload = {
+    proposal_status: isApproval
+      ? "approved_for_client_acceptance"
+      : "returned_with_conditions",
+    consultancy_decision: isApproval ? "approved" : "returned_with_conditions",
+    commercial_conditions: parsed.commercial_conditions.trim() || null,
+    consultancy_feedback: parsed.consultancy_feedback.trim() || null,
+    consultancy_decided_at: now,
+    consultancy_decided_by: userData.user.id,
+    updated_at: now,
+  };
+
+  const { data, error } = await supabase
+    .from("pasini_recruitment_requests")
+    .update(updatePayload)
+    .eq("id", parsed.request_id)
+    .eq("tenant_id", tenantId)
+    .select(
+      [
+        "id",
+        "status",
+        "proposal_status",
+        "proposal_version",
+        "consultancy_decision",
+        "commercial_conditions",
+        "consultancy_feedback",
+        "client_acceptance_status",
+        "updated_at",
+      ].join(","),
+    )
+    .single();
+
+  if (error || !data) {
+    return NextResponse.json(
+      { ok: false, error: "Nao foi possivel registrar a decisao comercial." },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({
+    ok: true,
+    request: data,
   });
 }
 export async function POST(request: NextRequest) {
