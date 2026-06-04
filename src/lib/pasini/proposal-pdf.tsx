@@ -1,3 +1,4 @@
+/* eslint-disable jsx-a11y/alt-text */
 import {
   Document,
   Image,
@@ -150,8 +151,71 @@ function asText(value: unknown, fallback = "Nao informado") {
   return fallback;
 }
 
-function field(record: PasiniProposalPdfRecord, key: string, fallback = "Nao informado") {
+function field(record: PasiniProposalPdfRecord, key: string, fallback = "Não informado") {
   return asText(record[key], fallback);
+}
+
+function firstField(record: PasiniProposalPdfRecord, keys: string[], fallback = "Não informado") {
+  for (const key of keys) {
+    const value = asText(record[key], "");
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return fallback;
+}
+
+function proposalStatusText(value: unknown) {
+  const status = asText(value, "");
+
+  switch (status) {
+    case "pending_consultancy_review":
+      return "Em análise pela consultoria";
+    case "approved_for_client_acceptance":
+      return "Aprovada pela consultoria para aceite do cliente";
+    case "returned_with_conditions":
+      return "Devolutiva emitida com novas condições";
+    case "sent_to_client":
+      return "Enviada ao cliente";
+    case "accepted_by_client":
+      return "Aceita pelo cliente";
+    case "declined_by_client":
+      return "Recusada pelo cliente";
+    case "cancelled":
+      return "Cancelada";
+    default:
+      return "Em análise pela consultoria";
+  }
+}
+
+function consultancyDecisionText(value: unknown) {
+  const decision = asText(value, "");
+
+  switch (decision) {
+    case "approved":
+      return "Condições aprovadas pela consultoria";
+    case "returned_with_conditions":
+      return "Devolutiva com ajuste de condições comerciais";
+    default:
+      return "Pendente de decisão da consultoria";
+  }
+}
+
+function clientAcceptanceText(value: unknown) {
+  const acceptance = asText(value, "");
+
+  switch (acceptance) {
+    case "accepted":
+      return "Aceita pelo proponente";
+    case "declined":
+      return "Recusada pelo proponente";
+    case "pending":
+      return "Pendente de aceite";
+    default:
+      return "Pendente de aceite";
+  }
 }
 
 function maskedCpf(record: PasiniProposalPdfRecord, key: string) {
@@ -203,9 +267,9 @@ export function PasiniProposalPdfDocument({ record, logoDataUri }: PdfProps) {
 
   return (
     <Document
-      title="Minuta de Proposta - Querino & Pasini Consultoria"
+      title="Proposta Comercial - Querino & Pasini Consultoria"
       author="Querino & Pasini Consultoria"
-      subject="Minuta de proposta para analise interna"
+      subject="Proposta comercial de recrutamento e seleção"
     >
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
@@ -215,28 +279,28 @@ export function PasiniProposalPdfDocument({ record, logoDataUri }: PdfProps) {
             <Text style={styles.brandFallback}>QUERINO & PASINI CONSULTORIA</Text>
           )}
 
-          <Text style={styles.title}>Minuta de Proposta de Servico</Text>
-          <Text style={styles.subtitle}>Recrutamento e Selecao</Text>
+          <Text style={styles.title}>Proposta Comercial de Recrutamento e Seleção</Text>
+          <Text style={styles.subtitle}>Recrutamento e Seleção</Text>
         </View>
 
         <View style={styles.notice}>
-          <Text style={styles.noticeTitle}>Documento para analise interna</Text>
+          <Text style={styles.noticeTitle}>Proposta comercial para análise e aceite</Text>
           <Text style={styles.noticeText}>
-            Esta minuta foi gerada automaticamente a partir do briefing enviado pela empresa.
-            O documento nao formaliza contratacao. A contratacao somente ocorrera apos validacao
-            da consultoria, emissao da Proposta ou Ordem de Servico e assinatura digital via gov.br.
+            Esta proposta comercial foi gerada a partir das informações enviadas pela empresa.
+            O envio não formaliza a contratação. A contratação somente ocorrerá após aprovação
+            das condições pela consultoria e aceite assinado digitalmente pelo proponente.
           </Text>
         </View>
 
         <Section title="1. Dados da empresa">
           <View style={styles.twoColumns}>
             <View style={styles.column}>
-              <Row label="Razao social" value={field(record, "company_legal_name")} />
+              <Row label="Razão social" value={field(record, "company_legal_name")} />
               <Row label="Nome fantasia" value={field(record, "company_trade_name")} />
               <Row label="CNPJ" value={field(record, "company_cnpj")} />
             </View>
             <View style={styles.column}>
-              <Row label="Endereco" value={field(record, "company_address")} />
+              <Row label="Endereço" value={field(record, "company_address")} />
               <Row label="Status" value={field(record, "status")} />
               <Row label="Data da solicitacao" value={field(record, "created_at")} />
             </View>
@@ -300,37 +364,60 @@ export function PasiniProposalPdfDocument({ record, logoDataUri }: PdfProps) {
             </View>
             <View style={styles.column}>
               <Row label="Forma de pagamento" value={paymentText(record.payment_terms)} />
-              <Row label="Valor/referencia comercial" value={field(record, "approved_price")} />
+              <Row label="Investimento comercial" value={field(record, "approved_price")} />
               <Row label="Modelo de recrutamento" value={field(record, "recruitment_model")} />
-              <Row label="Status gov.br" value={field(record, "govbr_signature_status")} />
+              <Row label="Status comercial" value={proposalStatusText(record.proposal_status)} />
             </View>
           </View>
-          <Row label="Motivo da recomendacao" value={field(record, "package_recommendation_reason")} />
-          <Row label="Motivo de alteracao do plano" value={field(record, "package_override_reason")} />
-          <Row label="Servicos adicionais" value={field(record, "additional_services")} />
+          <Row label="Justificativa técnica da recomendação" value={field(record, "package_recommendation_reason")} />
+          <Row label="Justificativa de alteração do plano" value={field(record, "package_override_reason")} />
+          <Row label="Serviços adicionais" value={field(record, "additional_services")} />
         </Section>
-
-        <Section title="6. Autorizador informado">
+        <Section title="6. Decisão comercial da consultoria">
           <View style={styles.twoColumns}>
             <View style={styles.column}>
-              <Row label="Nome" value={field(record, "acceptance_name")} />
-              <Row label="Cargo" value={field(record, "acceptance_role_title")} />
-              <Row label="CPF" value={maskedCpf(record, "acceptance_cpf")} />
+              <Row label="Status da proposta" value={proposalStatusText(record.proposal_status)} />
+              <Row label="Decisão da consultoria" value={consultancyDecisionText(record.consultancy_decision)} />
             </View>
             <View style={styles.column}>
-              <Row label="E-mail" value={field(record, "acceptance_email")} />
-              <Row label="Data informada" value={field(record, "acceptance_date")} />
-              <Row label="Aceite registrado em" value={field(record, "accepted_at")} />
+              <Row label="Status do aceite" value={clientAcceptanceText(record.client_acceptance_status)} />
+              <Row label="Versão da proposta" value={field(record, "proposal_version")} />
             </View>
           </View>
+          <Row
+            label="Condições comerciais"
+            value={firstField(record, ["commercial_conditions"], "Condições comerciais mantidas conforme investimento e forma de pagamento indicados nesta proposta.")}
+          />
+          <Row
+            label="Devolutiva da consultoria"
+            value={firstField(record, ["consultancy_feedback"], "Sem devolutiva complementar registrada.")}
+          />
+        </Section>
+
+        <Section title="7. Aceite e assinatura do proponente">
+          <View style={styles.twoColumns}>
+            <View style={styles.column}>
+              <Row label="Nome do proponente" value={firstField(record, ["proponent_signature_name", "acceptance_name"])} />
+              <Row label="CPF/CNPJ" value={firstField(record, ["proponent_signature_document"], maskedCpf(record, "acceptance_cpf"))} />
+              <Row label="Cargo ou função" value={firstField(record, ["proponent_signature_role", "acceptance_role_title"])} />
+            </View>
+            <View style={styles.column}>
+              <Row label="E-mail" value={firstField(record, ["proponent_signature_email", "acceptance_email"])} />
+              <Row label="Data do aceite" value={firstField(record, ["proponent_signed_at", "client_accepted_at", "acceptance_date"])} />
+              <Row label="Assinatura" value="________________________________________" />
+            </View>
+          </View>
+          <Text style={styles.noticeText}>
+            Ao assinar, o proponente declara ciência do escopo, das condições comerciais e da forma de pagamento desta proposta.
+          </Text>
         </Section>
 
         <View style={styles.footer}>
           <Text>Solicitacao: {requestId}</Text>
           <Text>Gerado em: {generatedAt}</Text>
           <Text>
-            Minuta destinada a analise da Querino & Pasini Consultoria. O envio por WhatsApp e a
-            assinatura via gov.br devem ocorrer somente apos validacao interna.
+            Proposta Comercial de Recrutamento e Seleção emitida pela Querino & Pasini Consultoria.
+            A contratação depende do aceite do proponente e da confirmação das condições comerciais.
           </Text>
         </View>
       </Page>

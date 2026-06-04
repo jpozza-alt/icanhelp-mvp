@@ -137,7 +137,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const pdfStream = await renderToStream(pdfElement);
 
   const shortId = requestId.slice(0, 8);
-  const filename = `minuta-proposta-querino-pasini-${shortId}.pdf`;
+  const filename = `proposta-comercial-querino-pasini-${shortId}.pdf`;
 
   return new Response(pdfStream as unknown as BodyInit, {
     status: 200,
