@@ -17,51 +17,77 @@ type PdfProps = {
 
 const styles = StyleSheet.create({
   page: {
-    padding: 28,
+    padding: 0,
     fontFamily: "Helvetica",
     fontSize: 9,
     color: "#101b3b",
-    backgroundColor: "#f7f3ea",
+    backgroundColor: "#F2F2F2",
   },
   header: {
     backgroundColor: "#101b3b",
-    borderRadius: 10,
-    padding: 18,
-    marginBottom: 14,
+    paddingTop: 26,
+    paddingHorizontal: 28,
+    paddingBottom: 24,
+    marginBottom: 16,
+  },
+  logoCard: {
+    marginBottom: 24,
+    width: 190,
   },
   logo: {
-    width: 170,
-    marginBottom: 14,
+    width: 184,
   },
   brandFallback: {
-    color: "#ffffff",
-    fontSize: 16,
-    letterSpacing: 1.5,
-    marginBottom: 12,
+    color: "#101b3b",
+    fontSize: 14,
+    letterSpacing: 1.2,
+    fontWeight: "bold",
+  },
+  kicker: {
+    color: "#dcbe7e",
+    fontSize: 8,
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    marginBottom: 8,
   },
   title: {
     color: "#ffffff",
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 6,
+    lineHeight: 1.12,
+    marginBottom: 7,
+    maxWidth: 390,
   },
   subtitle: {
-    color: "#dcbe7e",
-    fontSize: 10,
-    lineHeight: 1.4,
+    color: "#F2F2F2",
+    fontSize: 10.5,
+    lineHeight: 1.45,
+    maxWidth: 420,
+  },
+  goldRule: {
+    height: 2,
+    width: 118,
+    backgroundColor: "#dcbe7e",
+    marginTop: 16,
+  },
+  mainContent: {
+    paddingHorizontal: 28,
+    paddingBottom: 24,
   },
   notice: {
     borderColor: "#dcbe7e",
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
+    borderLeftColor: "#AF3800",
+    borderLeftWidth: 4,
+    borderRadius: 10,
+    padding: 12,
     marginBottom: 12,
-    backgroundColor: "#fffaf0",
+    backgroundColor: "#FFFFFF",
   },
   noticeTitle: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: "bold",
-    marginBottom: 4,
+    marginBottom: 5,
     color: "#101b3b",
   },
   noticeText: {
@@ -69,20 +95,20 @@ const styles = StyleSheet.create({
     color: "#2d3658",
   },
   section: {
-    borderColor: "#d8ccb7",
+    borderColor: "#e7ddc9",
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
+    borderRadius: 10,
+    padding: 11,
     marginBottom: 10,
     backgroundColor: "#ffffff",
   },
   sectionTitle: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: "bold",
     color: "#101b3b",
     marginBottom: 8,
-    paddingBottom: 5,
-    borderBottomColor: "#e7ddc9",
+    paddingBottom: 6,
+    borderBottomColor: "#dcbe7e",
     borderBottomWidth: 1,
   },
   row: {
@@ -90,7 +116,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 7,
-    color: "#6b7280",
+    color: "#26428b",
     textTransform: "uppercase",
     letterSpacing: 0.7,
     marginBottom: 1,
@@ -111,17 +137,16 @@ const styles = StyleSheet.create({
   footer: {
     marginTop: 8,
     paddingTop: 8,
-    borderTopColor: "#d8ccb7",
+    borderTopColor: "#dcbe7e",
     borderTopWidth: 1,
     fontSize: 7,
     color: "#6b7280",
     lineHeight: 1.4,
   },
 });
-
 const packageLabels: Record<string, string> = {
   essential: "Essencial",
-  strategic: "Estrategico",
+  strategic: "Estratégico",
   premium: "Premium",
 };
 
@@ -139,13 +164,13 @@ const complexityLabels: Record<string, string> = {
 
 const paymentLabels: Record<string, string> = {
   avista: "A vista",
-  "50_50": "50% na contratacao e 50% no fechamento",
-  outra_condicao_negociada: "Outra condicao negociada",
+  "50_50": "50% na contratação e 50% no fechamento",
+  outra_condicao_negociada: "Outra condição negociada",
 };
 
-function asText(value: unknown, fallback = "Nao informado") {
+function asText(value: unknown, fallback = "Não informado") {
   if (value === null || value === undefined) return fallback;
-  if (typeof value === "boolean") return value ? "Sim" : "Nao";
+  if (typeof value === "boolean") return value ? "Sim" : "Não";
   if (typeof value === "number") return String(value);
   if (typeof value === "string") return value.trim() || fallback;
   return fallback;
@@ -222,7 +247,7 @@ function maskedCpf(record: PasiniProposalPdfRecord, key: string) {
   const raw = field(record, key, "");
   const digits = raw.replace(/\D/g, "");
 
-  if (digits.length < 6) return raw || "Nao informado";
+  if (digits.length < 6) return raw || "Não informado";
 
   return "***." + digits.slice(3, 6) + "." + digits.slice(6, 9) + "-**";
 }
@@ -254,7 +279,7 @@ function Row(props: { label: string; value: string }) {
 
 function Section(props: { title: string; children: React.ReactNode }) {
   return (
-    <View style={styles.section}>
+    <View style={styles.section} wrap={false}>
       <Text style={styles.sectionTitle}>{props.title}</Text>
       {props.children}
     </View>
@@ -273,16 +298,23 @@ export function PasiniProposalPdfDocument({ record, logoDataUri }: PdfProps) {
     >
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          {logoDataUri ? (
-            <Image src={logoDataUri} style={styles.logo} />
-          ) : (
-            <Text style={styles.brandFallback}>QUERINO & PASINI CONSULTORIA</Text>
-          )}
+          <View style={styles.logoCard}>
+            {logoDataUri ? (
+              <Image src={logoDataUri} style={styles.logo} />
+            ) : (
+              <Text style={styles.brandFallback}>QUERINO & PASINI CONSULTORIA</Text>
+            )}
+          </View>
 
-          <Text style={styles.title}>Proposta Comercial de Recrutamento e Seleção</Text>
-          <Text style={styles.subtitle}>Recrutamento e Seleção</Text>
+          <Text style={styles.kicker}>Proposta comercial</Text>
+          <Text style={styles.title}>Recrutamento e Seleção</Text>
+          <Text style={styles.subtitle}>
+            Documento comercial gerado para análise, validação das condições e aceite formal do proponente.
+          </Text>
+          <View style={styles.goldRule} />
         </View>
 
+        <View style={styles.mainContent}>
         <View style={styles.notice}>
           <Text style={styles.noticeTitle}>Proposta comercial para análise e aceite</Text>
           <Text style={styles.noticeText}>
@@ -302,12 +334,12 @@ export function PasiniProposalPdfDocument({ record, logoDataUri }: PdfProps) {
             <View style={styles.column}>
               <Row label="Endereço" value={field(record, "company_address")} />
               <Row label="Status" value={field(record, "status")} />
-              <Row label="Data da solicitacao" value={field(record, "created_at")} />
+              <Row label="Data da solicitação" value={field(record, "created_at")} />
             </View>
           </View>
         </Section>
 
-        <Section title="2. Responsavel pela solicitacao">
+        <Section title="2. Responsável pela solicitação">
           <View style={styles.twoColumns}>
             <View style={styles.column}>
               <Row label="Nome" value={field(record, "requester_name")} />
@@ -331,33 +363,33 @@ export function PasiniProposalPdfDocument({ record, logoDataUri }: PdfProps) {
               <Row label="Motivo" value={field(record, "hiring_reason")} />
             </View>
             <View style={styles.column}>
-              <Row label="Tipo de contratacao" value={field(record, "employment_type")} />
+              <Row label="Tipo de contratação" value={field(record, "employment_type")} />
               <Row label="Modelo de trabalho" value={field(record, "work_model")} />
-              <Row label="Horario" value={field(record, "work_schedule")} />
+              <Row label="Horário" value={field(record, "work_schedule")} />
               <Row label="Faixa salarial" value={field(record, "salary_range")} />
             </View>
           </View>
-          <Row label="Beneficios" value={field(record, "benefits")} />
-          <Row label="Observacoes sobre beneficios" value={field(record, "benefits_notes")} />
+          <Row label="Benefícios" value={field(record, "benefits")} />
+          <Row label="Observações sobre benefícios" value={field(record, "benefits_notes")} />
           <Row label="Principais atividades" value={field(record, "main_activities")} />
         </Section>
 
         <Section title="4. Perfil e requisitos">
-          <Row label="Experiencia necessaria" value={field(record, "required_experience")} />
-          <Row label="Formacao necessaria" value={field(record, "required_education")} />
-          <Row label="Conhecimentos tecnicos" value={field(record, "technical_skills")} />
+          <Row label="Experiência necessária" value={field(record, "required_experience")} />
+          <Row label="Formação necessária" value={field(record, "required_education")} />
+          <Row label="Conhecimentos técnicos" value={field(record, "technical_skills")} />
           <Row label="Sistemas, ferramentas ou equipamentos" value={field(record, "systems_tools_equipment")} />
           <Row label="Perfil comportamental" value={field(record, "behavioral_profile")} />
-          <Row label="Criterios eliminatorios" value={field(record, "elimination_criteria")} />
-          <Row label="Criterios desejaveis" value={field(record, "desirable_criteria")} />
-          <Row label="Descricao formal do cargo" value={field(record, "has_job_description")} />
+          <Row label="Critérios eliminatórios" value={field(record, "elimination_criteria")} />
+          <Row label="Critérios desejáveis" value={field(record, "desirable_criteria")} />
+          <Row label="Descrição formal do cargo" value={field(record, "has_job_description")} />
           <Row label="Material existente ou envio posterior" value={field(record, "job_description_attachment")} />
         </Section>
 
-        <Section title="5. Plano e condicoes preliminares">
+        <Section title="5. Plano e condições comerciais">
           <View style={styles.twoColumns}>
             <View style={styles.column}>
-              <Row label="Situacao das informacoes" value={vacancyText(record.vacancy_information_status)} />
+              <Row label="Situação das informações" value={vacancyText(record.vacancy_information_status)} />
               <Row label="Complexidade" value={complexityText(record.vacancy_complexity_level)} />
               <Row label="Plano sugerido" value={packageText(record.recommended_package)} />
               <Row label="Plano pretendido" value={packageText(record.selected_package)} />
@@ -369,7 +401,7 @@ export function PasiniProposalPdfDocument({ record, logoDataUri }: PdfProps) {
               <Row label="Status comercial" value={proposalStatusText(record.proposal_status)} />
             </View>
           </View>
-          <Row label="Justificativa técnica da recomendação" value={field(record, "package_recommendation_reason")} />
+          <Row label="Justificativa estratégica da recomendação" value={field(record, "package_recommendation_reason")} />
           <Row label="Justificativa de alteração do plano" value={field(record, "package_override_reason")} />
           <Row label="Serviços adicionais" value={field(record, "additional_services")} />
         </Section>
@@ -413,12 +445,13 @@ export function PasiniProposalPdfDocument({ record, logoDataUri }: PdfProps) {
         </Section>
 
         <View style={styles.footer}>
-          <Text>Solicitacao: {requestId}</Text>
+          <Text>Solicitação: {requestId}</Text>
           <Text>Gerado em: {generatedAt}</Text>
           <Text>
             Proposta Comercial de Recrutamento e Seleção emitida pela Querino & Pasini Consultoria.
             A contratação depende do aceite do proponente e da confirmação das condições comerciais.
           </Text>
+        </View>
         </View>
       </Page>
     </Document>
