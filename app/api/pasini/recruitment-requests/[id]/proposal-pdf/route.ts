@@ -1,8 +1,7 @@
+import { Buffer } from "node:buffer";
 import { createClient } from "@supabase/supabase-js";
 import { renderToStream } from "@react-pdf/renderer";
 import { createElement } from "react";
-import { promises as fs } from "fs";
-import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import {
   PasiniProposalPdfDocument,
@@ -41,17 +40,19 @@ function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 }
 
-async function getLogoDataUri() {
+async function getLogoDataUri(requestUrl: string) {
   try {
-    const logoPath = path.join(
-      process.cwd(),
-      "public",
-      "brand",
-      "querino-pasini-logo-idv-transparent.png",
-    );
+    const logoUrl = new URL("/api/pasini/brand-logo", requestUrl);
+    const response = await fetch(logoUrl, { cache: "force-cache" });
 
-    const logo = await fs.readFile(logoPath);
-    return "data:image/png;base64," + logo.toString("base64");
+    if (!response.ok) {
+      return undefined;
+    }
+
+    const contentType = response.headers.get("content-type")?.split(";")[0] || "image/png";
+    const logo = Buffer.from(await response.arrayBuffer());
+
+    return "data:" + contentType + ";base64," + logo.toString("base64");
   } catch {
     return undefined;
   }
@@ -127,7 +128,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return jsonError("Solicitacao nao encontrada.", 404);
   }
 
-  const logoDataUri = await getLogoDataUri();
+  const logoDataUri = await getLogoDataUri(request.url);
 
   const pdfElement = createElement(PasiniProposalPdfDocument, {
     record: record as PasiniProposalPdfRecord,
