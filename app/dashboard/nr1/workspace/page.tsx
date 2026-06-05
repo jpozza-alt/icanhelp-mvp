@@ -960,6 +960,7 @@ export default function Nr1WorkspacePage() {
   const [guidedStepKey, setGuidedStepKey] = useState<GuidedStepKey>("empresa");
   const [onboardingMicroStepIndex, setOnboardingMicroStepIndex] = useState(0);
   const [guidedSetupOpen, setGuidedSetupOpen] = useState(false);
+  const [, setCompanyFinalSubmitAttempted] = useState(false);
   const [diagnosisActivityId, setDiagnosisActivityId] = useState<string>("");
   const [diagnosisSessionId, setDiagnosisSessionId] = useState<string>("");
   const [diagnosisRiskId, setDiagnosisRiskId] = useState<string>("");
@@ -1296,12 +1297,26 @@ useEffect(() => {
   const isLastOnboardingMicroStep = onboardingMicroStepIndex >= onboardingMicroSteps.length - 1;
   const isGuidedCompanyCnpjMicroStep =
     showGuidedSetup && onboardingCurrentStep.key === "empresa" && onboardingMicroStepIndex === 0;
+  const isGuidedCompanyFinalMicroStep =
+    showGuidedSetup && onboardingCurrentStep.key === "empresa" && isLastOnboardingMicroStep;
   const visibleFormError =
     isGuidedCompanyCnpjMicroStep && formError?.startsWith("Contexto do workspace nao resolvido")
       ? null
       : formError;
-
+  const companyEmployeeCountValue = numberOrNull(companyForm.employee_count);
+  const companyRequiredFieldSummary = [
+    { label: "CNPJ", ok: isValidCnpj(companyForm.cnpj) },
+    { label: "Razao social", ok: companyForm.legal_name.trim().length >= 3 },
+    { label: "Nome fantasia", ok: companyForm.trade_name.trim().length >= 2 },
+    { label: "CNAE principal", ok: normalizeCnae(companyForm.cnae_main).length === 7 },
+    { label: "Porte", ok: companyForm.company_size.trim().length > 0 },
+    {
+      label: "Quantidade de trabalhadores",
+      ok: companyEmployeeCountValue !== null && companyEmployeeCountValue > 0,
+    },
+  ];
   function handleContinueGuidedMicroStep(): void {
+    setCompanyFinalSubmitAttempted(false);
     setFormError(null);
     setSuccessMessage(null);
 
@@ -1372,10 +1387,6 @@ useEffect(() => {
       accept: "application/json",
     });
 
-    console.debug("[nr1/workspace] context token state", {
-      tokenPresent: Boolean(accessToken),
-    });
-
     if (!accessToken) {
       throw new Error("Sessao local sem token de acesso. Faca login novamente e tente de novo.");
     }
@@ -1409,20 +1420,11 @@ useEffect(() => {
 
         payload = text.trim() ? (JSON.parse(text) as unknown) : {};
       } catch {
-        if (path === "/api/tenant/select") {
-          console.debug("[nr1/workspace] tenant legacy fallback ignored", { endpoint: path });
-        }
         continue;
       }
 
       const tenantCandidates = extractTenantCandidatesFromPayload(payload);
       const selectedTenant = tenantCandidates[0] || null;
-
-      console.debug("[nr1/workspace] tenant candidates", {
-        endpoint: path,
-        count: tenantCandidates.length,
-        selectedRole: selectedTenant?.role || null,
-      });
 
       const tenantId = selectedTenant?.tenantId || null;
 
@@ -1438,11 +1440,6 @@ useEffect(() => {
       }
 
       if (tenantId) {
-        console.debug("[nr1/workspace] tenant resolved", {
-          endpoint: path,
-          role: selectedTenant?.role || null,
-        });
-
         return {
           tenantId,
           establishmentId: establishmentId || fallbackEstablishmentId,
@@ -1905,6 +1902,9 @@ useEffect(() => {
   }
   async function handleCreateCompany(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (isGuidedCompanyFinalMicroStep) {
+      setCompanyFinalSubmitAttempted(true);
+    }
     setFormStatus("saving");
     setFormError(null);
     setSuccessMessage(null);
@@ -2048,12 +2048,16 @@ useEffect(() => {
       }
 
       if (showGuidedSetup) {
+        setCompanyFinalSubmitAttempted(false);
+        setGuidedSetupChoice("review");
         setGuidedStepKey("estabelecimento");
         setOnboardingMicroStepIndex(0);
-        setSuccessMessage("Triagem da empresa cadastrada. Vamos para o proximo passo.");
+        setSuccessMessage("Triagem da empresa cadastrada. Agora informe o estabelecimento.");
       } else {
         setSuccessMessage("Triagem da empresa cadastrada.");
       }
+
+      setFormError(null);
       setFormStatus("saved");
     } catch (error) {
       setFormStatus("error");
@@ -3470,7 +3474,7 @@ useEffect(() => {
 
       <div className={showGuidedSetup ? "" : "mx-auto grid max-w-7xl gap-6 px-6 py-6 xl:grid-cols-[280px_1fr]"}>
         {showWorkspaceDashboardContent ? (
-        <aside className="h-fit rounded-3xl border border-[#132238] bg-[#132238] p-5 text-white shadow-sm">
+        <aside className="sticky top-6 h-fit max-h-[calc(100vh-3rem)] overflow-y-auto rounded-3xl border border-[#132238] bg-[#132238] p-5 text-white shadow-sm">
           <div className="border-b border-white/10 pb-5">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#c7a96b]">icanHelp NR-1</p>
             <p className="mt-2 text-sm leading-5 text-white/70">
@@ -3752,7 +3756,7 @@ useEffect(() => {
                 </div>
               ) : null}
               {(!showGuidedSetup || onboardingCurrentStep.key === "empresa") ? (
-              <form onSubmit={handleCreateCompany} className={showGuidedSetup ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
+              <form noValidate onSubmit={handleCreateCompany} className={showGuidedSetup ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
                 <h2 className={showGuidedSetup ? "sr-only" : "text-xl font-semibold"}>1. Triagem Empresarial NR-1</h2>
                 <p className="mt-1 text-sm text-slate-500">Antes do diagnostico, vamos qualificar a empresa para formar a base do PGR.</p>
 
@@ -3889,6 +3893,24 @@ useEffect(() => {
                         <p className="mt-2 text-xs leading-5 text-[#6f665b]">
                           O historico sera coletado como indicador agregado: afastamentos, acidentes, CAT, atestados recorrentes, setores mais afetados, motivos agrupados e evidencias existentes. Nao deve coletar nome de trabalhador, prontuario medico, CID individual ou diagnostico clinico individual.
                         </p>
+                        <div data-testid="nr1-company-final-checklist" className="mt-4 rounded-2xl border border-[#d9c9b8] bg-white p-4">
+                          <p className="text-sm font-semibold text-[#10243e]">Conferencia final da triagem</p>
+                          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                            {companyRequiredFieldSummary.map((item) => (
+                              <div key={item.label} className="flex items-center justify-between gap-3 rounded-xl bg-[#fffaf3] px-3 py-2 text-sm">
+                                <span className="text-[#10243e]">{item.label}</span>
+                                <span className={`font-semibold ${item.ok ? "text-emerald-700" : "text-red-700"}`}>
+                                  {item.ok ? "OK" : "Pendente"}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          {visibleFormError ? (
+                            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                              {visibleFormError}
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                     ) : null}
                   </div>
@@ -3964,15 +3986,24 @@ useEffect(() => {
                   ) : <span />}
                   <button
                     type={showGuidedSetup && !isLastOnboardingMicroStep ? "button" : "submit"}
-                    onClick={
-                      showGuidedSetup && !isLastOnboardingMicroStep
-                        ? handleContinueGuidedMicroStep
-                        : undefined
-                    }
+                    onClick={() => {
+                      if (isGuidedCompanyFinalMicroStep) {
+                        setCompanyFinalSubmitAttempted(true);
+                        return;
+                      }
+
+                      if (showGuidedSetup && !isLastOnboardingMicroStep) {
+                        handleContinueGuidedMicroStep();
+                      }
+                    }}
                     disabled={formStatus === "saving"}
                     className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                   >
-                    {showGuidedSetup ? (isLastOnboardingMicroStep ? onboardingCurrentStep.buttonLabel : "Continuar") : "Cadastrar empresa"}
+                    {formStatus === "saving"
+                      ? "Salvando..."
+                      : showGuidedSetup
+                        ? (isLastOnboardingMicroStep ? onboardingCurrentStep.buttonLabel : "Continuar")
+                        : "Cadastrar empresa"}
                   </button>
                 </div>
               </form>
@@ -5019,7 +5050,3 @@ useEffect(() => {
     </main>
 );
 }
-
-
-
-
