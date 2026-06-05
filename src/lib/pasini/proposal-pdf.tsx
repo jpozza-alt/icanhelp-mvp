@@ -31,11 +31,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   logoCard: {
-    marginBottom: 24,
-    width: 190,
+    marginBottom: 26,
+    width: 270,
   },
   logo: {
-    width: 184,
+    width: 270,
   },
   brandFallback: {
     color: "#101b3b",
