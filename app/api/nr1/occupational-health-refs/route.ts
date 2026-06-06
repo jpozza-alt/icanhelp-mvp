@@ -15,11 +15,15 @@ type Nr1OccupationalHealthRefInsert = Database["public"]["Tables"]["nr1_occupati
 type CreateOccupationalHealthRefBody = {
   establishment_id?: string
   has_pcmso?: boolean | null
+  pcmso_exists?: boolean | null
   pcmso_valid_until?: string | null
+  pcmso_validity_date?: string | null
   technical_responsible?: string | null
   notes?: string | null
   accident_disease_indicators?: string | null
+  has_accident_or_disease_requiring_review?: boolean | null
   work_related_leave_indicators?: string | null
+  has_work_related_absences?: boolean | null
 }
 
 function json(status: number, payload: Record<string, unknown>) {
@@ -176,15 +180,34 @@ export async function POST(req: NextRequest) {
 
     const userClient = createNr1UserClientFromBearer(bearerToken)
 
+    const hasWorkRelatedAbsences = cleanNullableBoolean(body.has_work_related_absences)
+    const hasAccidentOrDiseaseReview = cleanNullableBoolean(body.has_accident_or_disease_requiring_review)
+
+    const workRelatedLeaveIndicators =
+      cleanText(body.work_related_leave_indicators) ||
+      (hasWorkRelatedAbsences === true
+        ? "Ha dados agregados de afastamentos relacionados ao trabalho."
+        : hasWorkRelatedAbsences === false
+          ? "Nao ha dados agregados de afastamentos relacionados ao trabalho informados."
+          : null)
+
+    const accidentDiseaseIndicators =
+      cleanText(body.accident_disease_indicators) ||
+      (hasAccidentOrDiseaseReview === true
+        ? "Ha dados agregados de acidentes ou doencas que exigem revisao."
+        : hasAccidentOrDiseaseReview === false
+          ? "Nao ha dados agregados de acidentes ou doencas que exigem revisao informados."
+          : null)
+
     const payload: Nr1OccupationalHealthRefInsert = {
       tenant_id: scope.tenantId,
       establishment_id: establishmentId,
-      has_pcmso: cleanNullableBoolean(body.has_pcmso),
-      pcmso_valid_until: cleanText(body.pcmso_valid_until),
+      has_pcmso: cleanNullableBoolean(body.has_pcmso) ?? cleanNullableBoolean(body.pcmso_exists),
+      pcmso_valid_until: cleanText(body.pcmso_valid_until) || cleanText(body.pcmso_validity_date),
       technical_responsible: cleanText(body.technical_responsible),
       notes: cleanText(body.notes),
-      accident_disease_indicators: cleanText(body.accident_disease_indicators),
-      work_related_leave_indicators: cleanText(body.work_related_leave_indicators),
+      accident_disease_indicators: accidentDiseaseIndicators,
+      work_related_leave_indicators: workRelatedLeaveIndicators,
     }
 
     const result = await userClient
