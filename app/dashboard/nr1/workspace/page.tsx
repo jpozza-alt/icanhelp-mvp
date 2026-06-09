@@ -4291,18 +4291,18 @@ useEffect(() => {
                   <textarea
                     value={departmentForm.description}
                     onChange={(event) => setDepartmentForm((prev) => ({ ...prev, description: event.target.value }))}
-                    placeholder="Descricao do setor"
+                    placeholder="Descrição do setor"
                     rows={3}
                     className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
                   />
                   <div className="grid gap-2 text-sm text-slate-700 md:grid-cols-2">
                     {[
-                      ["has_direct_leadership", "Lideranca direta"],
-                      ["has_public_contact", "Contato com publico"],
-                      ["has_deadline_pressure", "Pressao de prazo"],
+                      ["has_direct_leadership", "Liderança direta"],
+                      ["has_public_contact", "Contato com público"],
+                      ["has_deadline_pressure", "Pressão de prazo"],
                       ["has_repetitive_work", "Trabalho repetitivo"],
                       ["has_prolonged_sitting", "Sentado prolongado"],
-                      ["has_relevant_physical_effort", "Esforco fisico"],
+                      ["has_relevant_physical_effort", "Esforço físico"],
                     ].map(([key, label]) => (
                       <label key={key} className="flex items-center gap-2">
                         <input
@@ -4395,7 +4395,7 @@ useEffect(() => {
                     <input
                       value={activityForm.frequency}
                       onChange={(event) => setActivityForm((prev) => ({ ...prev, frequency: event.target.value }))}
-                      placeholder="Frequencia"
+                      placeholder="Frequência"
                       className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
                     />
                     <input
@@ -4408,15 +4408,15 @@ useEffect(() => {
                   <input
                     value={activityForm.execution_location}
                     onChange={(event) => setActivityForm((prev) => ({ ...prev, execution_location: event.target.value }))}
-                    placeholder="Local de execucao"
+                    placeholder="Local de execução"
                     className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
                   />
                   <div className="grid gap-2 text-sm text-slate-700 md:grid-cols-2">
                     {[
-                      ["uses_machine", "Usa maquina"],
-                      ["uses_chemical", "Usa quimico"],
-                      ["has_public_contact", "Contato com publico"],
-                      ["has_third_party_interaction", "Interacao com terceiros"],
+                      ["uses_machine", "Usa máquina"],
+                      ["uses_chemical", "Usa químico"],
+                      ["has_public_contact", "Contato com público"],
+                      ["has_third_party_interaction", "Interação com terceiros"],
                     ].map(([key, label]) => (
                       <label key={key} className="flex items-center gap-2">
                         <input
@@ -4550,7 +4550,7 @@ useEffect(() => {
                     <input
                       value={diagnosisContextForm.process_changes_frequency}
                       onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, process_changes_frequency: event.target.value }))}
-                      placeholder="Frequencia de mudancas"
+                      placeholder="Frequência de mudancas"
                       className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
                     />
                   </div>
