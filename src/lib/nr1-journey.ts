@@ -67,7 +67,7 @@ export const NR1_JOURNEY_STEPS = [
     id: "empresa",
     order: 2,
     title: "Empresa",
-    description: "Qualifique a organizacao que sera avaliada.",
+    description: "Qualifique a organização que será avaliada.",
     href: "/dashboard/nr1/workspace",
     availability: "available",
     countsTowardProgress: false,
@@ -116,7 +116,7 @@ export const NR1_JOURNEY_STEPS = [
   {
     id: "historico-ocupacional",
     order: 7,
-    title: "Historico ocupacional agregado",
+    title: "Histórico ocupacional agregado",
     description: "Registre apenas indicadores agregados dos ultimos 24 meses.",
     href: "/dashboard/nr1/workspace",
     availability: "planned",
@@ -126,7 +126,7 @@ export const NR1_JOURNEY_STEPS = [
   {
     id: "diagnostico-inicial",
     order: 8,
-    title: "Diagnostico guiado",
+    title: "Diagnóstico guiado",
     description: "Avalie fatores da organizacao do trabalho sem diagnostico clinico.",
     href: "/dashboard/nr1/entrar",
     availability: "available",
@@ -136,7 +136,7 @@ export const NR1_JOURNEY_STEPS = [
   {
     id: "resultado-diagnostico",
     order: 9,
-    title: "Resultado do diagnostico",
+    title: "Resultado do diagnóstico",
     description: "Revise prioridades, lacunas e escalonamentos necessarios.",
     href: "/dashboard/nr1/workspace",
     availability: "planned",
@@ -146,7 +146,7 @@ export const NR1_JOURNEY_STEPS = [
   {
     id: "riscos",
     order: 10,
-    title: "Inventario de riscos",
+    title: "Inventário de riscos",
     description: "Consolide os riscos identificados.",
     href: "/dashboard/nr1/riscos",
     availability: "available",
@@ -156,7 +156,7 @@ export const NR1_JOURNEY_STEPS = [
   {
     id: "plano-de-acao",
     order: 11,
-    title: "Plano de acao",
+    title: "Plano de ação",
     description: "Transforme riscos em acao acompanhavel.",
     href: "/dashboard/nr1/plano-de-acao",
     availability: "available",
@@ -166,7 +166,7 @@ export const NR1_JOURNEY_STEPS = [
   {
     id: "evidencias",
     order: 12,
-    title: "Evidencias",
+    title: "Evidências",
     description: "Vincule comprovacoes e acompanhe a execucao.",
     href: "/dashboard/nr1/evidencias-acompanhamento",
     availability: "available",
@@ -176,7 +176,7 @@ export const NR1_JOURNEY_STEPS = [
   {
     id: "saude-treinamentos",
     order: 13,
-    title: "Saude e treinamentos",
+    title: "Saúde e treinamentos",
     description: "Registre referencias ocupacionais e treinamentos sem prontuarios.",
     href: "/dashboard/nr1/saude-treinamentos",
     availability: "available",
@@ -196,7 +196,7 @@ export const NR1_JOURNEY_STEPS = [
   {
     id: "revisoes-auditoria",
     order: 15,
-    title: "Revisoes e auditoria",
+    title: "Revisões e auditoria",
     description: "Revise dados e acompanhe a trilha do processo.",
     href: "/dashboard/nr1/trilha-acompanhamento",
     availability: "available",
@@ -206,7 +206,7 @@ export const NR1_JOURNEY_STEPS = [
   {
     id: "geracao-pgr",
     order: 16,
-    title: "Geracao do PGR",
+    title: "Geração do PGR",
     description: "Revise e gere a versao formal do PGR.",
     href: "/dashboard/nr1/relatorio-pgr",
     availability: "available",

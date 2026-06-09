@@ -1133,7 +1133,7 @@ useEffect(() => {
     }
   }, [guidedSetupChoice, isWorkspaceMode, showGuidedSetup]);
   function handleRequestCloseGuidedSetup() {
-    const confirmed = window.confirm("Deseja sair da jornada guiada? Voce podera voltar depois pelo botao Rever configuracao guiada.");
+    const confirmed = window.confirm("Deseja sair da jornada guiada? Você poderá voltar depois pelo botão Rever configuração guiada.");
 
     if (!confirmed) {
       return;
@@ -1170,7 +1170,7 @@ useEffect(() => {
         key: "empresa",
         title: "Triagem Empresarial NR-1",
         question: "Triagem Empresarial NR-1",
-        intro: "Antes do diagnostico, vamos qualificar a empresa para formar a base do PGR.",
+        intro: "Antes do diagnóstico, vamos qualificar a empresa para formar a base do PGR.",
         helper: "Comece pelo CNPJ. Depois revise a identificacao formal, a atividade economica, o porte, a quantidade de trabalhadores e a caracterizacao inicial de SST.",
         buttonLabel: "Salvar triagem da empresa e continuar",
       }
@@ -1199,7 +1199,7 @@ useEffect(() => {
             key: "atividade",
             title: "Atividade",
             question: "Qual atividade esse setor executa?",
-            intro: "Descreva a atividade real para liberar diagnostico, riscos e documentos.",
+            intro: "Descreva a atividade real para liberar diagnóstico, riscos e documentos.",
             helper: "Essa etapa transforma a base cadastrada em uma jornada operacional.",
             buttonLabel: "Salvar atividade e liberar workspace",
           };
@@ -1211,7 +1211,7 @@ useEffect(() => {
           key: "empresa",
           title: "Triagem Empresarial NR-1",
           question: "Triagem Empresarial NR-1",
-          intro: "Antes do diagnostico, vamos qualificar a empresa para formar a base do PGR.",
+          intro: "Antes do diagnóstico, vamos qualificar a empresa para formar a base do PGR.",
           helper: "Comece pelo CNPJ. Depois revise a identificacao formal, a atividade economica, o porte, a quantidade de trabalhadores e a caracterizacao inicial de SST.",
           buttonLabel: "Salvar triagem da empresa e continuar",
         }
@@ -1241,7 +1241,7 @@ useEffect(() => {
                 key: "atividade",
                 title: "Atividade",
                 question: "Qual atividade esse setor executa?",
-                intro: "Descreva a atividade real para liberar diagnostico, riscos e documentos.",
+                intro: "Descreva a atividade real para liberar diagnóstico, riscos e documentos.",
                 helper: "Essa etapa transforma a base cadastrada em uma jornada operacional.",
                 buttonLabel: "Salvar atividade e liberar workspace",
               }
@@ -1274,12 +1274,12 @@ useEffect(() => {
       (step.id === "revisoes-auditoria" && draft.activeSection === "auditoria");
 
     const status = isComplete
-      ? "Concluido"
+      ? "Concluído"
       : isCurrent
         ? "Agora"
         : step.availability === "planned"
           ? "Planejado"
-          : "Disponivel";
+          : "Disponível";
 
     return {
       ...step,
@@ -1295,12 +1295,12 @@ useEffect(() => {
             Jornada completa
           </p>
           <h2 className="mt-2 text-xl font-semibold text-[#10243e]">
-            {variant === "welcome" ? "O caminho completo ate o PGR" : "Continue olhando o caminho inteiro"}
+            {variant === "welcome" ? "O caminho completo até o PGR" : "Continue olhando o caminho inteiro"}
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
             {variant === "welcome"
-              ? "A implantacao inicial libera a base. Depois, o sistema guia diagnostico, riscos, plano de acao, evidencias e geracao do PGR."
-              : "A base inicial ainda pode ser revisada. A trilha abaixo mostra para onde a empresa avanca depois da triagem."}
+              ? "A implantação inicial libera a base. Depois, o sistema guia diagnóstico, riscos, plano de ação, evidências e geração do PGR."
+              : "A base inicial ainda pode ser revisada. A trilha abaixo mostra para onde a empresa avança depois da triagem."}
           </p>
         </div>
         <span className="w-fit rounded-full bg-[#132238] px-3 py-1 text-xs font-semibold text-white">
@@ -1315,7 +1315,7 @@ useEffect(() => {
             className={`rounded-2xl border px-3 py-2 text-xs ${
               step.status === "Agora"
                 ? "border-[#132238] bg-[#132238] text-white"
-                : step.status === "Concluido"
+                : step.status === "Concluído"
                   ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                   : step.status === "Planejado"
                     ? "border-[#ead8c8] bg-[#fffaf3] text-[#8a6b30]"
@@ -1342,14 +1342,14 @@ useEffect(() => {
   const onboardingMicroSteps =
     onboardingCurrentStep.key === "empresa"
       ? [
-                              { question: "Qual e o CNPJ da empresa?", helper: "Informe o CNPJ para validar a porta de entrada da Triagem Empresarial NR-1 e preparar a busca cadastral." },
-          { question: "Qual e a razao social da empresa?", helper: "Informe a identificacao formal da organizacao ou revise o dado preenchido pela consulta cadastral." },
+                              { question: "Qual é o CNPJ da empresa?", helper: "Informe o CNPJ para validar a porta de entrada da Triagem Empresarial NR-1 e preparar a busca cadastral." },
+          { question: "Qual é a razão social da empresa?", helper: "Informe a identificação formal da organização ou revise o dado preenchido pela consulta cadastral." },
           { question: "Qual e o nome fantasia?", helper: "Se nao houver nome fantasia, repita a razao social." },
-          { question: "Qual e o CNAE principal?", helper: "Informe 7 digitos. A validacao contra tabela CNAE fica para a proxima etapa tecnica." },
+          { question: "Qual e o CNAE principal?", helper: "Informe 7 dígitos. A validação contra tabela CNAE fica para a próxima etapa técnica." },
           { question: "Qual e o porte da empresa?", helper: "O porte ajuda a orientar a leitura da obrigacao e da jornada." },
           { question: "Quantos trabalhadores existem aproximadamente?", helper: "A quantidade de trabalhadores ajuda a priorizar a base do PGR." },
           { question: "A empresa possui CIPA, SESMT, terceiros, trabalho remoto ou atividades externas?", helper: "Esses dados ajudam a caracterizar a realidade inicial de SST." },
-          { question: "Depois desta etapa, a jornada segue para estabelecimento, setor, atividade e historico ocupacional.", helper: "O historico dos ultimos 24 meses sera tratado em etapa propria, com dados agregados, sem nome de trabalhador, prontuario, CID individual ou diagnostico clinico." },
+          { question: "Depois desta etapa, a jornada segue para estabelecimento, setor, atividade e histórico ocupacional.", helper: "O histórico dos últimos 24 meses será tratado em etapa própria, com dados agregados, sem nome de trabalhador, prontuário, CID individual ou diagnóstico clínico." },
         ]
       : onboardingCurrentStep.key === "estabelecimento"
         ? [
@@ -1432,7 +1432,7 @@ useEffect(() => {
     if (!context.establishmentId) {
       return {
         title: "Selecionar estabelecimento",
-        helper: "Escolha a unidade que sera usada como referencia do diagnostico.",
+        helper: "Escolha a unidade que será usada como referência do diagnóstico.",
         metric: String(establishments.length),
       };
     }
@@ -1440,14 +1440,14 @@ useEffect(() => {
     if (departments.length === 0 || activities.length === 0) {
       return {
         title: "Mapear setores e atividades",
-        helper: "Complete a base operacional antes de avancar para riscos e acoes.",
+        helper: "Complete a base operacional antes de avançar para riscos e ações.",
         metric: `${departments.length}/${activities.length}`,
       };
     }
 
     return {
-      title: "Avancar no diagnostico guiado",
-      helper: "Revise os sinais de atencao e transforme evidencias em plano de acao.",
+      title: "Avançar no diagnóstico guiado",
+      helper: "Revise os sinais de atenção e transforme evidências em plano de ação.",
       metric: `${progressPercent}%`,
     };
   }, [activities.length, companies.length, context.establishmentId, departments.length, establishments.length, progressPercent]);
@@ -1972,7 +1972,7 @@ useEffect(() => {
       }
 
       setCnpjLookupStatus("ready");
-      setCnpjLookupMessage("Consulta cadastral sera conectada na proxima etapa tecnica. Por enquanto, revise e preencha manualmente.");
+      setCnpjLookupMessage("Consulta cadastral será conectada na próxima etapa técnica. Por enquanto, revise e preencha manualmente.");
     }, 350);
   }
   async function handleCreateCompany(event: FormEvent<HTMLFormElement>): Promise<void> {
@@ -2389,7 +2389,7 @@ useEffect(() => {
         setGuidedSetupChoice("dashboard");
         setGuidedSetupOpen(false);
         patchDraft({ activeSection: "diagnostico" }, "guided_setup_activity_completed");
-        setSuccessMessage("Atividade cadastrada. Diagnostico liberado.");
+        setSuccessMessage("Atividade cadastrada. Diagnóstico liberado.");
       } else {
         setSuccessMessage("Atividade cadastrada.");
       }
@@ -2407,7 +2407,7 @@ useEffect(() => {
     const departmentId = firstString(selectedActivity, ["department_id"]) || firstString(departments[0], ["id"]) || "";
 
     if (!currentContext.tenantId || !currentContext.establishmentId) {
-      throw new Error("Salve a triagem ate estabelecimento, setor e atividade antes de iniciar o diagnostico.");
+      throw new Error("Salve a triagem até estabelecimento, setor e atividade antes de iniciar o diagnóstico.");
     }
 
     if (!departmentId || !activityId) {
@@ -2440,7 +2440,7 @@ useEffect(() => {
     const sessionId = firstString(extractFirstEntity(response), ["id"]);
 
     if (!sessionId) {
-      throw new Error("A rota nao retornou o id da sessao de diagnostico.");
+      throw new Error("A rota não retornou o id da sessão de diagnóstico.");
     }
 
     setDiagnosisActivityId(activityId);
@@ -2466,11 +2466,11 @@ useEffect(() => {
 
     try {
       await ensureDiagnosisSession();
-      setDiagnosisSuccess("Sessao de diagnostico iniciada.");
+      setDiagnosisSuccess("Sessão de diagnóstico iniciada.");
       setDiagnosisStatus("saved");
     } catch (error) {
       setDiagnosisStatus("error");
-      setDiagnosisError(error instanceof Error ? error.message : "Erro ao iniciar diagnostico.");
+      setDiagnosisError(error instanceof Error ? error.message : "Erro ao iniciar diagnóstico.");
     }
   }
 
@@ -2478,7 +2478,7 @@ useEffect(() => {
     const currentContext = contextRef.current;
 
     if (!currentContext.tenantId || !currentContext.establishmentId) {
-      throw new Error("Salve a triagem ate estabelecimento antes de salvar o diagnostico.");
+      throw new Error("Salve a triagem até estabelecimento antes de salvar o diagnóstico.");
     }
 
     const path = buildUrl("/api/nr1/diagnosis-context", {
@@ -2533,7 +2533,7 @@ useEffect(() => {
     const currentContext = contextRef.current;
 
     if (!currentContext.tenantId || !currentContext.establishmentId) {
-      throw new Error("Salve a triagem ate estabelecimento antes de salvar o diagnostico psicossocial.");
+      throw new Error("Salve a triagem até estabelecimento antes de salvar o diagnóstico psicossocial.");
     }
 
     const path = buildUrl("/api/nr1/diagnosis-psychosocial", {
@@ -2582,11 +2582,11 @@ useEffect(() => {
       await savePsychosocialDiagnosisBlock(sessionId);
       await refreshAuditEvents();
 
-      setDiagnosisSuccess("Diagnostico psicossocial salvo.");
+      setDiagnosisSuccess("Diagnóstico psicossocial salvo.");
       setDiagnosisStatus("saved");
     } catch (error) {
       setDiagnosisStatus("error");
-      setDiagnosisError(error instanceof Error ? error.message : "Erro ao salvar diagnostico psicossocial.");
+      setDiagnosisError(error instanceof Error ? error.message : "Erro ao salvar diagnóstico psicossocial.");
     }
   }
 
@@ -2600,7 +2600,7 @@ useEffect(() => {
 
     if (!currentContext.tenantId || !currentContext.establishmentId || !diagnosisSessionId) {
       setDiagnosisStatus("error");
-      setDiagnosisError("Inicie uma sessao de diagnostico antes.");
+      setDiagnosisError("Inicie uma sessão de diagnóstico antes.");
       return;
     }
 
@@ -2628,11 +2628,11 @@ useEffect(() => {
 
       await refreshAuditEvents();
 
-      setDiagnosisSuccess("Diagnostico FQB salvo.");
+      setDiagnosisSuccess("Diagnóstico FQB salvo.");
       setDiagnosisStatus("saved");
     } catch (error) {
       setDiagnosisStatus("error");
-      setDiagnosisError(error instanceof Error ? error.message : "Erro ao salvar diagnostico FQB.");
+      setDiagnosisError(error instanceof Error ? error.message : "Erro ao salvar diagnóstico FQB.");
     }
   }
 
@@ -2646,7 +2646,7 @@ useEffect(() => {
 
     if (!currentContext.tenantId || !currentContext.establishmentId || !diagnosisSessionId) {
       setDiagnosisStatus("error");
-      setDiagnosisError("Inicie uma sessao de diagnostico antes.");
+      setDiagnosisError("Inicie uma sessão de diagnóstico antes.");
       return;
     }
 
@@ -2674,11 +2674,11 @@ useEffect(() => {
 
       await refreshAuditEvents();
 
-      setDiagnosisSuccess("Diagnostico de acidentes salvo.");
+      setDiagnosisSuccess("Diagnóstico de acidentes salvo.");
       setDiagnosisStatus("saved");
     } catch (error) {
       setDiagnosisStatus("error");
-      setDiagnosisError(error instanceof Error ? error.message : "Erro ao salvar diagnostico de acidentes.");
+      setDiagnosisError(error instanceof Error ? error.message : "Erro ao salvar diagnóstico de acidentes.");
     }
   }
 
@@ -2692,7 +2692,7 @@ useEffect(() => {
 
     if (!currentContext.tenantId || !currentContext.establishmentId || !diagnosisSessionId) {
       setDiagnosisStatus("error");
-      setDiagnosisError("Inicie uma sessao de diagnostico antes.");
+      setDiagnosisError("Inicie uma sessão de diagnóstico antes.");
       return;
     }
 
@@ -2720,11 +2720,11 @@ useEffect(() => {
 
       await refreshAuditEvents();
 
-      setDiagnosisSuccess("Diagnostico ergonomico salvo.");
+      setDiagnosisSuccess("Diagnóstico ergonômico salvo.");
       setDiagnosisStatus("saved");
     } catch (error) {
       setDiagnosisStatus("error");
-      setDiagnosisError(error instanceof Error ? error.message : "Erro ao salvar diagnostico ergonomico.");
+      setDiagnosisError(error instanceof Error ? error.message : "Erro ao salvar diagnóstico ergonômico.");
     }
   }
 
@@ -2738,7 +2738,7 @@ useEffect(() => {
 
     if (!currentContext.tenantId || !currentContext.establishmentId || !diagnosisSessionId) {
       setDiagnosisStatus("error");
-      setDiagnosisError("Inicie uma sessao de diagnostico antes.");
+      setDiagnosisError("Inicie uma sessão de diagnóstico antes.");
       return;
     }
 
@@ -2784,7 +2784,7 @@ useEffect(() => {
 
     if (!currentContext.tenantId || !currentContext.establishmentId || !diagnosisSessionId) {
       setDiagnosisStatus("error");
-      setDiagnosisError("Inicie uma sessao de diagnostico antes.");
+      setDiagnosisError("Inicie uma sessão de diagnóstico antes.");
       return;
     }
 
@@ -2816,7 +2816,7 @@ useEffect(() => {
 
       await refreshAuditEvents();
 
-      setDiagnosisSuccess("Revisao tecnica do diagnostico salva.");
+      setDiagnosisSuccess("Revisão técnica do diagnóstico salva.");
       setDiagnosisStatus("saved");
     } catch (error) {
       setDiagnosisStatus("error");
@@ -2864,7 +2864,7 @@ useEffect(() => {
 
     if (!currentContext.tenantId || !currentContext.establishmentId) {
       setDiagnosisStatus("error");
-      setDiagnosisError("Salve a triagem ate estabelecimento, setor e atividade antes de gerar risco.");
+      setDiagnosisError("Salve a triagem até estabelecimento, setor e atividade antes de gerar risco.");
       return;
     }
 
@@ -2926,7 +2926,7 @@ useEffect(() => {
             generate_risk: true,
             generated_risk_title: "Risco preliminar gerado pelo diagnostico guiado",
             generated_risk_category: "psychosocial",
-            generated_risk_source_circumstance: "Diagnostico guiado NR-1",
+            generated_risk_source_circumstance: "Diagnóstico guiado NR-1",
             generated_risk_recommended_measure:
               "Validar o risco preliminar com responsavel tecnico e definir plano de acao inicial.",
           }),
@@ -2948,7 +2948,7 @@ useEffect(() => {
       setActionPlanForm((prev) => ({
         ...prev,
         risk_id: riskId,
-        title: prev.title || "Plano de acao inicial para risco preliminar",
+        title: prev.title || "Plano de ação inicial para risco preliminar",
         description:
           prev.description ||
           "Validar o risco preliminar gerado pelo diagnostico guiado e definir medidas de controle.",
@@ -3242,7 +3242,7 @@ useEffect(() => {
         risk_id: riskId,
         due_date: isoDatePlusDays(30),
       });
-      setActionPlanSuccess("Plano de acao criado e vinculado ao risco.");
+      setActionPlanSuccess("Plano de ação criado e vinculado ao risco.");
       setActionPlanStatus("saved");
     } catch (error) {
       setActionPlanStatus("error");
@@ -3386,7 +3386,7 @@ useEffect(() => {
     ["departments_checked", "Setores cadastrados"],
     ["activities_checked", "Atividades cadastradas"],
     ["diagnosis_started", "Diagnostico iniciado"],
-    ["evidence_pending", "Evidencias pendentes mapeadas"],
+    ["evidence_pending", "Evidências pendentes mapeadas"],
   ] as const;
 
   return (
@@ -3595,7 +3595,7 @@ useEffect(() => {
                   className={`rounded-xl border px-3 py-2 text-xs ${
                     step.status === "Agora"
                       ? "border-[#c7a96b] bg-[#c7a96b]/20 text-white"
-                      : step.status === "Concluido"
+                      : step.status === "Concluído"
                         ? "border-emerald-300/30 bg-emerald-300/10 text-white"
                         : "border-white/10 bg-[#0f1b2d]/50 text-white/70"
                   }`}
@@ -3666,18 +3666,18 @@ useEffect(() => {
             <h3 className="mt-2 text-lg font-semibold">
               {planFeatures?.featureFlags.iso45003_engine
                 ? "Recursos avancados disponiveis"
-                : "Recursos avancados em outro plano"}
+                : "Recursos avançados em outro plano"}
             </h3>
             <p className="mt-2 max-w-3xl">
-              Seu plano atual permite continuar a jornada NR-1. Alguns recursos avancados podem aparecer conforme o plano contratado.
+              Seu plano atual permite continuar a jornada NR-1. Alguns recursos avançados podem aparecer conforme o plano contratado.
             </p>
 
             <div className="mt-4 grid gap-2 md:grid-cols-2">
               {[
-                ["iso45003_engine", "Analise psicossocial"],
-                ["psychosocial_radar", "Sinais de atencao"],
+                ["iso45003_engine", "Análise psicossocial"],
+                ["psychosocial_radar", "Sinais de atenção"],
                 ["psychosocial_scoring", "Leitura de prioridade"],
-                ["smart_alerts", "Orientacoes de cuidado"],
+                ["smart_alerts", "Orientações de cuidado"],
               ].map(([featureKey, label]) => {
                 const enabled = planFeatures?.featureFlags[featureKey] === true;
 
@@ -3688,7 +3688,7 @@ useEffect(() => {
                   >
                     <span>{label}</span>
                     <span className={enabled ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>
-                      {enabled ? "Disponivel" : "Nao disponivel agora"}
+                      {enabled ? "Disponível" : "Não disponível agora"}
                     </span>
                   </div>
                 );
@@ -3822,7 +3822,7 @@ useEffect(() => {
                   <div className="mt-6 rounded-2xl border border-[#d9c9b8] bg-white p-4">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-[#10243e]">Jornada completa ate o PGR</p>
+                        <p className="text-sm font-semibold text-[#10243e]">Jornada completa até o PGR</p>
                         <p className="mt-1 text-xs leading-5 text-[#6f665b]">
                           A implantacao inicial libera a base. As demais etapas aparecem como trilha para orientar o caminho completo.
                         </p>
@@ -3838,7 +3838,7 @@ useEffect(() => {
                           className={`rounded-2xl border px-3 py-2 text-xs ${
                             step.status === "Agora"
                               ? "border-[#132238] bg-[#132238] text-white"
-                              : step.status === "Concluido"
+                              : step.status === "Concluído"
                                 ? "border-emerald-200 bg-emerald-50 text-emerald-800"
                                 : step.status === "Planejado"
                                   ? "border-[#ead8c8] bg-[#fffaf3] text-[#8a6b30]"
@@ -3886,7 +3886,7 @@ useEffect(() => {
               {(!showGuidedSetup || onboardingCurrentStep.key === "empresa") ? (
               <form noValidate onSubmit={handleCreateCompany} className={showGuidedSetup ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
                 <h2 className={showGuidedSetup ? "sr-only" : "text-xl font-semibold"}>1. Triagem Empresarial NR-1</h2>
-                <p className="mt-1 text-sm text-slate-500">Antes do diagnostico, vamos qualificar a empresa para formar a base do PGR.</p>
+                <p className="mt-1 text-sm text-slate-500">Antes do diagnóstico, vamos qualificar a empresa para formar a base do PGR.</p>
 
                 {showGuidedSetup ? (
                   <div className="mt-5 space-y-4">
@@ -3930,7 +3930,7 @@ useEffect(() => {
                     {onboardingMicroStepIndex === 1 ? (
                       <label className="block">
                         <span className="text-sm font-semibold text-[#10243e]">Razao social</span>
-                        <span className="mt-1 block text-xs text-[#6f665b]">Informe a identificacao formal da organizacao ou revise o dado preenchido pela consulta cadastral.</span>
+                        <span className="mt-1 block text-xs text-[#6f665b]">Informe a identificação formal da organização ou revise o dado preenchido pela consulta cadastral.</span>
                         <input
                           value={companyForm.legal_name}
                           onChange={(event) => setCompanyForm((prev) => ({ ...prev, legal_name: event.target.value }))}
@@ -3954,7 +3954,7 @@ useEffect(() => {
                     {onboardingMicroStepIndex === 3 ? (
                       <label className="block">
                         <span className="text-sm font-semibold text-[#10243e]">CNAE principal</span>
-                        <span className="mt-1 block text-xs text-[#6f665b]">Informe 7 digitos. A validacao contra tabela CNAE fica para a proxima etapa tecnica.</span>
+                        <span className="mt-1 block text-xs text-[#6f665b]">Informe 7 dígitos. A validação contra tabela CNAE fica para a próxima etapa técnica.</span>
                         <input
                           value={companyForm.cnae_main}
                           onChange={(event) => setCompanyForm((prev) => ({ ...prev, cnae_main: event.target.value }))}

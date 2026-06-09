@@ -9,7 +9,7 @@ const steps = [
   "Empresa",
   "Estabelecimentos",
   "Setores e Atividades",
-  "Diagnostico Guiado",
+  "Diagnóstico Guiado",
   "Riscos",
   "Plano de Acao",
 ];
@@ -127,7 +127,7 @@ export default function Nr1LandingPage() {
             <section className="overflow-hidden rounded-[28px] bg-[linear-gradient(135deg,#0F2337_0%,#13495C_60%,#178A8F_100%)] p-7 text-white shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
               <h1 className="text-[32px] font-semibold leading-tight">Adequacao NR-1 da sua empresa</h1>
               <p className="mt-3 max-w-[760px] text-base leading-7 text-white/85">
-                O usuario nao entra em um formulario tecnico. Ele entra em uma jornada guiada que transforma respostas simples em riscos, prioridades, acoes, documentos e trilha de evidencias.
+                O usuário não entra em um formulário técnico. Ele entra em uma jornada guiada que transforma respostas simples em riscos, prioridades, ações, documentos e trilha de evidências.
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
                 <Link href={executionHref} className="rounded-[14px] bg-[linear-gradient(135deg,#0F7B83,#13A3A8)] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_20px_rgba(19,163,168,0.24)] transition hover:-translate-y-[1px]">Entrar para executar</Link>
@@ -150,7 +150,7 @@ export default function Nr1LandingPage() {
                 <div className="mt-4 grid gap-3">
                   <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4"><strong className="block">Entende a estrutura</strong><small className="mt-1 block text-[#60718A]">empresa, estabelecimentos, setores e atividades</small></div>
                   <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4"><strong className="block">Responde perguntas simples</strong><small className="mt-1 block text-[#60718A]">sem precisar saber a NR-1 inteira</small></div>
-                  <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4"><strong className="block">Valida riscos e acoes</strong><small className="mt-1 block text-[#60718A]">com linguagem de gestao do trabalho</small></div>
+                  <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4"><strong className="block">Valida riscos e ações</strong><small className="mt-1 block text-[#60718A]">com linguagem de gestão do trabalho</small></div>
                 </div>
               </div>
 
@@ -158,8 +158,8 @@ export default function Nr1LandingPage() {
                 <h2 className="text-xl font-semibold">O que o sistema entrega</h2>
                 <div className="mt-4 grid gap-3">
                   <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4"><strong className="block">Inventario organizado</strong><small className="mt-1 block text-[#60718A]">gerado a partir da jornada</small></div>
-                  <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4"><strong className="block">Plano de acao</strong><small className="mt-1 block text-[#60718A]">responsavel, prazo e acompanhamento</small></div>
-                  <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4"><strong className="block">Trilha documental</strong><small className="mt-1 block text-[#60718A]">evidencias, revisoes e historico</small></div>
+                  <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4"><strong className="block">Plano de ação</strong><small className="mt-1 block text-[#60718A]">responsavel, prazo e acompanhamento</small></div>
+                  <div className="rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4"><strong className="block">Trilha documental</strong><small className="mt-1 block text-[#60718A]">evidências, revisões e histórico</small></div>
                 </div>
               </div>
 
@@ -186,7 +186,7 @@ export default function Nr1LandingPage() {
                   <ul className="mt-3 grid gap-2 text-sm leading-7 text-[#60718A]">
                     <li>1. Demonstracao publica sem depender de sessao.</li>
                     <li>2. Execucao real atras de autenticacao.</li>
-                    <li>3. Linguagem clara sobre o que cada botao faz.</li>
+                    <li>3. Linguagem clara sobre o que cada botão faz.</li>
                   </ul>
                 </div>
               </div>
@@ -243,7 +243,3 @@ export default function Nr1LandingPage() {
     </main>
   );
 }
-
-
-
-
