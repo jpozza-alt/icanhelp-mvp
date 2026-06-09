@@ -4,6 +4,7 @@ import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } fro
 import { createClient } from "@supabase/supabase-js";
 import { getNr1PlanFeatures, type Nr1PlanFeaturesResponse } from "@/lib/nr1-plan-features-client";
 import Nr1PgrReportShortcut from "@/components/nr1/Nr1PgrReportShortcut";
+import { NR1_JOURNEY_STEPS } from "@/lib/nr1-journey";
 
 type JsonObject = Record<string, unknown>;
 
@@ -1251,13 +1252,40 @@ useEffect(() => {
       ? guidedReviewCurrentStep
       : inferredOnboardingCurrentStep;
 
-  const onboardingStepItems = [
-    ["Triagem empresarial", hasCompany ? "Concluido" : onboardingCurrentStep.index === 1 ? "Agora" : "Depois"],
-    ["Estabelecimento", hasEstablishment ? "Concluido" : onboardingCurrentStep.index === 2 ? "Agora" : "Depois"],
-    ["Setor", hasDepartment ? "Concluido" : onboardingCurrentStep.index === 3 ? "Agora" : "Depois"],
-    ["Atividade e historico", hasActivity ? "Concluido" : onboardingCurrentStep.index === 4 ? "Agora" : "Depois"],
-  ] as const;
+  const fullJourneyStepItems = NR1_JOURNEY_STEPS.map((step) => {
+    const isComplete =
+      step.id === "boas-vindas" ||
+      (step.id === "empresa" && hasCompany) ||
+      (step.id === "estabelecimento" && hasEstablishment) ||
+      (step.id === "setores" && hasDepartment) ||
+      (step.id === "atividades" && hasActivity) ||
+      (step.id === "diagnostico-inicial" && Boolean(draft.checklist.diagnosis_started)) ||
+      (step.id === "riscos" && risks.length > 0) ||
+      (step.id === "plano-de-acao" && actionPlans.length > 0);
 
+    const isCurrent =
+      (step.id === "empresa" && onboardingCurrentStep.key === "empresa") ||
+      (step.id === "estabelecimento" && onboardingCurrentStep.key === "estabelecimento") ||
+      (step.id === "setores" && onboardingCurrentStep.key === "setor") ||
+      (step.id === "atividades" && onboardingCurrentStep.key === "atividade") ||
+      (step.id === "diagnostico-inicial" && draft.activeSection === "diagnostico") ||
+      (step.id === "riscos" && draft.activeSection === "riscos") ||
+      (step.id === "plano-de-acao" && draft.activeSection === "riscos") ||
+      (step.id === "revisoes-auditoria" && draft.activeSection === "auditoria");
+
+    const status = isComplete
+      ? "Concluido"
+      : isCurrent
+        ? "Agora"
+        : step.availability === "planned"
+          ? "Planejado"
+          : "Disponivel";
+
+    return {
+      ...step,
+      status,
+    };
+  });
   // A jornada guiada deve abrir por escolha explicita do usuario. Dados carregados de forma assincrona nao devem empurrar a UI para modal ou dashboard.
 
   useEffect(() => {
@@ -3502,6 +3530,38 @@ useEffect(() => {
             </button>
           </div>
 
+          <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#c7a96b]">
+                Jornada completa
+              </p>
+              <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-semibold text-white/70">
+                {fullJourneyStepItems.length} etapas
+              </span>
+            </div>
+            <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
+              {fullJourneyStepItems.map((step) => (
+                <div
+                  key={step.id}
+                  className={`rounded-xl border px-3 py-2 text-xs ${
+                    step.status === "Agora"
+                      ? "border-[#c7a96b] bg-[#c7a96b]/20 text-white"
+                      : step.status === "Concluido"
+                        ? "border-emerald-300/30 bg-emerald-300/10 text-white"
+                        : "border-white/10 bg-[#0f1b2d]/50 text-white/70"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-semibold">
+                      {String(step.order).padStart(2, "0")}. {step.title}
+                    </p>
+                    <span className="shrink-0 text-[10px] opacity-70">{step.status}</span>
+                  </div>
+                  <p className="mt-1 text-[11px] leading-4 opacity-70">{step.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
           <nav className="mt-6 space-y-1.5">
             {[
               ["cadastros", "Cadastros", "Empresa, unidade, setores e atividades"],
@@ -3707,25 +3767,44 @@ useEffect(() => {
                       </p>
                     </div>
                     <span className="w-fit rounded-full bg-[#132238] px-3 py-1 text-xs font-semibold text-white">
-                      {onboardingCurrentStep.index} de 4
+                      Etapa ativa
                     </span>
                   </div>
-                  <div className="mt-6 grid gap-2 sm:grid-cols-4">
-                    {onboardingStepItems.map(([label, status], index) => (
-                      <div
-                        key={label}
-                        className={`rounded-2xl border px-3 py-2 text-xs ${
-                          status === "Agora"
-                            ? "border-[#132238] bg-[#132238] text-white"
-                            : status === "Concluido"
-                              ? "border-[#d9c9b8] bg-[#f7f1e8] text-[#10243e]"
-                              : "border-[#ead8c8] bg-white/50 text-[#8b8175]"
-                        }`}
-                      >
-                        <p className="font-semibold">{index + 1}. {label}</p>
-                        <p className="mt-1 opacity-75">{status}</p>
+                  <div className="mt-6 rounded-2xl border border-[#d9c9b8] bg-white p-4">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-[#10243e]">Jornada completa ate o PGR</p>
+                        <p className="mt-1 text-xs leading-5 text-[#6f665b]">
+                          A implantacao inicial libera a base. As demais etapas aparecem como trilha para orientar o caminho completo.
+                        </p>
                       </div>
-                    ))}
+                      <span className="w-fit rounded-full bg-[#132238] px-3 py-1 text-xs font-semibold text-white">
+                        {fullJourneyStepItems.length} etapas
+                      </span>
+                    </div>
+                    <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                      {fullJourneyStepItems.map((step) => (
+                        <div
+                          key={step.id}
+                          className={`rounded-2xl border px-3 py-2 text-xs ${
+                            step.status === "Agora"
+                              ? "border-[#132238] bg-[#132238] text-white"
+                              : step.status === "Concluido"
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                                : step.status === "Planejado"
+                                  ? "border-[#ead8c8] bg-[#fffaf3] text-[#8a6b30]"
+                                  : "border-[#d9c9b8] bg-white text-[#6f665b]"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-semibold">
+                              {String(step.order).padStart(2, "0")}. {step.title}
+                            </p>
+                            <span className="text-[10px] opacity-70">{step.status}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <p className="mt-5 text-sm leading-6 text-[#6f665b]">
                     {onboardingCurrentStep.helper}
