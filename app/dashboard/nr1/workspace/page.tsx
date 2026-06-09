@@ -1286,6 +1286,53 @@ useEffect(() => {
       status,
     };
   });
+
+  const renderFullJourneyOverview = (variant: "welcome" | "partial") => (
+    <section className="mt-8 rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-5 shadow-sm">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
+            Jornada completa
+          </p>
+          <h2 className="mt-2 text-xl font-semibold text-[#10243e]">
+            {variant === "welcome" ? "O caminho completo ate o PGR" : "Continue olhando o caminho inteiro"}
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
+            {variant === "welcome"
+              ? "A implantacao inicial libera a base. Depois, o sistema guia diagnostico, riscos, plano de acao, evidencias e geracao do PGR."
+              : "A base inicial ainda pode ser revisada. A trilha abaixo mostra para onde a empresa avanca depois da triagem."}
+          </p>
+        </div>
+        <span className="w-fit rounded-full bg-[#132238] px-3 py-1 text-xs font-semibold text-white">
+          {fullJourneyStepItems.length} etapas
+        </span>
+      </div>
+
+      <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        {fullJourneyStepItems.map((step) => (
+          <div
+            key={step.id}
+            className={`rounded-2xl border px-3 py-2 text-xs ${
+              step.status === "Agora"
+                ? "border-[#132238] bg-[#132238] text-white"
+                : step.status === "Concluido"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : step.status === "Planejado"
+                    ? "border-[#ead8c8] bg-[#fffaf3] text-[#8a6b30]"
+                    : "border-[#d9c9b8] bg-white text-[#6f665b]"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-semibold">
+                {String(step.order).padStart(2, "0")}. {step.title}
+              </p>
+              <span className="text-[10px] opacity-70">{step.status}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
   // A jornada guiada deve abrir por escolha explicita do usuario. Dados carregados de forma assincrona nao devem empurrar a UI para modal ou dashboard.
 
   useEffect(() => {
@@ -3402,6 +3449,7 @@ useEffect(() => {
               </ul>
             </div>
           </div>
+          {renderFullJourneyOverview("welcome")}
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
             <button
@@ -3432,6 +3480,7 @@ useEffect(() => {
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6f665b]">
             Voce pode revisar a Triagem Empresarial NR-1 antes de continuar ou ir para o dashboard e retomar pelos cadastros.
           </p>
+          {renderFullJourneyOverview("partial")}
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
             <button
               type="button"
