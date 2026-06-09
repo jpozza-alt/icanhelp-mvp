@@ -1287,6 +1287,51 @@ useEffect(() => {
     };
   });
 
+  const renderNextBestActionCard = (variant: "welcome" | "partial" | "workspace") => {
+    const copy =
+      variant === "welcome"
+        ? {
+            title: "Começar pela implantação mínima",
+            description:
+              "Cadastre a empresa, a unidade, o primeiro setor e a atividade principal. Depois disso, o workspace decisório libera riscos, plano de ação, evidências e PGR.",
+            action: "Ação recomendada: começar jornada guiada.",
+            outcome: "Resultado esperado: base mínima pronta para análise.",
+          }
+        : variant === "partial"
+          ? {
+              title: "Retomar pela base já iniciada",
+              description:
+                "Revise a triagem antes de avançar. O sistema mantém a trilha completa como rastreabilidade, mas a decisão agora é continuar pelo ponto mais seguro.",
+              action: "Ação recomendada: revisar triagem ou ir para o dashboard.",
+              outcome: "Resultado esperado: continuidade sem refazer tudo.",
+            }
+          : {
+              title: "Avançar a partir da base pronta",
+              description:
+                "A empresa já tem uma base inicial. O próximo passo é transformar o mapeamento em análise do trabalho, riscos priorizados, plano de ação e evidências.",
+              action: "Ação recomendada: iniciar diagnóstico guiado.",
+              outcome: "Resultado esperado: primeira leitura de risco para o PGR.",
+            };
+
+    return (
+      <section className="mt-6 rounded-3xl border border-[#c7a96b] bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#9d7b37]">
+              Próxima melhor ação
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-[#10243e]">{copy.title}</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">{copy.description}</p>
+          </div>
+          <div className="rounded-2xl border border-[#eadfce] bg-[#fffaf6] p-4 text-sm leading-6 text-[#6f665b] lg:max-w-xs">
+            <p className="font-semibold text-[#10243e]">{copy.action}</p>
+            <p className="mt-2">{copy.outcome}</p>
+          </div>
+        </div>
+      </section>
+    );
+  };
+
   const renderFullJourneyOverview = (variant: "welcome" | "partial") => (
     <section className="mt-8 rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-5 shadow-sm">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -3449,6 +3494,7 @@ useEffect(() => {
               </ul>
             </div>
           </div>
+          {renderNextBestActionCard("welcome")}
           {renderFullJourneyOverview("welcome")}
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -3480,6 +3526,7 @@ useEffect(() => {
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6f665b]">
             Voce pode revisar a Triagem Empresarial NR-1 antes de continuar ou ir para o dashboard e retomar pelos cadastros.
           </p>
+          {renderNextBestActionCard("partial")}
           {renderFullJourneyOverview("partial")}
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
             <button
@@ -3718,6 +3765,7 @@ useEffect(() => {
           <section className="rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-6 shadow-sm">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
               <div>
+                {renderNextBestActionCard("workspace")}
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
                   Base inicial pronta
                 </p>
