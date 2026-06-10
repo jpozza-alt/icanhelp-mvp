@@ -28,6 +28,7 @@ type Nr1WorkspaceV2ShellProps = {
   nextBestActionReasons?: string[];
   pgrHref?: string;
   moduleHref?: string;
+  topContextSlot?: ReactNode;
   children?: ReactNode;
 };
 
@@ -107,6 +108,7 @@ export default function Nr1WorkspaceV2Shell({
   nextBestActionReasons = defaultNextBestActionReasons,
   pgrHref = "/dashboard/nr1/relatorio-pgr",
   moduleHref = "/dashboard/nr1/workspace",
+  topContextSlot,
   children,
 }: Nr1WorkspaceV2ShellProps) {
   const safeProgress = clampProgress(progressPercent);
@@ -278,6 +280,12 @@ export default function Nr1WorkspaceV2Shell({
               </div>
             </div>
           </section>
+
+          {topContextSlot ? (
+            <div className="mb-6">
+              {topContextSlot}
+            </div>
+          ) : null}
 
           <section className="mt-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

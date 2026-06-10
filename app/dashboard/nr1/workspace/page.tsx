@@ -3482,6 +3482,99 @@ useEffect(() => {
     ["evidence_pending", "Evidências pendentes mapeadas"],
   ] as const;
 
+  const workspaceV2TopContextSlot = (
+    <section
+      id="workspace-active-company-selector"
+      className="rounded-[1.75rem] border border-[#d8c7ae] bg-white p-5 shadow-sm"
+    >
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div className="max-w-2xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
+            Contexto operacional ativo
+          </p>
+          <h2 className="mt-2 text-xl font-semibold text-[#10243e]">
+            Escolha a empresa e a unidade antes de avançar
+          </h2>
+          <p className="mt-1 text-sm leading-6 text-[#6f665b]">
+            Esta área define qual empresa, unidade, setor e atividade serão usados no mapeamento, riscos e PGR.
+          </p>
+        </div>
+
+        <div className="grid w-full gap-3 xl:max-w-4xl xl:grid-cols-2">
+          <label className="text-sm font-semibold text-[#10243e]">
+            Empresa ativa
+            <select
+              value={activeCompanyId}
+              onChange={(event) => handleActiveCompanySelectorChange(event.target.value)}
+              className="mt-2 w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-sm font-semibold text-[#10243e]"
+            >
+              <option value="">Selecione uma empresa</option>
+              {companies.map((item, index) => {
+                const companyId = firstString(item, ["id"]);
+                return (
+                  <option key={companyId || index} value={companyId || ""}>
+                    {displayName(item, `Empresa ${index + 1}`)}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
+
+          <label className="text-sm font-semibold text-[#10243e]">
+            Estabelecimento ativo
+            <select
+              value={context.establishmentId || ""}
+              onChange={(event) =>
+                setContext((previous) => ({
+                  ...previous,
+                  establishmentId: event.target.value,
+                }))
+              }
+              className="mt-2 w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-sm font-semibold text-[#10243e]"
+            >
+              <option value="">Selecione uma unidade</option>
+              {establishments.map((item, index) => {
+                const establishmentId = firstString(item, ["id"]);
+                return (
+                  <option key={establishmentId || index} value={establishmentId || ""}>
+                    {displayName(item, `Unidade ${index + 1}`)}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 md:grid-cols-4">
+        <div className="rounded-2xl bg-[#f7efe6] px-4 py-3 text-sm">
+          <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-[#9d7b37]">Empresa</span>
+          <strong className="mt-1 block text-[#10243e]">
+            {selectedCompany ? displayName(selectedCompany, "Empresa ativa") : "Não selecionada"}
+          </strong>
+        </div>
+        <div className="rounded-2xl bg-[#f7efe6] px-4 py-3 text-sm">
+          <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-[#9d7b37]">Unidade</span>
+          <strong className="mt-1 block text-[#10243e]">
+            {selectedEstablishment ? displayName(selectedEstablishment, "Unidade ativa") : "Não selecionada"}
+          </strong>
+        </div>
+        <div className="rounded-2xl bg-[#f7efe6] px-4 py-3 text-sm">
+          <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-[#9d7b37]">Setor</span>
+          <strong className="mt-1 block text-[#10243e]">
+            {departments.length > 0 ? displayName(departments[0], "Setor cadastrado") : "Pendente"}
+          </strong>
+        </div>
+        <div className="rounded-2xl bg-[#f7efe6] px-4 py-3 text-sm">
+          <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-[#9d7b37]">Atividade</span>
+          <strong className="mt-1 block text-[#10243e]">
+            {activities.length > 0 ? displayName(activities[0], "Atividade cadastrada") : "Pendente"}
+          </strong>
+        </div>
+      </div>
+    </section>
+  );
+
   const workspaceV2ActiveModule =
     draft.activeSection === "cadastros"
       ? "Base"
@@ -3672,48 +3765,10 @@ useEffect(() => {
           nextBestActionReasons={workspaceV2NextBestActionReasons}
           pgrHref="/dashboard/nr1/relatorio-pgr"
           moduleHref="#nr1-operational-content"
-        >
+
+              topContextSlot={workspaceV2TopContextSlot}>
         <section id="nr1-operational-content" className={showGuidedSetup ? "min-w-0" : "min-w-0 space-y-6"}>
 
-                {companies.length > 0 ? (
-                  <div
-                    id="workspace-active-company-selector"
-                    className="rounded-[1.5rem] border border-[#e2d4bf] bg-white p-5 shadow-sm"
-                  >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
-                          Empresa ativa
-                        </p>
-                        <h2 className="mt-2 text-xl font-semibold text-[#10243e]">
-                          Escolha qual empresa está sendo trabalhada agora
-                        </h2>
-                        <p className="mt-1 text-sm leading-6 text-[#6f665b]">
-                          A lista abaixo usa apenas empresas disponíveis para este usuário/tenant. A troca muda o foco operacional do workspace.
-                        </p>
-                      </div>
-
-                      <label className="w-full max-w-xl text-sm font-semibold text-[#10243e]">
-                        Selecionar empresa
-                        <select
-                          value={activeCompanyId}
-                          onChange={(event) => handleActiveCompanySelectorChange(event.target.value)}
-                          className="mt-2 w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-sm font-semibold text-[#10243e]"
-                        >
-                          <option value="">Selecione uma empresa</option>
-                          {companies.map((item, index) => {
-                            const companyId = firstString(item, ["id"]);
-                            return (
-                              <option key={companyId || index} value={companyId || ""}>
-                                {displayName(item, `Empresa ${index + 1}`)}
-                              </option>
-                            );
-                          })}
-                        </select>
-                      </label>
-                    </div>
-                  </div>
-                ) : null}
           {showWorkspaceDashboardContent && isWorkspaceMode ? (
           <div
             className={
