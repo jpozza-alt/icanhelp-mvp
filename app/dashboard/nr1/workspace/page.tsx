@@ -1097,6 +1097,23 @@ useEffect(() => {
     return establishments.find((item) => item.id === context.establishmentId) || null;
   }, [context.establishmentId, establishments]);
 
+  useEffect(() => {
+    if (context.establishmentId || establishments.length === 0) {
+      return;
+    }
+
+    const firstEstablishmentId = firstString(establishments[0], ["id"]);
+
+    if (!firstEstablishmentId) {
+      return;
+    }
+
+    setContext((previous) => ({
+      ...previous,
+      establishmentId: firstEstablishmentId,
+    }));
+  }, [context.establishmentId, establishments]);
+
   const selectedRisk = useMemo(() => {
     return risks.find((item) => item.id === selectedRiskId) || null;
   }, [risks, selectedRiskId]);
