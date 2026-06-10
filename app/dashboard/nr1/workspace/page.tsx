@@ -1102,7 +1102,7 @@ useEffect(() => {
   }, [risks, selectedRiskId]);
 
   const hasCompany = companies.length > 0;
-  const hasEstablishment = Boolean(context.establishmentId);
+  const hasEstablishment = Boolean(context.establishmentId) || establishments.length > 0;
   const hasDepartment = departments.length > 0;
   const hasActivity = activities.length > 0;
   const hasAnyTriageBase = hasCompany || hasEstablishment || hasDepartment || hasActivity;
