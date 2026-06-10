@@ -4417,134 +4417,170 @@ useEffect(() => {
 
           {showWorkspaceDashboardContent && isWorkspaceMode && draft.activeSection === "diagnostico" ? (
             <section className="space-y-6">
-              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div>
-                    <h2 className="text-xl font-semibold">Diagnóstico guiado do trabalho</h2>
-                    <p className="mt-1 max-w-3xl text-sm text-slate-500">
-                      Responda por atividade, registre o contexto real do trabalho e mantenha foco nos fatores ocupacionais.
+              <div className="overflow-hidden rounded-[2rem] border border-[#d8bd78] bg-white shadow-sm">
+                <div className="grid gap-0 lg:grid-cols-[1.25fr_0.75fr]">
+                  <div className="bg-[#10243e] p-6 text-white">
+                    <p className="text-xs font-semibold uppercase tracking-[0.26em] text-[#d8bd78]">
+                      Mapeamento do trabalho
                     </p>
+                    <h2 className="mt-3 text-3xl font-semibold tracking-tight">
+                      Diagnóstico guiado da rotina real
+                    </h2>
+                    <p className="mt-3 max-w-3xl text-sm leading-6 text-white/72">
+                      Registre a atividade analisada, descreva o contexto de trabalho e marque fatores organizacionais observados. Esta etapa não faz diagnóstico clínico; ela organiza evidências ocupacionais para o GRO/PGR.
+                    </p>
+
+                    <div className="mt-6 grid gap-3 md:grid-cols-3">
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#d8bd78]">01</p>
+                        <p className="mt-2 text-sm font-semibold">Contexto</p>
+                        <p className="mt-1 text-xs leading-5 text-white/60">Rotina, pessoas expostas, mudanças e sinais observados.</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#d8bd78]">02</p>
+                        <p className="mt-2 text-sm font-semibold">Fatores do trabalho</p>
+                        <p className="mt-1 text-xs leading-5 text-white/60">Sobrecarga, pressão, autonomia, apoio e organização.</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#d8bd78]">03</p>
+                        <p className="mt-2 text-sm font-semibold">Inventário</p>
+                        <p className="mt-1 text-xs leading-5 text-white/60">Geração de risco preliminar para priorização.</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm">
-                    <p className="font-medium">Status do diagnostico</p>
-                    <p className="mt-1 text-slate-600">{diagnosisStatus}</p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {diagnosisSessionId ? `Sessao: ${diagnosisSessionId}` : "Sessao ainda nao iniciada"}
+
+                  <div className="border-t border-[#eadfce] bg-[#fffaf3] p-6 lg:border-l lg:border-t-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
+                      Status da análise
                     </p>
+                    <p className="mt-3 text-lg font-semibold text-[#10243e]">{diagnosisStatus}</p>
+                    <p className="mt-2 text-xs leading-5 text-[#6f665b]">
+                      {diagnosisSessionId ? `Sessão ativa: ${diagnosisSessionId}` : "Sessão ainda não iniciada"}
+                    </p>
+
+                    <div className="mt-5 rounded-2xl border border-[#eadfce] bg-white p-4">
+                      <label className="text-sm font-semibold text-[#10243e]">Atividade analisada</label>
+                      <select
+                        value={diagnosisActivityId || firstString(activities[0], ["id"]) || ""}
+                        onChange={(event) => {
+                          setDiagnosisActivityId(event.target.value);
+                          setDiagnosisSessionId("");
+                          setDiagnosisRiskId("");
+                        }}
+                        className="mt-2 w-full rounded-xl border border-[#d9c9b8] bg-white px-3 py-2 text-sm"
+                      >
+                        <option value="">Selecione uma atividade</option>
+                        {activities.map((item, index) => (
+                          <option key={item.id || index} value={item.id || ""}>
+                            {displayName(item, `Atividade ${index + 1}`)}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-2 text-xs leading-5 text-[#6f665b]">
+                        A sessão exige estabelecimento, setor e atividade reais.
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={() => void handleStartDiagnosisSession()}
+                        disabled={diagnosisStatus === "saving"}
+                        className="mt-4 w-full rounded-xl bg-[#10243e] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b1729] disabled:opacity-60"
+                      >
+                        Iniciar diagnóstico guiado
+                      </button>
+                    </div>
                   </div>
                 </div>
 
                 {diagnosisError ? (
-                  <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                  <div className="mx-6 mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
                     {diagnosisError}
                   </div>
                 ) : null}
 
                 {diagnosisSuccess ? (
-                  <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                  <div className="mx-6 mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
                     {diagnosisSuccess}
                   </div>
                 ) : null}
-
-                <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
-                  <div>
-                    <label className="text-sm font-semibold text-slate-700">Atividade analisada</label>
-                    <select
-                      value={diagnosisActivityId || firstString(activities[0], ["id"]) || ""}
-                      onChange={(event) => {
-                        setDiagnosisActivityId(event.target.value);
-                        setDiagnosisSessionId("");
-                        setDiagnosisRiskId("");
-                      }}
-                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-                    >
-                      <option value="">Selecione uma atividade</option>
-                      {activities.map((item, index) => (
-                        <option key={item.id || index} value={item.id || ""}>
-                          {displayName(item, `Atividade ${index + 1}`)}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="mt-2 text-xs text-slate-500">
-                      A sessao exige estabelecimento, setor e atividade reais.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => void handleStartDiagnosisSession()}
-                    disabled={diagnosisStatus === "saving"}
-                    className="rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
-                  >
-                    Iniciar diagnóstico guiado
-                  </button>
-                </div>
               </div>
 
-              <form onSubmit={handleSaveDiagnosisContext} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="text-lg font-semibold">1. Contexto do trabalho</h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  Registra a rotina real antes da avaliacao psicossocial.
-                </p>
+              <form onSubmit={handleSaveDiagnosisContext} className="rounded-[2rem] border border-[#e2d4bf] bg-white p-6 shadow-sm">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
+                      Etapa 01
+                    </p>
+                    <h3 className="mt-2 text-2xl font-semibold text-[#10243e]">Contexto do trabalho</h3>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
+                      Descreva a rotina antes de avaliar fatores psicossociais. O objetivo é entender o trabalho real, não sintomas individuais.
+                    </p>
+                  </div>
+                  <span className="w-fit rounded-full bg-[#f0e7d8] px-3 py-1 text-xs font-semibold text-[#6f4f17]">
+                    Base do mapeamento
+                  </span>
+                </div>
 
-                <div className="mt-5 grid gap-3">
+                <div className="mt-6 grid gap-4">
                   <textarea
                     value={diagnosisContextForm.work_description}
                     onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, work_description: event.target.value }))}
                     rows={4}
-                    placeholder="Descreva a rotina, demandas, picos, interacoes e pressao operacional."
-                    className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    placeholder="Descreva rotina, demandas, picos, interações, pressão operacional e forma de execução."
+                    className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                   />
-                  <div className="grid gap-3 md:grid-cols-3">
+                  <div className="grid gap-4 md:grid-cols-3">
                     <input
                       value={diagnosisContextForm.exposed_people_count}
                       onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, exposed_people_count: event.target.value }))}
                       placeholder="Pessoas expostas"
-                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                      className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                     />
                     <input
                       value={diagnosisContextForm.work_routine_type}
                       onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, work_routine_type: event.target.value }))}
                       placeholder="Tipo de rotina"
-                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                      className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                     />
                     <input
                       value={diagnosisContextForm.process_changes_frequency}
                       onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, process_changes_frequency: event.target.value }))}
-                      placeholder="Frequência de mudancas"
-                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                      placeholder="Frequência de mudanças"
+                      className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                     />
                   </div>
                   <textarea
                     value={diagnosisContextForm.incident_history}
                     onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, incident_history: event.target.value }))}
                     rows={3}
-                    placeholder="Historico de incidentes, queixas, afastamentos ou sinais observados."
-                    className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    placeholder="Histórico agregado de incidentes, queixas, afastamentos ou sinais observados."
+                    className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                   />
                   <textarea
                     value={diagnosisContextForm.notes}
                     onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, notes: event.target.value }))}
                     rows={3}
-                    placeholder="Observacoes complementares."
-                    className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    placeholder="Observações complementares."
+                    className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                   />
-                  <div className="grid gap-2 text-sm text-slate-700 md:grid-cols-2">
-                    <label className="flex items-center gap-2">
+                  <div className="grid gap-3 text-sm text-[#4f463c] md:grid-cols-2">
+                    <label className="flex items-center gap-3 rounded-2xl border border-[#eadfce] bg-[#fffaf6] px-4 py-3">
                       <input
                         type="checkbox"
                         checked={diagnosisContextForm.has_external_work}
                         onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, has_external_work: event.target.checked }))}
+                        className="h-4 w-4 rounded border-[#d9c9b8] accent-[#10243e]"
                       />
-                      <span>Ha trabalho externo</span>
+                      <span>Há trabalho externo</span>
                     </label>
-                    <label className="flex items-center gap-2">
+                    <label className="flex items-center gap-3 rounded-2xl border border-[#eadfce] bg-[#fffaf6] px-4 py-3">
                       <input
                         type="checkbox"
                         checked={diagnosisContextForm.has_multi_company_interaction}
                         onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, has_multi_company_interaction: event.target.checked }))}
+                        className="h-4 w-4 rounded border-[#d9c9b8] accent-[#10243e]"
                       />
-                      <span>Ha interacao com outras empresas</span>
+                      <span>Há interação com outras empresas</span>
                     </label>
                   </div>
                 </div>
@@ -4552,39 +4588,50 @@ useEffect(() => {
                 <button
                   type="submit"
                   disabled={diagnosisStatus === "saving"}
-                  className="mt-5 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+                  className="mt-6 rounded-xl bg-[#10243e] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0b1729] disabled:opacity-60"
                 >
-                  Salvar contexto
+                  Salvar contexto do trabalho
                 </button>
               </form>
 
-              <form onSubmit={handleSavePsychosocialDiagnosis} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="text-lg font-semibold">2. Sinais psicossociais</h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  Marque os fatores observados. O objetivo e registrar indicios para tratamento tecnico posterior.
-                </p>
+              <form onSubmit={handleSavePsychosocialDiagnosis} className="rounded-[2rem] border border-[#e2d4bf] bg-white p-6 shadow-sm">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
+                      Etapa 02
+                    </p>
+                    <h3 className="mt-2 text-2xl font-semibold text-[#10243e]">Fatores psicossociais relacionados ao trabalho</h3>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
+                      Marque fatores organizacionais observados na atividade. Este registro não classifica pessoas e não substitui avaliação especializada.
+                    </p>
+                  </div>
+                  <span className="w-fit rounded-full bg-[#f0e7d8] px-3 py-1 text-xs font-semibold text-[#6f4f17]">
+                    Foco ocupacional
+                  </span>
+                </div>
 
-                <div className="mt-5 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
+                <div className="mt-6 grid gap-3 text-sm text-[#4f463c] md:grid-cols-2">
                   {[
                     ["has_work_overload", "Sobrecarga de trabalho"],
-                    ["has_excessive_pressure", "Pressao excessiva"],
+                    ["has_excessive_pressure", "Pressão excessiva"],
                     ["has_role_ambiguity", "Ambiguidade de papel"],
                     ["has_low_autonomy", "Baixa autonomia"],
-                    ["has_leadership_support_failure", "Falha de apoio da lideranca"],
+                    ["has_leadership_support_failure", "Falha de apoio da liderança"],
                     ["has_peer_conflict", "Conflito entre pares"],
-                    ["has_hostile_public_contact", "Contato hostil com publico"],
-                    ["has_constant_interruptions", "Interrupcoes constantes"],
-                    ["has_task_accumulation", "Acumulo de tarefas"],
-                    ["has_communication_difficulty", "Dificuldade de comunicacao"],
+                    ["has_hostile_public_contact", "Contato hostil com público"],
+                    ["has_constant_interruptions", "Interrupções constantes"],
+                    ["has_task_accumulation", "Acúmulo de tarefas"],
+                    ["has_communication_difficulty", "Dificuldade de comunicação"],
                     ["has_remote_isolation", "Isolamento no trabalho remoto"],
-                    ["has_badly_managed_change", "Mudanca mal gerida"],
+                    ["has_badly_managed_change", "Mudança mal gerida"],
                     ["has_report_channel", "Existe canal de relato"],
                   ].map(([key, label]) => (
-                    <label key={key} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <label key={key} className="flex items-center gap-3 rounded-2xl border border-[#eadfce] bg-[#fffaf6] px-4 py-3">
                       <input
                         type="checkbox"
                         checked={Boolean(psychosocialForm[key as keyof PsychosocialForm])}
                         onChange={(event) => setPsychosocialForm((prev) => ({ ...prev, [key]: event.target.checked }))}
+                        className="h-4 w-4 rounded border-[#d9c9b8] accent-[#10243e]"
                       />
                       <span>{label}</span>
                     </label>
@@ -4595,45 +4642,50 @@ useEffect(() => {
                   value={psychosocialForm.notes}
                   onChange={(event) => setPsychosocialForm((prev) => ({ ...prev, notes: event.target.value }))}
                   rows={4}
-                  placeholder="Comentarios tecnicos sobre os sinais psicossociais."
-                  className="mt-5 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  placeholder="Comentários técnicos sobre os fatores organizacionais observados."
+                  className="mt-6 w-full rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                 />
 
                 <button
                   type="submit"
                   disabled={diagnosisStatus === "saving"}
-                  className="mt-5 rounded-xl bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+                  className="mt-6 rounded-xl bg-[#10243e] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0b1729] disabled:opacity-60"
                 >
-                  Salvar psicossocial
+                  Salvar fatores psicossociais
                 </button>
               </form>
 
-              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="text-lg font-semibold">3. Encaminhar para inventario de riscos</h3>
-                <p className="mt-1 text-sm text-slate-500">
-                  Fecha a revisao do diagnostico e gera um risco preliminar real vinculado a atividade, setor, estabelecimento e sessao.
-                </p>
-
-                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                  A acao usa a rota real de revisao do diagnostico com geracao de risco e prepara o proximo passo para plano de acao.
+              <div className="rounded-[2rem] border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-800">
+                      Etapa 03
+                    </p>
+                    <h3 className="mt-2 text-2xl font-semibold text-emerald-950">Encaminhar para inventário de riscos</h3>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-900">
+                      Fecha a revisão do diagnóstico e gera um risco preliminar vinculado à atividade, setor, estabelecimento e sessão.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void handleGeneratePreliminaryRiskFromDiagnosis()}
+                    disabled={diagnosisStatus === "saving"}
+                    className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
+                  >
+                    Gerar risco preliminar
+                  </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => void handleGeneratePreliminaryRiskFromDiagnosis()}
-                  disabled={diagnosisStatus === "saving"}
-                  className="mt-5 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
-                >
-                  Gerar risco preliminar a partir do diagnóstico
-                </button>
+                <div className="mt-5 rounded-2xl border border-emerald-200 bg-white/70 p-4 text-sm text-emerald-950">
+                  A ação usa a rota real de revisão do diagnóstico com geração de risco e prepara o próximo passo para o plano de ação.
+                </div>
 
                 {diagnosisRiskId ? (
-                  <p className="mt-3 text-sm text-slate-600">Risco preliminar: {diagnosisRiskId}</p>
+                  <p className="mt-4 text-sm text-emerald-900">Risco preliminar: {diagnosisRiskId}</p>
                 ) : null}
               </div>
             </section>
           ) : null}
-
           {showWorkspaceDashboardContent && isWorkspaceMode && draft.activeSection === "riscos" ? (
             <section className="space-y-6">
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
