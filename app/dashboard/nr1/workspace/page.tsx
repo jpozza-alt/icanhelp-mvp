@@ -3704,6 +3704,13 @@ useEffect(() => {
             >
               Começar jornada guiada
             </button>
+            <button
+              type="button"
+              onClick={handleResumeGateDashboard}
+              className="rounded-xl border border-[#132238] px-5 py-3 text-sm font-semibold text-[#132238] hover:bg-[#fffaf6]"
+            >
+              Entrar no workspace/admin
+            </button>
             <a
               href="#nr1-welcome-details"
               className="rounded-xl border border-[#d9c9b8] px-5 py-3 text-sm font-semibold text-[#132238] hover:bg-[#fffaf6]"
