@@ -4,6 +4,7 @@ import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } fro
 import { createClient } from "@supabase/supabase-js";
 import { getNr1PlanFeatures, type Nr1PlanFeaturesResponse } from "@/lib/nr1-plan-features-client";
 import { NR1_JOURNEY_STEPS } from "@/lib/nr1-journey";
+import Nr1WorkspaceV2Shell from "@/components/nr1/Nr1WorkspaceV2Shell";
 
 type JsonObject = Record<string, unknown>;
 
@@ -3433,6 +3434,51 @@ useEffect(() => {
     ["evidence_pending", "Evidências pendentes mapeadas"],
   ] as const;
 
+  const workspaceV2ActiveModule =
+    draft.activeSection === "cadastros"
+      ? "Base"
+      : draft.activeSection === "diagnostico"
+        ? "Mapeamento"
+        : draft.activeSection === "riscos"
+          ? "Riscos"
+          : draft.activeSection === "auditoria"
+            ? "PGR"
+            : "Mapeamento";
+
+  const workspaceV2PendingItems = [
+    hasCompany ? "Empresa revisada" : "Revisar empresa",
+    hasEstablishment ? "Estabelecimento selecionado" : "Selecionar estabelecimento",
+    hasDepartment ? "Setores cadastrados" : "Cadastrar setor",
+    hasActivity ? "Atividades cadastradas" : "Cadastrar atividade",
+  ];
+
+  const workspaceV2ProgressDescription = isWorkspaceMode
+    ? "Base pronta. Próximo foco: mapear a rotina real de trabalho."
+    : "Continue a implantação mínima para liberar riscos, plano de ação e PGR.";
+
+  const workspaceV2NextBestActionTitle = isWorkspaceMode
+    ? "Mapear a rotina real da atividade principal"
+    : "Concluir a implantação mínima";
+
+  const workspaceV2NextBestActionDescription = isWorkspaceMode
+    ? "A base inicial está pronta. Agora o sistema deve entender como o trabalho acontece na prática para transformar essa leitura em riscos, prioridades e plano de ação."
+    : "Complete empresa, unidade, setor e atividade principal para liberar o workspace decisório do GRO/PGR.";
+
+  const workspaceV2PrimaryLabel = isWorkspaceMode ? "Abrir módulo atual" : "Continuar implantação";
+
+  const workspaceV2NextBestActionReasons = isWorkspaceMode
+    ? [
+        "Empresa, unidade, setor e atividade já existem.",
+        "A próxima decisão depende da rotina real de trabalho.",
+        "O PGR precisa de riscos priorizados e evidências.",
+      ]
+    : [
+        "A implantação mínima ainda não está completa.",
+        "O PGR depende de empresa, unidade, setor e atividade.",
+        "A tela decisória será liberada com a base pronta.",
+      ];
+
+
   return (
     <main className="min-h-screen bg-[#f7f1e8] text-[#10243e]">
       {!workspaceBooted ? (
@@ -3547,171 +3593,25 @@ useEffect(() => {
       ) : null}
 
       {showWorkspaceShell ? (
-        <>
-      {showWorkspaceDashboardContent ? (
-      <div className="border-b border-[#d9c9b8] bg-[#fffaf1]">
-        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-7 lg:flex-row lg:items-start lg:justify-between">
-          <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#9d7b37]">ICANHELP NR-1</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#10243e]">Workspace NR-1</h1>
-            <p className="mt-2 text-sm leading-6 text-[#6f665b]">
-              Organize a base, priorize riscos e acompanhe o PGR com orientação passo a passo.
-            </p>
-
-          </div>
-
-          <div className="w-full shrink-0 rounded-2xl border border-[#d9c9b8] bg-[#fffaf6] p-4 text-sm shadow-sm lg:w-[320px]">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="font-medium text-[#10243e]">Salvamento automático</p>
-                <p className="mt-1 text-[#6f665b]">{statusLabel}</p>
-              </div>
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  saveStatus === "save_error"
-                    ? "bg-red-100 text-red-700"
-                    : saveStatus === "dirty"
-                      ? "bg-amber-100 text-amber-700"
-                      : saveStatus === "saving"
-                        ? "bg-[#ead8c8] text-[#10243e]"
-                        : "bg-[#e9f0e5] text-[#2f6f4e]"
-                }`}
-              >
-                {saveStatus === "save_error"
-                  ? "Revisar"
-                  : saveStatus === "dirty"
-                    ? "Pendente"
-                    : saveStatus === "saving"
-                      ? "Processando"
-                      : "Seguro"}
-              </span>
-            </div>
-            <p className="mt-3 text-xs text-[#7a7065]">
-              {lastSavedAt ? `Último salvamento: ${new Date(lastSavedAt).toLocaleTimeString("pt-BR")}` : "Salvamento automático aguardando alteração"}
-            </p>
-
-            <div className="mt-4 border-t border-[#eadfce] pt-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b37]">
-                PGR em construção
-              </p>
-              <p className="mt-1 text-xs leading-5 text-[#6f665b]">
-                O relatório será consolidado a partir dos riscos, planos de ação e evidências.
-              </p>
-              <a
-                href="/dashboard/nr1/relatorio-pgr"
-                className="mt-3 inline-flex rounded-xl border border-[#132238] px-3 py-2 text-xs font-semibold text-[#132238] transition hover:bg-[#132238] hover:text-white"
-              >
-                Ver resumo do PGR
-              </a>
-            </div>
-          </div>
-        </div>
-      </div>
-      ) : null}
-
-      <div className={showGuidedSetup ? "" : "mx-auto grid max-w-7xl gap-6 px-6 py-6 xl:grid-cols-[280px_1fr]"}>
-        {showWorkspaceDashboardContent ? (
-        <aside className="sticky top-6 h-fit max-h-[calc(100vh-3rem)] overflow-y-auto rounded-3xl border border-[#132238] bg-[#132238] p-5 text-white shadow-sm">
-          <div className="border-b border-white/10 pb-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#c7a96b]">icanHelp NR-1</p>
-            <p className="mt-2 text-sm leading-5 text-white/70">
-              Jornada guiada para organizar diagnostico, riscos e acoes.
-            </p>
-          </div>
-
-          <div className="mt-5">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-medium text-white/75">Progresso</p>
-              <p className="text-xl font-semibold">{progressPercent}%</p>
-            </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-              <div className="h-full rounded-full bg-[#c7a96b]" style={{ width: `${progressPercent}%` }} />
-            </div>
-            <p className="mt-3 text-xs leading-relaxed text-white/60">
-              Continue pela etapa ativa e deixe o sistema salvar a jornada automaticamente.
-            </p>
-            <button
-              type="button"
-              onClick={() => patchDraft({ activeSection: draft.activeSection }, `continue_${draft.activeSection}`)}
-              className="mt-4 w-full rounded-xl border border-white/15 bg-[#0f1b2d] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#0b1524]"
-            >
-              Continuar jornada
-            </button>
-          </div>
-
-          <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-3">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#c7a96b]">
-                Jornada completa
-              </p>
-              <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-semibold text-white/70">
-                {fullJourneyStepItems.length} etapas
-              </span>
-            </div>
-            <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
-              {fullJourneyStepItems.map((step) => (
-                <div
-                  key={step.id}
-                  className={`rounded-xl border px-3 py-2 text-xs ${
-                    step.status === "Agora"
-                      ? "border-[#c7a96b] bg-[#c7a96b]/20 text-white"
-                      : step.status === "Concluído"
-                        ? "border-emerald-300/30 bg-emerald-300/10 text-white"
-                        : "border-white/10 bg-[#0f1b2d]/50 text-white/70"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-semibold">
-                      {String(step.order).padStart(2, "0")}. {step.title}
-                    </p>
-                    <span className="shrink-0 text-[10px] opacity-70">{step.status}</span>
-                  </div>
-                  <p className="mt-1 text-[11px] leading-4 opacity-70">{step.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-          <nav className="mt-6 space-y-1.5">
-            {[
-              ["cadastros", "Cadastros", "Empresa, unidade, setores e atividades"],
-              ["diagnostico", "Diagnostico", "Perguntas guiadas por atividade"],
-              ["riscos", "Riscos e planos", "Prioridades, acoes e evidencias"],
-              ["auditoria", "Trilha", "Historico e registros do processo"],
-            ].map(([key, label, helper]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => patchDraft({ activeSection: key }, `section_${key}`)}
-                className={`w-full rounded-2xl px-4 py-3 text-left transition ${
-                  draft.activeSection === key
-                    ? "bg-white text-[#132238] shadow-sm"
-                    : "text-white/70 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                <span className="block text-sm font-semibold">{label}</span>
-                <span className="mt-1 block text-xs font-normal opacity-75">{helper}</span>
-              </button>
-            ))}
-          </nav>
-
-          <div className="mt-6 space-y-2 rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p className="text-sm font-semibold text-white/85">Checklist</p>
-            {checklistItems.map(([key, label]) => (
-              <label key={key} className="flex items-center gap-2 text-sm text-white/65">
-                <input
-                  type="checkbox"
-                  checked={Boolean(draft.checklist[key])}
-                  onChange={(event) => patchChecklist(key, event.target.checked)}
-                  className="h-4 w-4 rounded border-white/30 bg-transparent accent-[#c7a96b]"
-                />
-                <span>{label}</span>
-              </label>
-            ))}
-          </div>
-        </aside>
-        ) : null}
-
-        <section className={showGuidedSetup ? "min-w-0" : "min-w-0 space-y-6"}>
+        <Nr1WorkspaceV2Shell
+          companyName={displayName(selectedCompany, "Empresa não selecionada")}
+          establishmentName={displayName(selectedEstablishment, "Unidade não selecionada")}
+          pgrStatus={isWorkspaceMode ? "Em construção" : "Base em preparação"}
+          progressPercent={progressPercent}
+          progressDescription={workspaceV2ProgressDescription}
+          activeModule={workspaceV2ActiveModule}
+          pendingItems={workspaceV2PendingItems}
+          nextBestActionTitle={workspaceV2NextBestActionTitle}
+          nextBestActionDescription={workspaceV2NextBestActionDescription}
+          nextBestActionPrimaryHref="#nr1-operational-content"
+          nextBestActionPrimaryLabel={workspaceV2PrimaryLabel}
+          nextBestActionSecondaryHref="/dashboard/nr1/relatorio-pgr"
+          nextBestActionSecondaryLabel="Ver resumo do PGR"
+          nextBestActionReasons={workspaceV2NextBestActionReasons}
+          pgrHref="/dashboard/nr1/relatorio-pgr"
+          moduleHref="#nr1-operational-content"
+        >
+        <section id="nr1-operational-content" className={showGuidedSetup ? "min-w-0" : "min-w-0 space-y-6"}>
           {showWorkspaceDashboardContent && isWorkspaceMode ? (
           <div
             className={
@@ -5233,8 +5133,7 @@ useEffect(() => {
             </div>
           </section>
         </section>
-      </div>
-          </>
+        </Nr1WorkspaceV2Shell>
       ) : null}
     </main>
 );

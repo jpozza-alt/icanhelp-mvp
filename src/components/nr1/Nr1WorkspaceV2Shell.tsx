@@ -111,7 +111,7 @@ export default function Nr1WorkspaceV2Shell({
   const progressWidth = `${safeProgress}%`;
 
   return (
-    <main className="min-h-screen bg-[#f4efe7] text-[#10243e]">
+    <div className="min-h-screen bg-[#f4efe7] text-[#10243e]">
       <div className="mx-auto grid min-h-screen max-w-[1440px] grid-cols-1 lg:grid-cols-[300px_1fr]">
         <aside className="border-r border-[#e2d4bf] bg-[#10243e] px-5 py-6 text-white">
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
@@ -347,6 +347,6 @@ export default function Nr1WorkspaceV2Shell({
           {children ? <section className="mt-6">{children}</section> : null}
         </section>
       </div>
-    </main>
+    </div>
   );
 }
