@@ -1124,6 +1124,25 @@ useEffect(() => {
     setGuidedSetupOpen(true);
   }
 
+  function handleResumeGateDashboard(): void {
+    setFormError(null);
+    setSuccessMessage(null);
+    setGuidedSetupChoice("dashboard");
+    setGuidedSetupOpen(false);
+
+    patchDraft(
+      { activeSection: isWorkspaceMode ? "diagnostico" : "cadastros" },
+      "resume_gate_dashboard"
+    );
+
+    window.setTimeout(() => {
+      document.getElementById("nr1-operational-content")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 0);
+  }
+
   useEffect(() => {
     const wasWorkspaceMode = previousWorkspaceModeRef.current;
     previousWorkspaceModeRef.current = isWorkspaceMode;
@@ -3596,7 +3615,7 @@ useEffect(() => {
             </button>
             <button
               type="button"
-              onClick={() => setGuidedSetupChoice("dashboard")}
+              onClick={handleResumeGateDashboard}
               className="rounded-xl border border-[#d9c9b8] px-5 py-3 text-sm font-semibold text-[#132238] hover:bg-[#fffaf6]"
             >
               Ir para dashboard
