@@ -1,4 +1,36 @@
-const macroblocks = [
+import type { ReactNode } from "react";
+
+type Nr1WorkspaceV2Macroblock = {
+  title: string;
+  status: string;
+  description: string;
+  detail: string;
+};
+
+type Nr1WorkspaceV2ShellProps = {
+  companyName?: string;
+  establishmentName?: string;
+  pgrStatus?: string;
+  progressPercent?: number;
+  progressDescription?: string;
+  activeModule?: string;
+  modules?: string[];
+  macroblocks?: Nr1WorkspaceV2Macroblock[];
+  pendingItems?: string[];
+  nextBestActionLabel?: string;
+  nextBestActionTitle?: string;
+  nextBestActionDescription?: string;
+  nextBestActionPrimaryHref?: string;
+  nextBestActionPrimaryLabel?: string;
+  nextBestActionSecondaryHref?: string;
+  nextBestActionSecondaryLabel?: string;
+  nextBestActionReasons?: string[];
+  pgrHref?: string;
+  moduleHref?: string;
+  children?: ReactNode;
+};
+
+const defaultMacroblocks: Nr1WorkspaceV2Macroblock[] = [
   {
     title: "Preparar base",
     status: "Pronto",
@@ -31,22 +63,53 @@ const macroblocks = [
   },
 ];
 
-const modules = [
-  "Base",
-  "Mapeamento",
-  "Riscos",
-  "Plano",
-  "Evidências",
-  "PGR",
-];
+const defaultModules = ["Base", "Mapeamento", "Riscos", "Plano", "Evidências", "PGR"];
 
-const pendingItems = [
+const defaultPendingItems = [
   "Confirmar atividade principal da unidade",
   "Iniciar análise guiada da rotina real",
   "Registrar primeira leitura de risco",
 ];
 
-export default function Nr1WorkspaceV2Shell() {
+const defaultNextBestActionReasons = [
+  "Empresa, unidade, setor e atividade já existem.",
+  "A próxima decisão depende da rotina real de trabalho.",
+  "O PGR precisa de riscos priorizados e evidências.",
+];
+
+function clampProgress(value: number) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+export default function Nr1WorkspaceV2Shell({
+  companyName = "TESTE",
+  establishmentName = "UNIDADE TESTE",
+  pgrStatus = "Em construção",
+  progressPercent = 20,
+  progressDescription = "Base pronta. Próximo foco: mapear a rotina real de trabalho.",
+  activeModule = "Mapeamento",
+  modules = defaultModules,
+  macroblocks = defaultMacroblocks,
+  pendingItems = defaultPendingItems,
+  nextBestActionLabel = "Próxima melhor ação",
+  nextBestActionTitle = "Mapear a rotina real da atividade principal",
+  nextBestActionDescription = "A base inicial está pronta. Agora o sistema deve entender como o trabalho acontece na prática para transformar essa leitura em riscos, prioridades e plano de ação.",
+  nextBestActionPrimaryHref = "/dashboard/nr1/workspace",
+  nextBestActionPrimaryLabel = "Iniciar análise guiada",
+  nextBestActionSecondaryHref = "/dashboard/nr1/workspace",
+  nextBestActionSecondaryLabel = "Revisar base",
+  nextBestActionReasons = defaultNextBestActionReasons,
+  pgrHref = "/dashboard/nr1/relatorio-pgr",
+  moduleHref = "/dashboard/nr1/workspace",
+  children,
+}: Nr1WorkspaceV2ShellProps) {
+  const safeProgress = clampProgress(progressPercent);
+  const progressWidth = `${safeProgress}%`;
+
   return (
     <main className="min-h-screen bg-[#f4efe7] text-[#10243e]">
       <div className="mx-auto grid min-h-screen max-w-[1440px] grid-cols-1 lg:grid-cols-[300px_1fr]">
@@ -70,16 +133,16 @@ export default function Nr1WorkspaceV2Shell() {
             <div className="mt-4 space-y-4">
               <div>
                 <p className="text-xs text-white/50">Empresa</p>
-                <p className="mt-1 font-semibold">TESTE</p>
+                <p className="mt-1 font-semibold">{companyName}</p>
               </div>
               <div>
                 <p className="text-xs text-white/50">Unidade</p>
-                <p className="mt-1 font-semibold">UNIDADE TESTE</p>
+                <p className="mt-1 font-semibold">{establishmentName}</p>
               </div>
               <div>
                 <p className="text-xs text-white/50">Status do PGR</p>
                 <p className="mt-1 inline-flex rounded-full bg-[#d8bd78]/15 px-3 py-1 text-xs font-semibold text-[#f4ddb0]">
-                  Em construção
+                  {pgrStatus}
                 </p>
               </div>
             </div>
@@ -88,31 +151,33 @@ export default function Nr1WorkspaceV2Shell() {
           <section className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold">Progresso macro</p>
-              <p className="text-2xl font-semibold text-[#d8bd78]">20%</p>
+              <p className="text-2xl font-semibold text-[#d8bd78]">{safeProgress}%</p>
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-              <div className="h-full w-1/5 rounded-full bg-[#d8bd78]" />
+              <div className="h-full rounded-full bg-[#d8bd78]" style={{ width: progressWidth }} />
             </div>
-            <p className="mt-3 text-xs leading-5 text-white/55">
-              Base pronta. Próximo foco: mapear a rotina real de trabalho.
-            </p>
+            <p className="mt-3 text-xs leading-5 text-white/55">{progressDescription}</p>
           </section>
 
           <nav className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-3">
-            {modules.map((module, index) => (
-              <a
-                key={module}
-                href="#"
-                className={`flex items-center justify-between rounded-2xl px-3 py-3 text-sm font-medium transition ${
-                  index === 1
-                    ? "bg-white text-[#10243e]"
-                    : "text-white/70 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                <span>{module}</span>
-                {index === 1 ? <span className="text-xs">Atual</span> : null}
-              </a>
-            ))}
+            {modules.map((module) => {
+              const isActive = module === activeModule;
+
+              return (
+                <a
+                  key={module}
+                  href="#"
+                  className={`flex items-center justify-between rounded-2xl px-3 py-3 text-sm font-medium transition ${
+                    isActive
+                      ? "bg-white text-[#10243e]"
+                      : "text-white/70 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  <span>{module}</span>
+                  {isActive ? <span className="text-xs">Atual</span> : null}
+                </a>
+              );
+            })}
           </nav>
 
           <section className="mt-5 rounded-3xl border border-white/10 bg-[#0b1729] p-5">
@@ -154,7 +219,7 @@ export default function Nr1WorkspaceV2Shell() {
                   </span>
                 </div>
                 <a
-                  href="/dashboard/nr1/relatorio-pgr"
+                  href={pgrHref}
                   className="mt-4 inline-flex rounded-2xl border border-[#10243e] px-4 py-2 text-sm font-semibold text-[#10243e]"
                 >
                   Ver resumo do PGR
@@ -167,27 +232,27 @@ export default function Nr1WorkspaceV2Shell() {
             <div className="grid gap-0 xl:grid-cols-[1.4fr_0.9fr]">
               <div className="p-7 text-white">
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#d8bd78]">
-                  Próxima melhor ação
+                  {nextBestActionLabel}
                 </p>
                 <h2 className="mt-4 text-4xl font-semibold leading-tight tracking-tight">
-                  Mapear a rotina real da atividade principal
+                  {nextBestActionTitle}
                 </h2>
                 <p className="mt-4 max-w-2xl text-base leading-7 text-white/72">
-                  A base inicial está pronta. Agora o sistema deve entender como o trabalho acontece na prática para transformar essa leitura em riscos, prioridades e plano de ação.
+                  {nextBestActionDescription}
                 </p>
 
                 <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                   <a
-                    href="/dashboard/nr1/workspace"
+                    href={nextBestActionPrimaryHref}
                     className="inline-flex justify-center rounded-2xl bg-[#d8bd78] px-5 py-3 text-sm font-bold text-[#10243e]"
                   >
-                    Iniciar análise guiada
+                    {nextBestActionPrimaryLabel}
                   </a>
                   <a
-                    href="/dashboard/nr1/workspace"
+                    href={nextBestActionSecondaryHref}
                     className="inline-flex justify-center rounded-2xl border border-white/20 px-5 py-3 text-sm font-semibold text-white"
                   >
-                    Revisar base
+                    {nextBestActionSecondaryLabel}
                   </a>
                 </div>
               </div>
@@ -197,11 +262,7 @@ export default function Nr1WorkspaceV2Shell() {
                   Por que agora?
                 </p>
                 <div className="mt-4 space-y-4">
-                  {[
-                    "Empresa, unidade, setor e atividade já existem.",
-                    "A próxima decisão depende da rotina real de trabalho.",
-                    "O PGR precisa de riscos priorizados e evidências.",
-                  ].map((item) => (
+                  {nextBestActionReasons.map((item) => (
                     <div key={item} className="rounded-2xl bg-white/[0.07] p-4 text-sm leading-6 text-white/75">
                       {item}
                     </div>
@@ -270,21 +331,22 @@ export default function Nr1WorkspaceV2Shell() {
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#9d7b37]">
                 Módulo atual
               </p>
-              <h3 className="mt-2 text-2xl font-semibold">Mapeamento do trabalho</h3>
+              <h3 className="mt-2 text-2xl font-semibold">{activeModule}</h3>
               <p className="mt-3 text-sm leading-6 text-[#6f665b]">
                 A próxima tela deve abrir apenas o formulário necessário para compreender a rotina da atividade, sem exibir todos os cadastros de uma vez.
               </p>
               <a
-                href="/dashboard/nr1/workspace"
+                href={moduleHref}
                 className="mt-5 inline-flex rounded-2xl bg-[#10243e] px-5 py-3 text-sm font-semibold text-white"
               >
                 Abrir módulo atual
               </a>
             </article>
           </section>
+
+          {children ? <section className="mt-6">{children}</section> : null}
         </section>
       </div>
     </main>
   );
 }
-
