@@ -22,6 +22,7 @@ type Nr1WorkspaceV2ShellProps = {
   nextBestActionDescription?: string;
   nextBestActionPrimaryHref?: string;
   nextBestActionPrimaryLabel?: string;
+  nextBestActionPrimaryOnClick?: () => void;
   nextBestActionSecondaryHref?: string;
   nextBestActionSecondaryLabel?: string;
   nextBestActionReasons?: string[];
@@ -100,6 +101,7 @@ export default function Nr1WorkspaceV2Shell({
   nextBestActionDescription = "A base inicial está pronta. Agora o sistema deve entender como o trabalho acontece na prática para transformar essa leitura em riscos, prioridades e plano de ação.",
   nextBestActionPrimaryHref = "/dashboard/nr1/workspace",
   nextBestActionPrimaryLabel = "Iniciar análise guiada",
+  nextBestActionPrimaryOnClick,
   nextBestActionSecondaryHref = "/dashboard/nr1/workspace",
   nextBestActionSecondaryLabel = "Revisar base",
   nextBestActionReasons = defaultNextBestActionReasons,
@@ -244,6 +246,11 @@ export default function Nr1WorkspaceV2Shell({
                 <div className="mt-7 flex flex-col gap-3 sm:flex-row">
                   <a
                     href={nextBestActionPrimaryHref}
+                    onClick={(event) => {
+                      if (!nextBestActionPrimaryOnClick) return;
+                      event.preventDefault();
+                      nextBestActionPrimaryOnClick();
+                    }}
                     className="inline-flex justify-center rounded-2xl bg-[#d8bd78] px-5 py-3 text-sm font-bold text-[#10243e]"
                   >
                     {nextBestActionPrimaryLabel}

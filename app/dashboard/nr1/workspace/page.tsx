@@ -3464,7 +3464,7 @@ useEffect(() => {
     ? "A base inicial está pronta. Agora o sistema deve entender como o trabalho acontece na prática para transformar essa leitura em riscos, prioridades e plano de ação."
     : "Complete empresa, unidade, setor e atividade principal para liberar o workspace decisório do GRO/PGR.";
 
-  const workspaceV2PrimaryLabel = isWorkspaceMode ? "Abrir módulo atual" : "Continuar implantação";
+  const workspaceV2PrimaryLabel = isWorkspaceMode ? "Abrir mapeamento" : "Continuar implantação";
 
   const workspaceV2NextBestActionReasons = isWorkspaceMode
     ? [
@@ -3477,6 +3477,19 @@ useEffect(() => {
         "O PGR depende de empresa, unidade, setor e atividade.",
         "A tela decisória será liberada com a base pronta.",
       ];
+
+  const handleWorkspaceV2PrimaryAction = () => {
+    const targetSection = isWorkspaceMode ? "diagnostico" : "cadastros";
+
+    patchDraft({ activeSection: targetSection }, "workspace_v2_primary_action");
+
+    window.setTimeout(() => {
+      document.getElementById("nr1-operational-content")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 0);
+  };
 
 
   return (
@@ -3605,6 +3618,7 @@ useEffect(() => {
           nextBestActionDescription={workspaceV2NextBestActionDescription}
           nextBestActionPrimaryHref="#nr1-operational-content"
           nextBestActionPrimaryLabel={workspaceV2PrimaryLabel}
+          nextBestActionPrimaryOnClick={handleWorkspaceV2PrimaryAction}
           nextBestActionSecondaryHref="/dashboard/nr1/relatorio-pgr"
           nextBestActionSecondaryLabel="Ver resumo do PGR"
           nextBestActionReasons={workspaceV2NextBestActionReasons}
