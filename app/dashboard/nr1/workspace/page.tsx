@@ -3,7 +3,6 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { getNr1PlanFeatures, type Nr1PlanFeaturesResponse } from "@/lib/nr1-plan-features-client";
-import Nr1PgrReportShortcut from "@/components/nr1/Nr1PgrReportShortcut";
 import { NR1_JOURNEY_STEPS } from "@/lib/nr1-journey";
 
 type JsonObject = Record<string, unknown>;
@@ -3549,15 +3548,14 @@ useEffect(() => {
 
       {showWorkspaceShell ? (
         <>
-      {showWorkspaceDashboardContent && isWorkspaceMode ? <Nr1PgrReportShortcut /> : null}
       {showWorkspaceDashboardContent ? (
       <div className="border-b border-[#d9c9b8] bg-[#fffaf1]">
         <div className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-7 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#9d7b37]">ICANHELP NR-1</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#10243e]">Adequacao NR-1 da sua empresa</h1>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-[#10243e]">Workspace NR-1</h1>
             <p className="mt-2 text-sm leading-6 text-[#6f665b]">
-              Cadastre a empresa, organize a unidade e avance pela jornada guiada. O sistema transforma as respostas em riscos, acoes e documentos.
+              Organize a base, priorize riscos e acompanhe o PGR com orientação passo a passo.
             </p>
 
           </div>
@@ -3565,7 +3563,7 @@ useEffect(() => {
           <div className="w-full shrink-0 rounded-2xl border border-[#d9c9b8] bg-[#fffaf6] p-4 text-sm shadow-sm lg:w-[320px]">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="font-medium text-[#10243e]">Salvamento automatico</p>
+                <p className="font-medium text-[#10243e]">Salvamento automático</p>
                 <p className="mt-1 text-[#6f665b]">{statusLabel}</p>
               </div>
               <span
@@ -3589,8 +3587,23 @@ useEffect(() => {
               </span>
             </div>
             <p className="mt-3 text-xs text-[#7a7065]">
-              {lastSavedAt ? `Ultimo salvamento: ${new Date(lastSavedAt).toLocaleTimeString("pt-BR")}` : "Salvamento automatico aguardando alteracao"}
+              {lastSavedAt ? `Último salvamento: ${new Date(lastSavedAt).toLocaleTimeString("pt-BR")}` : "Salvamento automático aguardando alteração"}
             </p>
+
+            <div className="mt-4 border-t border-[#eadfce] pt-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b37]">
+                PGR em construção
+              </p>
+              <p className="mt-1 text-xs leading-5 text-[#6f665b]">
+                O relatório será consolidado a partir dos riscos, planos de ação e evidências.
+              </p>
+              <a
+                href="/dashboard/nr1/relatorio-pgr"
+                className="mt-3 inline-flex rounded-xl border border-[#132238] px-3 py-2 text-xs font-semibold text-[#132238] transition hover:bg-[#132238] hover:text-white"
+              >
+                Ver resumo do PGR
+              </a>
+            </div>
           </div>
         </div>
       </div>
