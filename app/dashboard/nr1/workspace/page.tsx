@@ -1093,6 +1093,18 @@ useEffect(() => {
     return companies.find((item) => item.id === activeCompanyId) || null;
   }, [activeCompanyId, companies]);
 
+  function handleActiveCompanySelectorChange(nextCompanyId: string): void {
+    setActiveCompanyId(nextCompanyId);
+    setFormError(null);
+    setSuccessMessage(null);
+    setDiagnosisActivityId("");
+    setDiagnosisSessionId("");
+    setDiagnosisRiskId("");
+    setSelectedRiskId("");
+
+    patchDraft({ activeSection: "cadastros" }, "company_active_selector");
+  }
+
   const selectedEstablishment = useMemo(() => {
     return establishments.find((item) => item.id === context.establishmentId) || null;
   }, [context.establishmentId, establishments]);
@@ -3662,6 +3674,46 @@ useEffect(() => {
           moduleHref="#nr1-operational-content"
         >
         <section id="nr1-operational-content" className={showGuidedSetup ? "min-w-0" : "min-w-0 space-y-6"}>
+
+                {companies.length > 0 ? (
+                  <div
+                    id="workspace-active-company-selector"
+                    className="rounded-[1.5rem] border border-[#e2d4bf] bg-white p-5 shadow-sm"
+                  >
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
+                          Empresa ativa
+                        </p>
+                        <h2 className="mt-2 text-xl font-semibold text-[#10243e]">
+                          Escolha qual empresa está sendo trabalhada agora
+                        </h2>
+                        <p className="mt-1 text-sm leading-6 text-[#6f665b]">
+                          A lista abaixo usa apenas empresas disponíveis para este usuário/tenant. A troca muda o foco operacional do workspace.
+                        </p>
+                      </div>
+
+                      <label className="w-full max-w-xl text-sm font-semibold text-[#10243e]">
+                        Selecionar empresa
+                        <select
+                          value={activeCompanyId}
+                          onChange={(event) => handleActiveCompanySelectorChange(event.target.value)}
+                          className="mt-2 w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-sm font-semibold text-[#10243e]"
+                        >
+                          <option value="">Selecione uma empresa</option>
+                          {companies.map((item, index) => {
+                            const companyId = firstString(item, ["id"]);
+                            return (
+                              <option key={companyId || index} value={companyId || ""}>
+                                {displayName(item, `Empresa ${index + 1}`)}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                ) : null}
           {showWorkspaceDashboardContent && isWorkspaceMode ? (
           <div
             className={
