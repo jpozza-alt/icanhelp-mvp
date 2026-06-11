@@ -1341,7 +1341,7 @@ useEffect(() => {
         ? {
             title: "Começar pela implantação mínima",
             description:
-              "Cadastre a empresa, a unidade, o primeiro setor e a atividade principal. Depois disso, o workspace decisório libera riscos, plano de ação, evidências e PGR.",
+              "Cadastre a empresa, a unidade, o primeiro setor e a atividade principal. Depois disso, a próxima etapa libera riscos, plano de ação, evidências e PGR.",
             action: "Ação recomendada: começar jornada guiada.",
             outcome: "Resultado esperado: base mínima pronta para análise.",
           }
@@ -3637,9 +3637,7 @@ useEffect(() => {
     <main className="min-h-screen bg-[#f7f1e8] text-[#10243e]">
       {!workspaceBooted ? (
         <section className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 py-10">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#9d7b37]">
-            icanHelp | NR-1
-          </p>
+          <p className="text-xs font-semibold tracking-[0.18em] text-[#9d7b37]">icanHelp | NR-1</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[#10243e]">
             Carregando sua jornada NR-1
           </h1>
@@ -3651,9 +3649,7 @@ useEffect(() => {
       {isFirstRunMode ? (
         <section className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 py-10">
           <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#9d7b37]">
-              icanHelp | NR-1
-            </p>
+            <p className="text-xs font-semibold tracking-[0.18em] text-[#9d7b37]">icanHelp | NR-1</p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight text-[#10243e]">
               Bem-vindo a jornada NR-1 da empresa
             </h1>
@@ -3709,7 +3705,7 @@ useEffect(() => {
               onClick={handleResumeGateDashboard}
               className="rounded-xl border border-[#132238] px-5 py-3 text-sm font-semibold text-[#132238] hover:bg-[#fffaf6]"
             >
-              Entrar no workspace/admin
+              Abrir visão geral
             </button>
             <a
               href="#nr1-welcome-details"
@@ -3723,9 +3719,7 @@ useEffect(() => {
 
       {showExistingBaseResume ? (
         <section className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-6 py-10">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#9d7b37]">
-            icanHelp | NR-1
-          </p>
+          <p className="text-xs font-semibold tracking-[0.18em] text-[#9d7b37]">icanHelp | NR-1</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[#10243e]">
             Encontramos uma base ja iniciada
           </h1>
@@ -5354,3 +5348,4 @@ useEffect(() => {
     </main>
 );
 }
+
