@@ -241,7 +241,7 @@ return (
               <button
                 type="submit"
                 disabled={!canSubmit}
-                className="w-full rounded-2xl bg-[#dcc27e] px-5 py-3 text-sm font-bold text-[#10243e] transition hover:bg-[#ead28f] disabled:cursor-not-allowed disabled:opacity-55"
+                className="w-full rounded-2xl bg-[#e5c76f] px-5 py-3 text-sm font-extrabold text-[#0f243e] shadow-sm shadow-[#dcc27e]/25 ring-1 ring-[#f4d98f]/35 transition hover:bg-[#f0d684] disabled:cursor-not-allowed disabled:bg-[#d6c27c] disabled:text-[#10243e]/85 disabled:opacity-95"
               >
                 Entrar
               </button>
@@ -251,7 +251,7 @@ return (
               type="button"
               onClick={handleEmailLink}
               disabled={!canSubmit}
-              className="mt-3 w-full rounded-2xl border border-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-55"
+              className="mt-3 w-full rounded-2xl border border-white/18 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-white/82 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-75"
             >
               Receber link por e-mail
             </button>
