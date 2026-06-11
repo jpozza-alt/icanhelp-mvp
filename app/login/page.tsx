@@ -33,8 +33,8 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<LoginMode>("password");
-  const [returnTo, setReturnTo] = useState("/dashboard");
+  const [mode] = useState<LoginMode>("password");
+  const [returnTo] = useState("/dashboard");
   const [sessionStatus, setSessionStatus] = useState("Verificando sessao...");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -47,7 +47,6 @@ export default function LoginPage() {
 
   useEffect(() => {
     const nextPath = getSafeReturnPath();
-    setReturnTo(nextPath);
 
     supabase.auth.getSession().then((result) => {
       if (result.data.session?.access_token) {
@@ -125,154 +124,166 @@ export default function LoginPage() {
     setStatus("done");
     setMessage("Link enviado para o email informado.");
   }
+return (
+    <main className="min-h-screen bg-[#f4efe7] text-slate-950">
+      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-6 py-8 lg:grid lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:px-10">
+        <section className="flex flex-col justify-center">
+          <div className="mb-8 inline-flex w-fit items-center gap-3 rounded-full border border-[#dcc27e]/40 bg-white/70 px-4 py-2 text-sm font-medium text-[#10243e] shadow-sm">
+            <span className="h-2 w-2 rounded-full bg-[#dcc27e]" />
+            icanHelp NR-1
+          </div>
 
-  return (
-    <main className="min-h-screen bg-slate-100 text-slate-950">
-      <div className="mx-auto grid min-h-screen max-w-7xl grid-cols-1 lg:grid-cols-[320px_1fr]">
-        <aside className="bg-slate-950 p-8 text-white">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-300 font-bold text-slate-950">
-              iC
+          <div className="max-w-3xl">
+            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.28em] text-[#af8f45]">
+              GRO/PGR guiado
+            </p>
+
+            <h1 className="text-4xl font-semibold leading-tight text-[#10243e] md:text-6xl">
+              Login que abre a jornada NR-1 sem transformar seguranca em planilha.
+            </h1>
+
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-700">
+              Organize empresa, unidades, setores, atividades, diagnostico, riscos,
+              plano de acao, evidencias e PGR em uma experiencia clara para quem
+              precisa fazer a adequacao acontecer.
+            </p>
+          </div>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-white/70 bg-white/75 p-5 shadow-sm">
+              <p className="text-sm font-semibold text-[#10243e]">Preparar a base</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Comece pela empresa, estabelecimentos e responsaveis.
+              </p>
             </div>
-            <div>
-              <p className="text-2xl font-bold">icanHelp</p>
-              <p className="text-sm text-slate-300">Acesso da plataforma</p>
+
+            <div className="rounded-2xl border border-white/70 bg-white/75 p-5 shadow-sm">
+              <p className="text-sm font-semibold text-[#10243e]">Mapear o trabalho</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Setores e atividades viram uma trilha simples de diagnostico.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/70 bg-white/75 p-5 shadow-sm">
+              <p className="text-sm font-semibold text-[#10243e]">Consolidar o PGR</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Riscos, acoes e evidencias ficam conectados em uma so jornada.
+              </p>
             </div>
           </div>
 
-          <div className="mt-12 rounded-3xl border border-white/10 bg-white/5 p-6">
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Proxima etapa</p>
-            <h2 className="mt-6 text-3xl font-bold leading-tight">Entrar novamente</h2>
-            <p className="mt-6 text-sm leading-7 text-slate-300">
-              Esta tela nao redireciona automaticamente. Ela exige login por senha para criar uma sessao limpa no Supabase.
-            </p>
+          <div className="mt-8 flex flex-wrap gap-3 text-sm font-medium text-[#10243e]">
+            <span className="rounded-full bg-white/70 px-4 py-2 shadow-sm">Jornada guiada</span>
+            <span className="rounded-full bg-white/70 px-4 py-2 shadow-sm">Workspace admin</span>
+            <span className="rounded-full bg-white/70 px-4 py-2 shadow-sm">Multiempresa</span>
+            <span className="rounded-full bg-white/70 px-4 py-2 shadow-sm">PGR com evidencias</span>
           </div>
+        </section>
 
-          <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-6 text-sm leading-7 text-slate-300">
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">O que este login corrige</p>
-            <p className="mt-4">- evita sessao antiga</p>
-            <p>- limpa sessao antes de entrar</p>
-            <p>- cria token Supabase real</p>
-            <p>- retorna para o workspace NR1</p>
-          </div>
-        </aside>
+        <section className="flex justify-center lg:justify-end">
+          <div className="w-full max-w-md overflow-hidden rounded-[2rem] border border-white/15 bg-[#10243e] text-white shadow-2xl">
+            <div className="border-b border-white/10 px-7 py-6">
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#dcc27e]">
+                Acesso seguro
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold">
+                Entre para continuar o GRO/PGR
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-white/70">
+                Use seu e-mail e senha. O link por e-mail continua disponivel como apoio.
+              </p>
+            </div>
 
-        <section className="p-8 lg:p-14">
-          <div className="rounded-[2rem] bg-gradient-to-br from-slate-900 to-cyan-700 p-8 text-white shadow-sm">
-            <p className="text-xs uppercase tracking-[0.25em] text-cyan-100">Acesso autenticado</p>
-            <h1 className="mt-6 text-4xl font-bold">Entrar no icanHelp</h1>
-            <p className="mt-6 max-w-3xl text-lg leading-8 text-cyan-50">
-              Use email e senha. O sistema limpa sessao anterior antes de autenticar.
-            </p>
-            <p className="mt-5 inline-flex rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm">
-              Destino depois do login: {returnTo}
-            </p>
-          </div>
-
-          <div className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-            <form onSubmit={handlePasswordLogin} className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
+            <div className="px-7 py-6">
+              <form onSubmit={handlePasswordLogin} className="space-y-4">
                 <div>
-                  <h2 className="text-2xl font-bold">Login por senha</h2>
-                  <p className="mt-4 text-slate-600">
-                    Entre novamente para carregar tenant, empresas, estabelecimentos e dados NR1.
-                  </p>
+                  <label htmlFor="email" className="text-sm font-medium text-white/85">
+                    E-mail
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="voce@empresa.com.br"
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-[#dcc27e] focus:ring-4 focus:ring-[#dcc27e]/20"
+                  />
                 </div>
-                <span className="rounded-full bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">sessao limpa</span>
+
+                <div>
+                  <label htmlFor="password" className="text-sm font-medium text-white/85">
+                    Senha
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Digite sua senha"
+                    className="mt-2 w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-[#dcc27e] focus:ring-4 focus:ring-[#dcc27e]/20"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={!canSubmit}
+                  className="w-full rounded-2xl bg-[#dcc27e] px-5 py-3 text-sm font-semibold text-[#10243e] transition hover:bg-[#ead491] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Entrar com senha
+                </button>
+              </form>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={handleClearSession}
+                  className="rounded-2xl border border-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                >
+                  Limpar sessao
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleEmailLink}
+                  disabled={!canSubmit}
+                  className="rounded-2xl border border-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Enviar link por e-mail
+                </button>
               </div>
 
-              <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                {sessionStatus}
+              <div className="mt-5 rounded-2xl border border-white/10 bg-white/10 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#dcc27e]">
+                  Destino depois do login
+                </p>
+                <p className="mt-2 break-all text-sm text-white/75">{returnTo}</p>
               </div>
-
-              <label className="mt-8 block text-sm font-bold">Email</label>
-              <input
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                type="email"
-                autoComplete="email"
-                className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-4"
-                placeholder="email"
-              />
-
-              <label className="mt-5 block text-sm font-bold">Senha</label>
-              <input
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                type="password"
-                autoComplete="current-password"
-                className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-4"
-                placeholder="senha"
-              />
-
-              <button
-                type="submit"
-                disabled={!canSubmit}
-                className="mt-7 w-full rounded-2xl bg-slate-950 px-5 py-4 font-bold text-white disabled:opacity-50"
-              >
-                Entrar com senha
-              </button>
-
-              <button
-                type="button"
-                onClick={() => void handleClearSession()}
-                disabled={status === "loading"}
-                className="mt-4 w-full rounded-2xl border border-slate-300 px-5 py-4 font-bold text-slate-700 disabled:opacity-50"
-              >
-                Limpar sessao atual
-              </button>
 
               {message ? (
                 <div
-                  className={
+                  className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
                     status === "error"
-                      ? "mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"
-                      : "mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800"
-                  }
+                      ? "border-red-300/40 bg-red-500/10 text-red-100"
+                      : "border-emerald-300/40 bg-emerald-500/10 text-emerald-100"
+                  }`}
                 >
                   {message}
                 </div>
               ) : null}
-            </form>
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl font-bold">Alternativa de apoio</h2>
-                  <p className="mt-4 text-slate-600">
-                    Use link por email apenas depois que o login por senha estiver validado.
-                  </p>
-                </div>
-                <span className="rounded-full bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">apoio</span>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setMode("email_link");
-                  void handleEmailLink();
-                }}
-                disabled={!email.trim() || status === "loading"}
-                className="mt-8 w-full rounded-2xl border border-slate-300 px-5 py-4 font-bold disabled:opacity-50"
-              >
-                Enviar link por email
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setMode("password")}
-                className="mt-4 w-full rounded-2xl bg-slate-50 px-5 py-4 text-sm font-bold text-slate-700"
-              >
-                Usar acesso por senha
-              </button>
-
-              <p className="mt-6 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
-                Modo atual: {mode === "password" ? "acesso por senha" : "link por email"}.
-              </p>
+              {sessionStatus ? (
+                <p className="mt-4 text-xs leading-5 text-white/55">
+                  Status tecnico da sessao: {sessionStatus}
+                </p>
+              ) : null}
             </div>
           </div>
         </section>
       </div>
     </main>
-  );
+  )
 }
