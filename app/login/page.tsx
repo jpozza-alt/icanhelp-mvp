@@ -126,79 +126,81 @@ export default function LoginPage() {
   }
 return (
     <main className="min-h-dvh overflow-x-hidden bg-[#f4efe7] text-[#10243e]">
-      <section className="mx-auto grid min-h-dvh w-full max-w-7xl gap-6 px-5 py-5 sm:px-7 lg:grid-cols-[0.98fr_0.82fr] lg:items-center lg:px-10 xl:gap-10">
+      <section className="mx-auto grid min-h-dvh w-full max-w-7xl gap-8 px-5 py-6 sm:px-8 lg:grid-cols-[1fr_0.78fr] lg:items-center lg:px-10">
         <div className="flex min-w-0 flex-col justify-center">
-          <header className="mb-6 sm:mb-7">
-            <p className="text-3xl font-bold tracking-[-0.055em] text-[#10243e] sm:text-[2.35rem]">
+          <header className="mb-7">
+            <p className="text-3xl font-semibold tracking-[-0.055em] text-[#10243e] sm:text-[2.35rem]">
               icanHelp
             </p>
-            <p className="mt-2 text-[0.66rem] font-bold uppercase tracking-[0.26em] text-[#af8f45] sm:text-[0.72rem]">
+            <p className="mt-2 text-[0.68rem] font-bold uppercase tracking-[0.28em] text-[#af8f45]">
               Módulo NR-1 | GRO/PGR
             </p>
           </header>
 
-          <div className="mb-5 inline-flex w-fit max-w-full items-center gap-3 rounded-full border border-[#dcc27e]/45 bg-white/75 px-4 py-2 text-xs font-semibold text-[#10243e] shadow-sm">
+          <div className="mb-5 inline-flex w-fit max-w-full items-center gap-3 rounded-full border border-[#dcc27e]/45 bg-white/70 px-4 py-2 text-xs font-semibold text-[#10243e] shadow-sm">
             <span className="h-2 w-2 shrink-0 rounded-full bg-[#dcc27e]" />
-            <span className="leading-5">Adequação guiada para empresas, RH e parceiros SST</span>
+            <span className="leading-5">SaaS para organizar a jornada de adequação NR-1</span>
           </div>
 
-          <h1 className="max-w-3xl text-[2.15rem] font-medium leading-[1.08] tracking-[-0.045em] text-[#10243e] sm:text-[2.8rem] lg:text-[3.15rem] xl:text-[3.35rem]">
-            Adequação NR-1 guiada pelo icanHelp.
+          <h1 className="max-w-3xl text-[2.25rem] font-medium leading-[1.05] tracking-[-0.045em] text-[#10243e] sm:text-[3rem] lg:text-[3.35rem]">
+            Adequação NR-1 guiada, rastreável e simples de executar.
           </h1>
 
-          <p className="mt-5 max-w-3xl text-base leading-7 text-[#243b55] sm:text-[1.05rem]">
-            Da organização da empresa ao PGR, uma jornada simples para mapear o
-            trabalho real, registrar riscos, acompanhar ações e manter evidências
-            organizadas.
+          <p className="mt-5 max-w-2xl text-base leading-7 text-[#243b55] sm:text-[1.05rem]">
+            Organize a base da empresa, mapeie o trabalho real, registre riscos e
+            acompanhe evidências em uma jornada clara para RH, gestão e parceiros
+            SST.
           </p>
 
-          <div className="mt-6 grid max-w-4xl gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-[#d9c9b8] bg-white/82 p-4 shadow-sm">
-              <p className="text-[0.66rem] font-black uppercase tracking-[0.2em] text-[#af8f45]">01</p>
-              <p className="mt-2 text-sm font-bold text-[#10243e]">Base da empresa</p>
-              <p className="mt-2 text-sm leading-6 text-[#304761]">
-                Organize empresa, unidades, setores, funções e atividades.
-              </p>
-            </div>
+          <div className="mt-7 max-w-3xl rounded-3xl border border-[#d9c9b8] bg-white/68 p-4 shadow-sm">
+            <div className="grid gap-3 text-sm text-[#10243e] sm:grid-cols-3">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 text-xs font-black tracking-[0.18em] text-[#af8f45]">01</span>
+                <div>
+                  <p className="font-bold">Base da empresa</p>
+                  <p className="mt-1 text-xs leading-5 text-[#304761]">Empresa, unidades e setores.</p>
+                </div>
+              </div>
 
-            <div className="rounded-2xl border border-[#d9c9b8] bg-white/82 p-4 shadow-sm">
-              <p className="text-[0.66rem] font-black uppercase tracking-[0.2em] text-[#af8f45]">02</p>
-              <p className="mt-2 text-sm font-bold text-[#10243e]">Diagnóstico guiado</p>
-              <p className="mt-2 text-sm leading-6 text-[#304761]">
-                Responda perguntas simples sobre o trabalho como ele acontece.
-              </p>
-            </div>
+              <div className="flex items-start gap-3 border-t border-[#d9c9b8]/70 pt-3 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
+                <span className="mt-0.5 text-xs font-black tracking-[0.18em] text-[#af8f45]">02</span>
+                <div>
+                  <p className="font-bold">Diagnóstico guiado</p>
+                  <p className="mt-1 text-xs leading-5 text-[#304761]">Perguntas sobre o trabalho real.</p>
+                </div>
+              </div>
 
-            <div className="rounded-2xl border border-[#d9c9b8] bg-white/82 p-4 shadow-sm">
-              <p className="text-[0.66rem] font-black uppercase tracking-[0.2em] text-[#af8f45]">03</p>
-              <p className="mt-2 text-sm font-bold text-[#10243e]">PGR e evidências</p>
-              <p className="mt-2 text-sm leading-6 text-[#304761]">
-                Conecte riscos, plano de ação e registros em uma jornada rastreável.
-              </p>
+              <div className="flex items-start gap-3 border-t border-[#d9c9b8]/70 pt-3 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
+                <span className="mt-0.5 text-xs font-black tracking-[0.18em] text-[#af8f45]">03</span>
+                <div>
+                  <p className="font-bold">PGR com evidências</p>
+                  <p className="mt-1 text-xs leading-5 text-[#304761]">Riscos, ações e registros conectados.</p>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="mt-5 max-w-4xl rounded-2xl border border-[#dcc27e]/40 bg-white/62 p-4 text-sm leading-6 text-[#304761] shadow-sm">
-            O icanHelp apoia a organização e a rastreabilidade da jornada. A validação
-            técnica especializada continua indicada quando o cenário exigir.
-          </div>
+          <p className="mt-5 max-w-2xl text-sm leading-6 text-[#52677e]">
+            O icanHelp apoia a organização da jornada. A validação técnica
+            especializada continua indicada quando o cenário exigir.
+          </p>
         </div>
 
         <aside
           data-session-status={sessionStatus ?? ""}
-          className="mx-auto w-full max-w-lg rounded-[1.55rem] bg-[#10243e] text-white shadow-xl shadow-[#10243e]/20 lg:mx-0 lg:justify-self-end"
+          className="mx-auto w-full max-w-md rounded-[1.4rem] bg-[#10243e] text-white shadow-xl shadow-[#10243e]/18 lg:mx-0 lg:justify-self-end"
         >
           <div className="p-6">
-            <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#dcc27e]">
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#dcc27e]">
               Acesso seguro
             </p>
 
             <h2 className="mt-4 text-2xl font-semibold tracking-[-0.03em]">
-              Entrar no icanHelp
+              Acesso ao icanHelp
             </h2>
 
-            <p className="mt-3 text-sm leading-6 text-white/76">
-              Continue a jornada NR-1 da empresa no ponto em que parou.
+            <p className="mt-3 text-sm leading-6 text-white/74">
+              Continue a jornada NR-1 da empresa.
             </p>
           </div>
 
@@ -241,7 +243,7 @@ return (
                 disabled={!canSubmit}
                 className="w-full rounded-2xl bg-[#dcc27e] px-5 py-3 text-sm font-bold text-[#10243e] transition hover:bg-[#ead28f] disabled:cursor-not-allowed disabled:opacity-55"
               >
-                Entrar com senha
+                Entrar
               </button>
             </form>
 
@@ -251,7 +253,7 @@ return (
               disabled={!canSubmit}
               className="mt-3 w-full rounded-2xl border border-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-55"
             >
-              Enviar link por e-mail
+              Receber link por e-mail
             </button>
 
             {message ? (
@@ -266,14 +268,10 @@ return (
               </div>
             ) : null}
 
-            <p className="mt-4 text-sm leading-6 text-white/64">
-              Ambiente de trabalho da empresa, com a jornada NR-1 organizada em etapas.
-            </p>
-
             <button
               type="button"
               onClick={handleClearSession}
-              className="mt-3 text-left text-xs font-semibold text-white/50 underline-offset-4 transition hover:text-white hover:underline"
+              className="mt-4 text-left text-xs font-semibold text-white/48 underline-offset-4 transition hover:text-white hover:underline"
             >
               Problemas para entrar? Limpar acesso atual.
             </button>
