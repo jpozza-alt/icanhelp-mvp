@@ -3603,7 +3603,7 @@ useEffect(() => {
 
   const workspaceV2NextBestActionDescription = isWorkspaceMode
     ? "A base inicial está pronta. Agora o sistema deve entender como o trabalho acontece na prática para transformar essa leitura em riscos, prioridades e plano de ação."
-    : "Complete empresa, unidade, setor e atividade principal para liberar o workspace decisório do GRO/PGR.";
+    : "Complete empresa, unidade, setor e atividade principal para liberar a proxima etapa da jornada GRO/PGR.";
 
   const workspaceV2PrimaryLabel = isWorkspaceMode ? "Abrir mapeamento" : "Continuar implantação";
 
@@ -3615,8 +3615,8 @@ useEffect(() => {
       ]
     : [
         "A implantação mínima ainda não está completa.",
-        "O PGR depende de empresa, unidade, setor e atividade.",
-        "A tela decisória será liberada com a base pronta.",
+        "O PGR depende da base minima da empresa, unidade, setor e atividade.",
+        "A proxima tela sera liberada com a base pronta.",
       ];
 
   const handleWorkspaceV2PrimaryAction = () => {
@@ -3638,13 +3638,13 @@ useEffect(() => {
       {!workspaceBooted ? (
         <section className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 py-10">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#9d7b37]">
-            ICANHELP NR-1
+            icanHelp | NR-1
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[#10243e]">
             Carregando sua jornada NR-1
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6f665b]">
-            Estamos verificando se ja existe uma Triagem Empresarial NR-1 iniciada para esta empresa.
+            Estamos verificando se a empresa ja possui uma jornada NR-1 iniciada.
           </p>
         </section>
       ) : null}
@@ -3652,19 +3652,19 @@ useEffect(() => {
         <section className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 py-10">
           <div className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#9d7b37]">
-              ICANHELP NR-1
+              icanHelp | NR-1
             </p>
             <h1 className="mt-3 text-4xl font-semibold tracking-tight text-[#10243e]">
-              Bem-vindo ao icanHelp NR-1
+              Bem-vindo a jornada NR-1 da empresa
             </h1>
             <p className="mt-4 max-w-2xl text-base leading-7 text-[#6f665b]">
-              Este módulo ajuda sua empresa a organizar a adequação NR-1, entender a rotina de trabalho, identificar riscos, criar plano de ação e guardar evidências.
+              O icanHelp guia a empresa para organizar dados, entender o trabalho real, registrar riscos, acompanhar ações e manter evidências em um só lugar.
             </p>
           </div>
 
           <div id="nr1-welcome-details" className="mt-8 grid gap-4 lg:grid-cols-3">
             <div className="rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-5 shadow-sm">
-              <p className="text-sm font-semibold text-[#10243e]">O que você vai fazer</p>
+              <p className="text-sm font-semibold text-[#10243e]">Primeiro passo</p>
               <ul className="mt-4 space-y-3 text-sm leading-6 text-[#6f665b]">
                 <li>Informar os dados básicos da empresa</li>
                 <li>Cadastrar a unidade analisada</li>
@@ -3674,7 +3674,7 @@ useEffect(() => {
             </div>
 
             <div className="rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-5 shadow-sm">
-              <p className="text-sm font-semibold text-[#10243e]">O que o sistema vai montar</p>
+              <p className="text-sm font-semibold text-[#10243e]">O que será organizado</p>
               <ul className="mt-4 space-y-3 text-sm leading-6 text-[#6f665b]">
                 <li>Base inicial da empresa</li>
                 <li>Diagnóstico guiado</li>
@@ -3684,7 +3684,7 @@ useEffect(() => {
             </div>
 
             <div className="rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-5 shadow-sm">
-              <p className="text-sm font-semibold text-[#10243e]">Onde você vai chegar</p>
+              <p className="text-sm font-semibold text-[#10243e]">Resultado esperado</p>
               <ul className="mt-4 space-y-3 text-sm leading-6 text-[#6f665b]">
                 <li>Visão clara do que falta</li>
                 <li>Riscos priorizados</li>
@@ -3724,13 +3724,13 @@ useEffect(() => {
       {showExistingBaseResume ? (
         <section className="mx-auto flex min-h-screen max-w-5xl flex-col justify-center px-6 py-10">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#9d7b37]">
-            ICANHELP NR-1
+            icanHelp | NR-1
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[#10243e]">
             Encontramos uma base ja iniciada
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-[#6f665b]">
-            Voce pode revisar a Triagem Empresarial NR-1 antes de continuar ou ir para o dashboard e retomar pelos cadastros.
+            Voce pode revisar a triagem antes de continuar ou abrir a visao geral para retomar pelos cadastros.
           </p>
           {renderNextBestActionCard("partial")}
           {renderFullJourneyOverview("partial")}
@@ -3747,7 +3747,7 @@ useEffect(() => {
               onClick={handleResumeGateDashboard}
               className="rounded-xl border border-[#d9c9b8] px-5 py-3 text-sm font-semibold text-[#132238] hover:bg-[#fffaf6]"
             >
-              Ir para dashboard
+              Abrir visao geral
             </button>
           </div>
         </section>
