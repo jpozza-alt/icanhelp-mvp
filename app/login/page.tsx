@@ -128,19 +128,13 @@ return (
     <main className="min-h-screen bg-[#f4efe7] text-[#10243e]">
       <section className="mx-auto grid min-h-screen w-full max-w-7xl gap-10 px-6 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:px-10">
         <div className="flex flex-col justify-center">
-          <header className="mb-12 flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#10243e] text-xl font-black text-white shadow-lg shadow-[#10243e]/18">
-              i!
-            </div>
-
-            <div>
-              <p className="text-2xl font-black tracking-[-0.04em] text-[#10243e]">
-                icanHelp
-              </p>
-              <p className="mt-1 text-xs font-bold uppercase tracking-[0.28em] text-[#af8f45]">
-                Módulo NR-1 | GRO/PGR
-              </p>
-            </div>
+          <header className="mb-12">
+            <p className="text-4xl font-black tracking-[-0.06em] text-[#10243e] md:text-5xl">
+              icanHelp
+            </p>
+            <p className="mt-3 text-xs font-bold uppercase tracking-[0.32em] text-[#af8f45]">
+              Módulo NR-1 | GRO/PGR
+            </p>
           </header>
 
           <div className="mb-6 inline-flex w-fit items-center gap-3 rounded-full border border-[#dcc27e]/45 bg-white/75 px-5 py-2 text-sm font-bold text-[#10243e] shadow-sm">
