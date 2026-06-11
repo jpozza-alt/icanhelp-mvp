@@ -125,165 +125,157 @@ export default function LoginPage() {
     setMessage("Link enviado para o email informado.");
   }
 return (
-    <main className="min-h-screen bg-[#f4efe7] text-slate-950">
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-6 py-8 lg:grid lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:px-10">
-        <section className="flex flex-col justify-center">
-          <div className="mb-8 inline-flex w-fit items-center gap-3 rounded-full border border-[#dcc27e]/40 bg-white/70 px-4 py-2 text-sm font-medium text-[#10243e] shadow-sm">
+    <main className="min-h-screen bg-[#f4efe7] text-[#10243e]">
+      <section className="mx-auto grid min-h-screen w-full max-w-7xl gap-10 px-6 py-10 lg:grid-cols-[1.08fr_0.92fr] lg:items-center lg:px-10">
+        <div className="flex flex-col justify-center">
+          <div className="mb-10 inline-flex w-fit items-center gap-3 rounded-full border border-[#dcc27e]/45 bg-white/75 px-5 py-2 text-sm font-semibold text-[#10243e] shadow-sm">
             <span className="h-2 w-2 rounded-full bg-[#dcc27e]" />
             icanHelp NR-1
           </div>
 
-          <div className="max-w-3xl">
-            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.28em] text-[#af8f45]">
-              GRO/PGR guiado
+          <p className="mb-5 text-sm font-semibold uppercase tracking-[0.34em] text-[#af8f45]">
+            GRO/PGR guiado
+          </p>
+
+          <h1 className="max-w-4xl text-4xl font-semibold leading-[1.08] tracking-[-0.035em] text-[#10243e] md:text-6xl">
+            A jornada NR-1 da sua empresa, guiada do diagnostico ao PGR.
+          </h1>
+
+          <p className="mt-7 max-w-3xl text-lg leading-8 text-[#243b55]">
+            O icanHelp organiza empresa, unidades, setores, atividades, riscos,
+            plano de acao e evidencias em uma experiencia simples para RH,
+            gestao e parceiros SST.
+          </p>
+
+          <div className="mt-10 grid max-w-4xl gap-5 md:grid-cols-3">
+            <div className="rounded-3xl border border-[#d9c9b8] bg-white/80 p-6 shadow-sm">
+              <p className="text-sm font-bold text-[#10243e]">Prepare a base</p>
+              <p className="mt-3 text-sm leading-6 text-[#304761]">
+                Cadastre empresa, unidades, setores e atividades.
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-[#d9c9b8] bg-white/80 p-6 shadow-sm">
+              <p className="text-sm font-bold text-[#10243e]">Diagnostico guiado</p>
+              <p className="mt-3 text-sm leading-6 text-[#304761]">
+                Responda perguntas simples sobre o trabalho real.
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-[#d9c9b8] bg-white/80 p-6 shadow-sm">
+              <p className="text-sm font-bold text-[#10243e]">PGR rastreavel</p>
+              <p className="mt-3 text-sm leading-6 text-[#304761]">
+                Conecte riscos, acoes e evidencias em uma unica jornada.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-10 flex flex-wrap gap-3 text-sm font-semibold text-[#10243e]">
+            <span className="rounded-full border border-[#d9c9b8] bg-white/75 px-5 py-2 shadow-sm">Jornada guiada</span>
+            <span className="rounded-full border border-[#d9c9b8] bg-white/75 px-5 py-2 shadow-sm">Workspace admin</span>
+            <span className="rounded-full border border-[#d9c9b8] bg-white/75 px-5 py-2 shadow-sm">Multiempresa</span>
+            <span className="rounded-full border border-[#d9c9b8] bg-white/75 px-5 py-2 shadow-sm">PGR com evidencias</span>
+          </div>
+        </div>
+
+        <aside
+          data-session-status={sessionStatus ?? ""}
+          className="rounded-[2rem] bg-[#10243e] text-white shadow-2xl shadow-[#10243e]/25"
+        >
+          <div className="p-8 md:p-10">
+            <p className="text-sm font-semibold uppercase tracking-[0.34em] text-[#dcc27e]">
+              Acesso seguro
             </p>
 
-            <h1 className="text-4xl font-semibold leading-tight text-[#10243e] md:text-6xl">
-              Login que abre a jornada NR-1 sem transformar seguranca em planilha.
-            </h1>
+            <h2 className="mt-5 text-3xl font-semibold tracking-[-0.02em]">
+              Entrar no icanHelp
+            </h2>
 
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-700">
-              Organize empresa, unidades, setores, atividades, diagnostico, riscos,
-              plano de acao, evidencias e PGR em uma experiencia clara para quem
-              precisa fazer a adequacao acontecer.
+            <p className="mt-4 text-sm leading-6 text-white/78">
+              Acesse para continuar a adequacao NR-1 da empresa.
             </p>
           </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-white/70 bg-white/75 p-5 shadow-sm">
-              <p className="text-sm font-semibold text-[#10243e]">Preparar a base</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Comece pela empresa, estabelecimentos e responsaveis.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/70 bg-white/75 p-5 shadow-sm">
-              <p className="text-sm font-semibold text-[#10243e]">Mapear o trabalho</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Setores e atividades viram uma trilha simples de diagnostico.
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-white/70 bg-white/75 p-5 shadow-sm">
-              <p className="text-sm font-semibold text-[#10243e]">Consolidar o PGR</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Riscos, acoes e evidencias ficam conectados em uma so jornada.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-8 flex flex-wrap gap-3 text-sm font-medium text-[#10243e]">
-            <span className="rounded-full bg-white/70 px-4 py-2 shadow-sm">Jornada guiada</span>
-            <span className="rounded-full bg-white/70 px-4 py-2 shadow-sm">Workspace admin</span>
-            <span className="rounded-full bg-white/70 px-4 py-2 shadow-sm">Multiempresa</span>
-            <span className="rounded-full bg-white/70 px-4 py-2 shadow-sm">PGR com evidencias</span>
-          </div>
-        </section>
-
-        <section className="flex justify-center lg:justify-end">
-          <div className="w-full max-w-md overflow-hidden rounded-[2rem] border border-white/15 bg-[#10243e] text-white shadow-2xl">
-            <div className="border-b border-white/10 px-7 py-6">
-              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#dcc27e]">
-                Acesso seguro
-              </p>
-              <h2 className="mt-3 text-2xl font-semibold">
-                Entre para continuar o GRO/PGR
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-white/70">
-                Use seu e-mail e senha. O link por e-mail continua disponivel como apoio.
-              </p>
-            </div>
-
-            <div className="px-7 py-6">
-              <form onSubmit={handlePasswordLogin} className="space-y-4">
-                <div>
-                  <label htmlFor="email" className="text-sm font-medium text-white/85">
-                    E-mail
-                  </label>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="voce@empresa.com.br"
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-[#dcc27e] focus:ring-4 focus:ring-[#dcc27e]/20"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="password" className="text-sm font-medium text-white/85">
-                    Senha
-                  </label>
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Digite sua senha"
-                    className="mt-2 w-full rounded-2xl border border-white/10 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-[#dcc27e] focus:ring-4 focus:ring-[#dcc27e]/20"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={!canSubmit}
-                  className="w-full rounded-2xl bg-[#dcc27e] px-5 py-3 text-sm font-semibold text-[#10243e] transition hover:bg-[#ead491] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Entrar com senha
-                </button>
-              </form>
-
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={handleClearSession}
-                  className="rounded-2xl border border-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
-                >
-                  Limpar sessao
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleEmailLink}
-                  disabled={!canSubmit}
-                  className="rounded-2xl border border-white/15 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Enviar link por e-mail
-                </button>
+          <div className="border-t border-white/10 p-8 md:p-10">
+            <form onSubmit={handlePasswordLogin} className="space-y-5">
+              <div>
+                <label htmlFor="email" className="text-sm font-semibold text-white/90">
+                  E-mail
+                </label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="voce@empresa.com.br"
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-white px-4 py-4 text-sm text-[#10243e] outline-none transition focus:border-[#dcc27e] focus:ring-4 focus:ring-[#dcc27e]/20"
+                />
               </div>
 
-              <div className="mt-5 rounded-2xl border border-white/10 bg-white/10 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#dcc27e]">
-                  Destino depois do login
-                </p>
-                <p className="mt-2 break-all text-sm text-white/75">{returnTo}</p>
+              <div>
+                <label htmlFor="password" className="text-sm font-semibold text-white/90">
+                  Senha
+                </label>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Digite sua senha"
+                  className="mt-2 w-full rounded-2xl border border-white/10 bg-white px-4 py-4 text-sm text-[#10243e] outline-none transition focus:border-[#dcc27e] focus:ring-4 focus:ring-[#dcc27e]/20"
+                />
               </div>
 
-              {message ? (
-                <div
-                  className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${
-                    status === "error"
-                      ? "border-red-300/40 bg-red-500/10 text-red-100"
-                      : "border-emerald-300/40 bg-emerald-500/10 text-emerald-100"
-                  }`}
-                >
-                  {message}
-                </div>
-              ) : null}
+              <button
+                type="submit"
+                disabled={!canSubmit}
+                className="w-full rounded-2xl bg-[#dcc27e] px-5 py-4 text-sm font-bold text-[#10243e] transition hover:bg-[#ead28f] disabled:cursor-not-allowed disabled:opacity-55"
+              >
+                Entrar com senha
+              </button>
+            </form>
 
-              {sessionStatus ? (
-                <p className="mt-4 text-xs leading-5 text-white/55">
-                  Status tecnico da sessao: {sessionStatus}
-                </p>
-              ) : null}
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={handleClearSession}
+                className="rounded-2xl border border-white/15 px-4 py-4 text-sm font-bold text-white transition hover:bg-white/10"
+              >
+                Limpar sessao
+              </button>
+
+              <button
+                type="button"
+                onClick={handleEmailLink}
+                disabled={!canSubmit}
+                className="rounded-2xl border border-white/15 px-4 py-4 text-sm font-bold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-55"
+              >
+                Enviar link por e-mail
+              </button>
+            </div>
+
+            {message ? (
+              <div
+                className={`mt-6 rounded-2xl border px-4 py-4 text-sm leading-6 ${
+                  status === "error"
+                    ? "border-red-300/40 bg-red-500/10 text-red-100"
+                    : "border-emerald-300/40 bg-emerald-500/10 text-emerald-100"
+                }`}
+              >
+                {message}
+              </div>
+            ) : null}
+
+            <div className="mt-6 rounded-2xl bg-white/10 p-5 text-sm leading-6 text-white/78">
+              Ao entrar, voce continua a jornada da empresa no ponto correto da
+              plataforma.
             </div>
           </div>
-        </section>
-      </div>
+        </aside>
+      </section>
     </main>
-  )
-}
+  )}
