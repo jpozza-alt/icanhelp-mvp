@@ -108,190 +108,164 @@ export default function LoginPage() {
       setLoadingMagic(false);
     }
   }
-
-  return (
-    <main className="min-h-screen bg-[#F4F7FB] text-[#132238]">
-      <div className="mx-auto grid min-h-screen max-w-[1600px] xl:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="bg-gradient-to-b from-[#0F2337] to-[#142C43] px-6 py-8 text-white xl:sticky xl:top-0 xl:min-h-screen">
-          <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-[16px] bg-gradient-to-br from-[#13A3A8] to-[#86F0D3] text-sm font-extrabold text-[#08323B] shadow-[0_10px_18px_rgba(19,163,168,0.35)]">
-              iC
+return (
+    <main className="min-h-screen bg-[#f4efe7] text-slate-950">
+      <section className="mx-auto grid min-h-screen w-full max-w-7xl gap-8 px-6 py-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-center lg:px-10">
+        <div className="flex flex-col justify-center">
+          <header className="mb-10 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#10243e] text-lg font-bold text-white">
+                i!
+              </div>
+              <div>
+                <p className="text-xl font-semibold leading-none text-[#10243e]">icanHelp</p>
+                <p className="mt-1 text-xs font-medium uppercase tracking-[0.22em] text-[#af8f45]">
+                  NR-1 | GRO/PGR
+                </p>
+              </div>
             </div>
-            <div>
-              <div className="text-[28px] font-semibold leading-none">icanHelp</div>
-              <div className="mt-2 text-sm text-white/70">Acesso da plataforma</div>
+
+            <a
+              href="#login-card"
+              className="hidden rounded-full border border-[#10243e]/15 bg-white/70 px-5 py-2 text-sm font-semibold text-[#10243e] shadow-sm transition hover:bg-white md:inline-flex"
+            >
+              Entrar
+            </a>
+          </header>
+
+          <div className="max-w-3xl">
+            <p className="mb-4 text-sm font-semibold uppercase tracking-[0.28em] text-[#af8f45]">
+              Adequacao NR-1 com jornada guiada
+            </p>
+
+            <h1 className="text-4xl font-semibold leading-tight text-[#10243e] md:text-6xl">
+              A jornada NR-1 da sua empresa, guiada do diagnostico ao PGR.
+            </h1>
+
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-slate-700">
+              O icanHelp organiza empresa, unidades, setores, atividades, riscos,
+              plano de acao e evidencias em uma experiencia simples para RH,
+              gestao e parceiros SST.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <a
+                href="#login-card"
+                className="inline-flex items-center justify-center rounded-2xl bg-[#10243e] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-[#10243e]/15 transition hover:bg-[#18365d]"
+              >
+                Entrar na plataforma
+              </a>
+
+              <a
+                href="#como-funciona"
+                className="inline-flex items-center justify-center rounded-2xl border border-[#10243e]/15 bg-white/70 px-6 py-3 text-sm font-semibold text-[#10243e] shadow-sm transition hover:bg-white"
+              >
+                Entender a jornada
+              </a>
             </div>
           </div>
 
-          <div className="mt-8 rounded-[22px] border border-white/10 bg-white/5 p-5 backdrop-blur">
-            <div className="text-[12px] uppercase tracking-[0.08em] text-white/70">proxima etapa</div>
-            <div className="mt-3 text-[28px] font-extrabold">{nextLabel}</div>
-            <p className="mt-3 text-sm leading-7 text-white/78">
-              O acesso autenticado agora conversa com a nova vitrine do modulo e preserva o caminho de retorno.
+          <div id="como-funciona" className="mt-10 grid gap-4 md:grid-cols-3">
+            <div className="rounded-3xl border border-white/70 bg-white/75 p-5 shadow-sm">
+              <p className="text-sm font-semibold text-[#10243e]">1. Prepare a base</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Cadastre empresa, unidades, setores e atividades.
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-white/70 bg-white/75 p-5 shadow-sm">
+              <p className="text-sm font-semibold text-[#10243e]">2. Diagnostico guiado</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Responda perguntas simples sobre o trabalho real.
+              </p>
+            </div>
+
+            <div className="rounded-3xl border border-white/70 bg-white/75 p-5 shadow-sm">
+              <p className="text-sm font-semibold text-[#10243e]">3. PGR rastreavel</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Conecte riscos, acoes e evidencias em uma unica jornada.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-8 rounded-3xl border border-[#dcc27e]/40 bg-white/60 p-5 text-sm leading-6 text-slate-700 shadow-sm">
+            O sistema orienta a jornada, organiza informacoes e apoia a
+            rastreabilidade. A validacao tecnica especializada continua indicada
+            quando o cenario exigir.
+          </div>
+        </div>
+
+        <aside
+          id="login-card"
+          className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-2xl shadow-[#10243e]/10 md:p-8"
+        >
+          <div className="mb-6">
+            <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[#af8f45]">
+              Acesso seguro
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold text-[#10243e]">
+              Entrar no icanHelp
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Acesse para continuar a adequacao NR-1 da empresa.
             </p>
           </div>
 
-          <div className="mt-5 rounded-[22px] border border-white/10 bg-white/5 p-5 backdrop-blur">
-            <div className="text-[12px] uppercase tracking-[0.08em] text-white/70">o que este login entrega</div>
-            <div className="mt-4 grid gap-3 text-sm text-[#DCE8F3]">
-              <div>- entrada com email e senha</div>
-              <div>- link por email como apoio</div>
-              <div>- retorno preservado para a rota pedida</div>
-              <div>- visual alinhado com a vitrine NR-1</div>
+          <form onSubmit={handlePasswordLogin} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="text-sm font-semibold text-[#10243e]">
+                E-mail
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="voce@empresa.com.br"
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-[#10243e] focus:ring-4 focus:ring-[#10243e]/10"
+              />
             </div>
-          </div>
 
-          <div className="mt-5 rounded-[22px] border border-white/10 bg-white/5 p-5 backdrop-blur">
-            <div className="text-[12px] uppercase tracking-[0.08em] text-white/70">atalhos</div>
-            <div className="mt-4 flex flex-wrap gap-3">
-              <Link
-                href="/dashboard/nr1"
-                className="rounded-[14px] border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-              >
-                Voltar para a vitrine
-              </Link>
-              <Link
-                href="/dashboard/nr1/demonstracao"
-                className="rounded-[14px] border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/15"
-              >
-                Ver demonstracao
-              </Link>
+            <div>
+              <label htmlFor="password" className="text-sm font-semibold text-[#10243e]">
+                Senha
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Digite sua senha"
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 outline-none transition focus:border-[#10243e] focus:ring-4 focus:ring-[#10243e]/10"
+              />
             </div>
+
+            <button
+              type="submit"
+              className="w-full rounded-2xl bg-[#10243e] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#18365d]"
+            >
+              Entrar com senha
+            </button>
+          </form>
+
+          <button
+            type="button"
+            onClick={handleMagicLink}
+            className="mt-4 w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-[#10243e] transition hover:bg-slate-50"
+          >
+            Enviar link por e-mail
+          </button>
+
+          <div className="mt-6 rounded-2xl bg-[#f4efe7] p-4 text-xs leading-5 text-slate-600">
+            Ao entrar, voce continua a jornada da empresa no ponto correto da
+            plataforma.
           </div>
         </aside>
-
-        <section className="min-w-0 px-6 py-8 xl:px-8">
-          <div className="mx-auto max-w-[980px]">
-            <div className="rounded-[28px] bg-[linear-gradient(135deg,#0F2337_0%,#13495C_60%,#178A8F_100%)] p-7 text-white shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
-              <div className="text-[12px] uppercase tracking-[0.08em] text-white/70">acesso autenticado</div>
-              <h1 className="mt-4 text-[38px] font-semibold leading-tight">Entrar no icanHelp</h1>
-              <p className="mt-3 max-w-[760px] text-base leading-7 text-white/85">
-                A vitrine publica ficou separada da execucao real. Agora o login usa a mesma linguagem visual e preserva o retorno para a etapa solicitada.
-              </p>
-              <div className="mt-5 inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white/90">
-                Destino depois do login: {nextPath}
-              </div>
-            </div>
-
-            <div className="mt-[18px] grid gap-[18px] lg:grid-cols-[1.1fr_0.9fr]">
-              <div className="rounded-[24px] border border-[#DBE5F0] bg-white p-6 shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="text-2xl font-semibold">Forma principal de acesso</h2>
-                  <span className="rounded-full border border-[#C8F0DA] bg-[#EBFBF3] px-[10px] py-[7px] text-xs font-bold text-[#20865A]">
-                    senha
-                  </span>
-                </div>
-
-                <p className="mt-4 text-sm leading-7 text-[#60718A]">
-                  Entre com email e senha para continuar o trabalho sem depender de um novo email a cada uso.
-                </p>
-
-                <form className="mt-6 grid gap-4" onSubmit={handlePasswordLogin}>
-                  <label className="grid gap-2 text-sm font-semibold text-[#132238]">
-                    Email
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(event) => setEmail(event.target.value)}
-                      placeholder="voce@orgao.gov.br"
-                      className="h-14 rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] px-4 text-base outline-none transition focus:border-[#13A3A8] focus:bg-white"
-                      autoComplete="email"
-                      required
-                    />
-                  </label>
-
-                  <label className="grid gap-2 text-sm font-semibold text-[#132238]">
-                    Senha
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      placeholder="Sua senha"
-                      className="h-14 rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] px-4 text-base outline-none transition focus:border-[#13A3A8] focus:bg-white"
-                      autoComplete="current-password"
-                      required
-                    />
-                  </label>
-
-                  <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                    <Link href="/auth/forgot-password" className="font-semibold text-[#0F7B83] underline-offset-4 hover:underline">
-                      Esqueci minha senha
-                    </Link>
-
-                    <button
-                      type="button"
-                      onClick={() => setMode("magic")}
-                      className="font-semibold text-[#60718A] underline-offset-4 hover:underline"
-                    >
-                      Usar link por email
-                    </button>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={loadingPassword}
-                    className="mt-1 h-14 rounded-[16px] bg-[linear-gradient(135deg,#0F7B83,#13A3A8)] px-5 text-base font-semibold text-white shadow-[0_10px_20px_rgba(19,163,168,0.24)] transition hover:-translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    {loadingPassword ? "Entrando..." : "Entrar com senha"}
-                  </button>
-                </form>
-              </div>
-
-              <div className="grid gap-[18px]">
-                <div className="rounded-[24px] border border-[#DBE5F0] bg-white p-6 shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
-                  <div className="flex items-center justify-between gap-3">
-                    <h2 className="text-2xl font-semibold">Alternativa de apoio</h2>
-                    <span className="rounded-full border border-[#FFE3AA] bg-[#FFF8EA] px-[10px] py-[7px] text-xs font-bold text-[#C88A16]">
-                      link por email
-                    </span>
-                  </div>
-
-                  <p className="mt-4 text-sm leading-7 text-[#60718A]">
-                    O link por email continua disponivel como apoio. Use essa opcao se quiser receber um acesso rapido na caixa de entrada.
-                  </p>
-
-                  <button
-                    type="button"
-                    onClick={handleMagicLink}
-                    disabled={loadingMagic}
-                    className="mt-6 h-14 w-full rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] px-5 text-base font-semibold text-[#132238] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    {loadingMagic ? "Enviando link..." : "Enviar link por email"}
-                  </button>
-
-                  <div className="mt-4 rounded-[16px] border border-[#DBE5F0] bg-[#F8FBFF] p-4 text-sm leading-7 text-[#60718A]">
-                    {mode === "magic"
-                      ? "Modo atual: link por email habilitado como apoio."
-                      : "Modo atual: acesso principal por senha."}
-                  </div>
-                </div>
-
-                <div className="rounded-[24px] border border-[#DBE5F0] bg-white p-6 shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
-                  <h2 className="text-2xl font-semibold">Retorno preservado</h2>
-                  <p className="mt-4 text-sm leading-7 text-[#60718A]">
-                    Depois do login, o sistema tenta devolver voce para a rota pedida antes da autenticacao.
-                  </p>
-                  <div className="mt-4 rounded-[16px] border border-[#C7EEEE] bg-[#E7F7F7] p-4 text-sm leading-7 text-[#0F7B83]">
-                    Rota de retorno atual: <strong>{nextPath}</strong>
-                  </div>
-                </div>
-
-                {error ? (
-                  <div className="rounded-[20px] border border-[#F2C5C5] bg-[#FFF4F4] p-5 text-sm leading-7 text-[#9C2F2F] shadow-[0_10px_30px_rgba(18,40,70,0.04)]">
-                    {error}
-                  </div>
-                ) : null}
-
-                {message ? (
-                  <div className="rounded-[20px] border border-[#C8F0DA] bg-[#EBFBF3] p-5 text-sm leading-7 text-[#20865A] shadow-[0_10px_30px_rgba(18,40,70,0.04)]">
-                    {message}
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
+      </section>
     </main>
-  );
+  )
 }
