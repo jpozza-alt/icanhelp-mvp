@@ -3636,7 +3636,7 @@ useEffect(() => {
   return (
     <main className="min-h-screen bg-[#f7f1e8] text-[#10243e]">
       {!workspaceBooted ? (
-        <section className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 py-10">
+        <section className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center px-6 py-10">
           <p className="text-xs font-semibold tracking-[0.18em] text-[#9d7b37]">icanHelp | NR-1</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[#10243e]">
             Carregando sua jornada NR-1
@@ -3647,18 +3647,18 @@ useEffect(() => {
         </section>
       ) : null}
       {isFirstRunMode ? (
-        <section className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 py-10">
+        <section className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center px-6 py-10">
           <div className="max-w-3xl">
             <p className="text-xs font-semibold tracking-[0.18em] text-[#9d7b37]">icanHelp | NR-1</p>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight text-[#10243e]">
-              Bem-vindo a jornada NR-1 da empresa
+            <h1 className="mt-3 text-5xl font-semibold tracking-tight text-[#10243e]">
+              Vamos começar pela base da empresa
             </h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-[#6f665b]">
-              O icanHelp guia a empresa para organizar dados, entender o trabalho real, registrar riscos, acompanhar ações e manter evidências em um só lugar.
+            <p className="mt-4 max-w-xl text-lg leading-8 text-[#6f665b]">
+              Informe os dados essenciais. Depois disso, o icanHelp libera a próxima etapa da jornada NR-1.
             </p>
           </div>
 
-          <div id="nr1-welcome-details" className="mt-8 grid gap-3 lg:grid-cols-3">
+          <div id="nr1-welcome-details" className="hidden">
             <div className="rounded-3xl border border-[#eadfce] bg-white/70 p-5 shadow-none">
               <p className="text-sm font-semibold text-[#10243e]">Primeiro passo</p>
               <ul className="mt-4 space-y-3 text-sm leading-6 text-[#6f665b]">
@@ -3689,16 +3689,16 @@ useEffect(() => {
               </ul>
             </div>
           </div>
-          {renderNextBestActionCard("welcome")}
-          {renderFullJourneyOverview("welcome")}
+          {null}
+          {null}
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
             <button
               type="button"
               onClick={openGuidedSetupReview}
               className="rounded-2xl bg-[#132238] px-6 py-3 text-sm font-semibold text-white hover:bg-[#0f1b2d]"
             >
-              Iniciar jornada guiada
+              Começar agora
             </button>
             <button
               type="button"
@@ -3707,12 +3707,7 @@ useEffect(() => {
             >
               Abrir visão geral
             </button>
-            <a
-              href="#nr1-welcome-details"
-              className="rounded-2xl border border-[#eadfce] px-6 py-3 text-sm font-semibold text-[#132238] hover:bg-white/70"
-            >
-              Ver como funciona
-            </a>
+            
           </div>
         </section>
       ) : null}
@@ -3728,7 +3723,7 @@ useEffect(() => {
           </p>
           {renderNextBestActionCard("partial")}
           {renderFullJourneyOverview("partial")}
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
             <button
               type="button"
               onClick={openGuidedSetupReview}
@@ -5348,5 +5343,6 @@ useEffect(() => {
     </main>
 );
 }
+
 
 
