@@ -1339,11 +1339,11 @@ useEffect(() => {
     const copy =
       variant === "welcome"
         ? {
-            title: "Começar pela implantação mínima",
+            title: "Começar pela base da empresa",
             description:
-              "Cadastre a empresa, a unidade, o primeiro setor e a atividade principal. Depois disso, a próxima etapa libera riscos, plano de ação, evidências e PGR.",
-            action: "Ação recomendada: começar jornada guiada.",
-            outcome: "Resultado esperado: base mínima pronta para análise.",
+              "Organize a empresa, a unidade, o primeiro setor e a atividade principal. Com essa base pronta, a jornada segue para diagnóstico, riscos, plano de ação e evidências.",
+            action: "Ação recomendada: iniciar pela base da empresa.",
+            outcome: "Resultado esperado: base pronta para o diagnóstico guiado.",
           }
         : variant === "partial"
           ? {
@@ -1362,7 +1362,7 @@ useEffect(() => {
             };
 
     return (
-      <section className="mt-6 rounded-3xl border border-[#c7a96b] bg-white p-5 shadow-sm">
+      <section className="mt-8 rounded-3xl border border-[#eadfce] bg-white/80 p-6 shadow-none">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#9d7b37]">
@@ -1371,7 +1371,7 @@ useEffect(() => {
             <h2 className="mt-2 text-xl font-semibold text-[#10243e]">{copy.title}</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">{copy.description}</p>
           </div>
-          <div className="rounded-2xl border border-[#eadfce] bg-[#fffaf6] p-4 text-sm leading-6 text-[#6f665b] lg:max-w-xs">
+          <div className="rounded-2xl border border-[#eadfce] bg-white/70 p-4 text-sm leading-6 text-[#6f665b] lg:max-w-xs">
             <p className="font-semibold text-[#10243e]">{copy.action}</p>
             <p className="mt-2">{copy.outcome}</p>
           </div>
@@ -1381,18 +1381,18 @@ useEffect(() => {
   };
 
   const renderFullJourneyOverview = (variant: "welcome" | "partial") => (
-    <section className="mt-8 rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-5 shadow-sm">
+    <section className="mt-10 rounded-3xl border border-[#eadfce] bg-white/60 p-5 shadow-none">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
             Jornada completa
           </p>
           <h2 className="mt-2 text-xl font-semibold text-[#10243e]">
-            {variant === "welcome" ? "O caminho completo até o PGR" : "Continue olhando o caminho inteiro"}
+            {variant === "welcome" ? "Caminho até o PGR" : "Continue olhando o caminho inteiro"}
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
             {variant === "welcome"
-              ? "A implantação inicial libera a base. Depois, o sistema guia diagnóstico, riscos, plano de ação, evidências e geração do PGR."
+              ? "A jornada avança por etapas: base da empresa, diagnóstico, riscos, plano de ação, evidências e PGR."
               : "A base inicial ainda pode ser revisada. A trilha abaixo mostra para onde a empresa avança depois da triagem."}
           </p>
         </div>
@@ -3658,8 +3658,8 @@ useEffect(() => {
             </p>
           </div>
 
-          <div id="nr1-welcome-details" className="mt-8 grid gap-4 lg:grid-cols-3">
-            <div className="rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-5 shadow-sm">
+          <div id="nr1-welcome-details" className="mt-8 grid gap-3 lg:grid-cols-3">
+            <div className="rounded-3xl border border-[#eadfce] bg-white/70 p-5 shadow-none">
               <p className="text-sm font-semibold text-[#10243e]">Primeiro passo</p>
               <ul className="mt-4 space-y-3 text-sm leading-6 text-[#6f665b]">
                 <li>Informar os dados básicos da empresa</li>
@@ -3669,7 +3669,7 @@ useEffect(() => {
               </ul>
             </div>
 
-            <div className="rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-5 shadow-sm">
+            <div className="rounded-3xl border border-[#eadfce] bg-white/70 p-5 shadow-none">
               <p className="text-sm font-semibold text-[#10243e]">O que será organizado</p>
               <ul className="mt-4 space-y-3 text-sm leading-6 text-[#6f665b]">
                 <li>Base inicial da empresa</li>
@@ -3679,7 +3679,7 @@ useEffect(() => {
               </ul>
             </div>
 
-            <div className="rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-5 shadow-sm">
+            <div className="rounded-3xl border border-[#eadfce] bg-white/70 p-5 shadow-none">
               <p className="text-sm font-semibold text-[#10243e]">Resultado esperado</p>
               <ul className="mt-4 space-y-3 text-sm leading-6 text-[#6f665b]">
                 <li>Visão clara do que falta</li>
@@ -3696,20 +3696,20 @@ useEffect(() => {
             <button
               type="button"
               onClick={openGuidedSetupReview}
-              className="rounded-xl bg-[#132238] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0f1b2d]"
+              className="rounded-2xl bg-[#132238] px-6 py-3 text-sm font-semibold text-white hover:bg-[#0f1b2d]"
             >
-              Começar jornada guiada
+              Iniciar jornada guiada
             </button>
             <button
               type="button"
               onClick={handleResumeGateDashboard}
-              className="rounded-xl border border-[#132238] px-5 py-3 text-sm font-semibold text-[#132238] hover:bg-[#fffaf6]"
+              className="rounded-2xl border border-[#132238] px-6 py-3 text-sm font-semibold text-[#132238] hover:bg-white/70"
             >
               Abrir visão geral
             </button>
             <a
               href="#nr1-welcome-details"
-              className="rounded-xl border border-[#d9c9b8] px-5 py-3 text-sm font-semibold text-[#132238] hover:bg-[#fffaf6]"
+              className="rounded-2xl border border-[#eadfce] px-6 py-3 text-sm font-semibold text-[#132238] hover:bg-white/70"
             >
               Ver como funciona
             </a>
@@ -3732,14 +3732,14 @@ useEffect(() => {
             <button
               type="button"
               onClick={openGuidedSetupReview}
-              className="rounded-xl bg-[#132238] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0f1b2d]"
+              className="rounded-2xl bg-[#132238] px-6 py-3 text-sm font-semibold text-white hover:bg-[#0f1b2d]"
             >
               Revisar triagem
             </button>
             <button
               type="button"
               onClick={handleResumeGateDashboard}
-              className="rounded-xl border border-[#d9c9b8] px-5 py-3 text-sm font-semibold text-[#132238] hover:bg-[#fffaf6]"
+              className="rounded-2xl border border-[#eadfce] px-6 py-3 text-sm font-semibold text-[#132238] hover:bg-white/70"
             >
               Abrir visao geral
             </button>
@@ -5348,4 +5348,5 @@ useEffect(() => {
     </main>
 );
 }
+
 
