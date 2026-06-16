@@ -3612,6 +3612,8 @@ useEffect(() => {
   const workspaceV2PrimaryLabel = isWorkspaceMode ? "Abrir mapeamento" : "Continuar implantação";
 
     const shouldShowLegacyBaseForms = showGuidedSetup || (draft.activeSection === "cadastros" && !isWorkspaceMode);
+  const shouldShowPlanResourcesInMainFlow = false;
+  const shouldShowLegacyEntityListsInMainFlow = false;
 
   const workspaceV2NextBestActionReasons = isWorkspaceMode
     ? [
@@ -3771,7 +3773,7 @@ useEffect(() => {
               topContextSlot={workspaceV2TopContextSlot}>
         <section id="nr1-operational-content" className={showGuidedSetup ? "min-w-0" : "min-w-0 space-y-6"}>
 
-          {showWorkspaceDashboardContent && isWorkspaceMode ? (
+          {shouldShowPlanResourcesInMainFlow ? (
           <div
             className={
               planFeatures?.featureFlags.iso45003_engine
@@ -5292,7 +5294,8 @@ useEffect(() => {
             </section>
           ) : null}
 
-          <section className="grid gap-6 xl:grid-cols-3">
+          {shouldShowLegacyEntityListsInMainFlow ? (
+<section className="grid gap-6 xl:grid-cols-3">
             <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <h3 className="font-semibold">Empresas cadastradas</h3>
               <div className="mt-4 space-y-3">
@@ -5339,6 +5342,7 @@ useEffect(() => {
               </div>
             </div>
           </section>
+            ) : null}
         </section>
         </Nr1WorkspaceV2Shell>
       ) : null}
