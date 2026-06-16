@@ -3611,6 +3611,8 @@ useEffect(() => {
 
   const workspaceV2PrimaryLabel = isWorkspaceMode ? "Abrir mapeamento" : "Continuar implantação";
 
+    const shouldShowLegacyBaseForms = showGuidedSetup || (draft.activeSection === "cadastros" && !isWorkspaceMode);
+
   const workspaceV2NextBestActionReasons = isWorkspaceMode
     ? [
         "Empresa, unidade, setor e atividade já existem.",
@@ -3917,7 +3919,7 @@ useEffect(() => {
             <div className="fixed -inset-24 z-[9998] bg-[#10243e]/12 backdrop-blur-sm" aria-hidden="true" />
           ) : null}
 
-          {showGuidedSetup || draft.activeSection === "cadastros" ? (
+          {shouldShowLegacyBaseForms ? (
             <section className={showGuidedSetup ? "fixed left-1/2 top-1/2 z-[9999] max-h-[calc(100vh-3rem)] w-[min(42rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[2rem] border border-[#d9c9b8] bg-[#fffaf6]/98 p-7 shadow-2xl ring-1 ring-white/60" : "grid gap-6 xl:grid-cols-2"}>
               {showGuidedSetup ? (
                 <div>
