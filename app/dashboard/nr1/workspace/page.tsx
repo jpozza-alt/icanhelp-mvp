@@ -3482,6 +3482,8 @@ useEffect(() => {
     ["evidence_pending", "Evidências pendentes mapeadas"],
   ] as const;
 
+    const workspaceContextReady = Boolean(selectedCompany && selectedEstablishment);
+
   const workspaceV2TopContextSlot = (
     <section
       id="workspace-active-company-selector"
@@ -3493,10 +3495,12 @@ useEffect(() => {
             Contexto operacional ativo
           </p>
           <h2 className="mt-2 text-xl font-semibold text-[#10243e]">
-            Escolha a empresa e a unidade antes de avançar
+              {workspaceContextReady ? "Empresa e unidade ativas" : "Escolha a empresa e a unidade antes de avançar"}
           </h2>
           <p className="mt-1 text-sm leading-6 text-[#6f665b]">
-            Esta área define qual empresa, unidade, setor e atividade serão usados no mapeamento, riscos e PGR.
+              {workspaceContextReady
+                ? "Contexto pronto para avançar no mapeamento, riscos e PGR."
+                : "Selecione a empresa e a unidade que serão usadas no mapeamento, riscos e PGR."}
           </p>
         </div>
 
