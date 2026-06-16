@@ -1435,7 +1435,7 @@ useEffect(() => {
   const onboardingMicroSteps =
     onboardingCurrentStep.key === "empresa"
       ? [
-                              { question: "Qual é o CNPJ da empresa?", helper: "Informe o CNPJ para validar a porta de entrada da Triagem Empresarial NR-1 e preparar a busca cadastral." },
+                              { question: "Qual é o CNPJ da empresa?", helper: "Informe o CNPJ para comecar." },
           { question: "Qual é a razão social da empresa?", helper: "Informe a identificação formal da organização ou revise o dado preenchido pela consulta cadastral." },
           { question: "Qual e o nome fantasia?", helper: "Se nao houver nome fantasia, repita a razao social." },
           { question: "Qual e o CNAE principal?", helper: "Informe 7 dígitos. A validação contra tabela CNAE fica para a próxima etapa técnica." },
@@ -3914,13 +3914,13 @@ useEffect(() => {
           ) : null}
 
           {showGuidedSetup || draft.activeSection === "cadastros" ? (
-            <section className={showGuidedSetup ? "fixed left-1/2 top-1/2 z-[9999] max-h-[calc(100vh-3rem)] w-[min(56rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[2rem] border border-[#d9c9b8] bg-[#fffaf6]/95 p-6 shadow-2xl ring-1 ring-white/60" : "grid gap-6 xl:grid-cols-2"}>
+            <section className={showGuidedSetup ? "fixed left-1/2 top-1/2 z-[9999] max-h-[calc(100vh-3rem)] w-[min(42rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[2rem] border border-[#d9c9b8] bg-[#fffaf6]/98 p-7 shadow-2xl ring-1 ring-white/60" : "grid gap-6 xl:grid-cols-2"}>
               {showGuidedSetup ? (
                 <div>
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
-                        Implantacao guiada
+                        Jornada guiada
                       </p>
                       <h2 className="mt-3 text-3xl font-semibold tracking-tight text-[#10243e]">
                         {onboardingMicroStep.question}
@@ -3929,11 +3929,9 @@ useEffect(() => {
                         {onboardingMicroStep.helper}
                       </p>
                     </div>
-                    <span className="w-fit rounded-full bg-[#132238] px-3 py-1 text-xs font-semibold text-white">
-                      Etapa ativa
-                    </span>
+                    <span className="hidden" aria-hidden="true">Etapa ativa</span>
                   </div>
-                  <div className="mt-6 rounded-2xl border border-[#d9c9b8] bg-white p-4">
+                  <div className="hidden" aria-hidden="true">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="text-sm font-semibold text-[#10243e]">Jornada completa até o PGR</p>
@@ -3969,9 +3967,7 @@ useEffect(() => {
                       ))}
                     </div>
                   </div>
-                  <p className="mt-5 text-sm leading-6 text-[#6f665b]">
-                    {onboardingCurrentStep.helper}
-                  </p>
+                  <p className="hidden" aria-hidden="true">{onboardingCurrentStep.helper}</p>
                   <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#ead8c8]">
                     <div
                       className="h-full rounded-full bg-[#132238] transition-all"
@@ -3998,9 +3994,9 @@ useEffect(() => {
                 </div>
               ) : null}
               {(!showGuidedSetup || onboardingCurrentStep.key === "empresa") ? (
-              <form noValidate onSubmit={handleCreateCompany} className={showGuidedSetup ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
+              <form noValidate onSubmit={handleCreateCompany} className={showGuidedSetup ? "mt-6" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
                 <h2 className={showGuidedSetup ? "sr-only" : "text-xl font-semibold"}>1. Triagem Empresarial NR-1</h2>
-                <p className="mt-1 text-sm text-slate-500">Antes do diagnóstico, vamos qualificar a empresa para formar a base do PGR.</p>
+                <p className={showGuidedSetup ? "sr-only" : "mt-1 text-sm text-slate-500"}>Vamos comecar pela identificacao da empresa.</p>
 
                 {showGuidedSetup ? (
                   <div className="mt-5 space-y-4">
@@ -4036,7 +4032,7 @@ useEffect(() => {
                           </p>
                         ) : (
                           <p className="mt-3 text-xs leading-5 text-[#6f665b]">
-                            A consulta cadastral real sera conectada por API interna. Por enquanto, o preenchimento manual assistido continua disponivel.
+                            Depois da busca, voce podera revisar ou preencher os dados manualmente.
                           </p>
                         )}
                       </div>
@@ -4252,7 +4248,7 @@ useEffect(() => {
               ) : null}
 
               {(!showGuidedSetup || onboardingCurrentStep.key === "estabelecimento") ? (
-              <form onSubmit={handleCreateEstablishment} className={showGuidedSetup ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
+              <form onSubmit={handleCreateEstablishment} className={showGuidedSetup ? "mt-6" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
                 <h2 className={showGuidedSetup ? "sr-only" : "text-xl font-semibold"}>2. Estabelecimento</h2>
                 <p className="mt-1 text-sm text-slate-500">Organize a unidade onde as atividades acontecem e onde a documentacao sera estruturada.</p>
 
@@ -4358,7 +4354,7 @@ useEffect(() => {
               ) : null}
 
               {(!showGuidedSetup || onboardingCurrentStep.key === "setor") ? (
-              <form onSubmit={handleCreateDepartment} className={showGuidedSetup ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
+              <form onSubmit={handleCreateDepartment} className={showGuidedSetup ? "mt-6" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
                 <h2 className={showGuidedSetup ? "sr-only" : "text-xl font-semibold"}>3. Setor</h2>
                 <p className="mt-1 text-sm text-slate-500">Mapeie os setores reais de trabalho antes de vincular atividades e riscos.</p>
 
@@ -4453,7 +4449,7 @@ useEffect(() => {
               ) : null}
 
               {(!showGuidedSetup || onboardingCurrentStep.key === "atividade") ? (
-              <form onSubmit={handleCreateActivity} className={showGuidedSetup ? "mt-6 border-t border-[#ead8c8] pt-5" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
+              <form onSubmit={handleCreateActivity} className={showGuidedSetup ? "mt-6" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
                 <h2 className={showGuidedSetup ? "sr-only" : "text-xl font-semibold"}>4. Atividade</h2>
                 <p className="mt-1 text-sm text-slate-500">Descreva as atividades reais executadas para orientar o diagnostico e o plano de acao.</p>
 
@@ -5343,6 +5339,7 @@ useEffect(() => {
     </main>
 );
 }
+
 
 
 
