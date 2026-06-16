@@ -1139,7 +1139,7 @@ useEffect(() => {
   const showGuidedSetup = guidedSetupOpen;
   const workspaceBooted = saveStatus !== "loading";
   const showExistingBaseResume = workspaceBooted && !showGuidedSetup && !isWorkspaceMode && hasAnyTriageBase && guidedSetupChoice === "undecided";
-  const isFirstRunMode = workspaceBooted && !hasAnyTriageBase && !showGuidedSetup;
+    const isFirstRunMode = workspaceBooted && !hasAnyTriageBase && !showGuidedSetup && guidedSetupChoice !== "dashboard";
   const showWorkspaceShell = workspaceBooted && !isFirstRunMode && !showExistingBaseResume;
   const showWorkspaceDashboardContent = showWorkspaceShell && !showGuidedSetup;
   const previousWorkspaceModeRef = useRef(isWorkspaceMode);
