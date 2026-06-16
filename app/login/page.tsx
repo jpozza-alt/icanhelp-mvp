@@ -7,17 +7,17 @@ import { createClient } from "@supabase/supabase-js";
 type LoginMode = "password" | "email_link";
 
 function getSafeReturnPath(): string {
-  if (typeof window === "undefined") return "/dashboard";
+  if (typeof window === "undefined") return "/dashboard/nr1/workspace";
 
   const params = new URLSearchParams(window.location.search);
   const raw =
     params.get("next") ||
     params.get("redirect") ||
     params.get("returnTo") ||
-    "/dashboard";
+    "/dashboard/nr1/workspace";
 
   if (!raw.startsWith("/") || raw.startsWith("//")) {
-    return "/dashboard";
+    return "/dashboard/nr1/workspace";
   }
 
   return raw;
@@ -34,7 +34,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mode] = useState<LoginMode>("password");
-  const [returnTo] = useState("/dashboard");
+  const [returnTo] = useState(getSafeReturnPath);
   const [sessionStatus, setSessionStatus] = useState("Verificando sessao...");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -280,3 +280,4 @@ return (
       </section>
     </main>
   )}
+

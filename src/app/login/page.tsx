@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase/client";
 
 type Mode = "password" | "magic";
 
-const DEFAULT_NEXT = "/dashboard";
+const DEFAULT_NEXT = "/dashboard/nr1/workspace";
 
 function sanitizeNextPath(candidate: string | null) {
   if (!candidate) return DEFAULT_NEXT;
@@ -269,3 +269,4 @@ return (
     </main>
   )
 }
+

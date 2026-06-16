@@ -57,7 +57,7 @@ export default function AuthCallbackPage() {
             return;
           }
 
-          window.location.assign("/dashboard");
+          window.location.assign((() => { const nextPath = new URLSearchParams(window.location.search).get("next") || "/dashboard/nr1/workspace"; return nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/dashboard/nr1/workspace"; })());
           return;
           return;
         }
@@ -75,7 +75,7 @@ export default function AuthCallbackPage() {
             return;
           }
 
-          window.location.assign("/dashboard");
+          window.location.assign((() => { const nextPath = new URLSearchParams(window.location.search).get("next") || "/dashboard/nr1/workspace"; return nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/dashboard/nr1/workspace"; })());
           return;
           return;
         }
@@ -106,5 +106,6 @@ export default function AuthCallbackPage() {
     </main>
   );
 }
+
 
 
