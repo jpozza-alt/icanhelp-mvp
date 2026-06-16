@@ -1220,7 +1220,7 @@ useEffect(() => {
         question: "Triagem Empresarial NR-1",
         intro: "Antes do diagnóstico, vamos qualificar a empresa para formar a base do PGR.",
         helper: "Comece pelo CNPJ. Depois revise a identificacao formal, a atividade economica, o porte, a quantidade de trabalhadores e a caracterizacao inicial de SST.",
-        buttonLabel: "Salvar triagem da empresa e continuar",
+        buttonLabel: "Salvar e continuar",
       }
     : !hasEstablishment
       ? {
@@ -1261,7 +1261,7 @@ useEffect(() => {
           question: "Triagem Empresarial NR-1",
           intro: "Antes do diagnóstico, vamos qualificar a empresa para formar a base do PGR.",
           helper: "Comece pelo CNPJ. Depois revise a identificacao formal, a atividade economica, o porte, a quantidade de trabalhadores e a caracterizacao inicial de SST.",
-          buttonLabel: "Salvar triagem da empresa e continuar",
+          buttonLabel: "Salvar e continuar",
         }
       : guidedStepKey === "estabelecimento"
         ? {
@@ -1442,7 +1442,7 @@ useEffect(() => {
           { question: "Qual e o porte da empresa?", helper: "O porte ajuda a orientar a leitura da obrigacao e da jornada." },
           { question: "Quantos trabalhadores existem aproximadamente?", helper: "A quantidade de trabalhadores ajuda a priorizar a base do PGR." },
           { question: "A empresa possui CIPA, SESMT, terceiros, trabalho remoto ou atividades externas?", helper: "Esses dados ajudam a caracterizar a realidade inicial de SST." },
-          { question: "Depois desta etapa, a jornada segue para estabelecimento, setor, atividade e histórico ocupacional.", helper: "O histórico dos últimos 24 meses será tratado em etapa própria, com dados agregados, sem nome de trabalhador, prontuário, CID individual ou diagnóstico clínico." },
+          { question: "Conferir e salvar a base da empresa.", helper: "Revise os dados essenciais. Depois, a jornada segue para o estabelecimento." },
         ]
       : onboardingCurrentStep.key === "estabelecimento"
         ? [
@@ -3968,7 +3968,7 @@ useEffect(() => {
                     </div>
                   </div>
                   <p className="hidden" aria-hidden="true">{onboardingCurrentStep.helper}</p>
-                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#ead8c8]">
+                  <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#ead8c8]">
                     <div
                       className="h-full rounded-full bg-[#132238] transition-all"
                       style={{ width: `${((onboardingMicroStepIndex + 1) / onboardingMicroSteps.length) * 100}%` }}
@@ -4123,7 +4123,7 @@ useEffect(() => {
                       </div>
                     ) : null}
                     {onboardingMicroStepIndex === 7 ? (
-                      <div className="rounded-2xl border border-[#d9c9b8] bg-[#fffaf3] p-4">
+                      <div className="hidden" aria-hidden="true">
                         <p className="text-sm font-semibold text-[#10243e]">Proximas etapas da triagem</p>
                         <p className="mt-2 text-sm leading-6 text-[#6f665b]">
                           Depois desta qualificacao, a jornada segue para estabelecimento, setor, atividade ou tarefa, grupo exposto e historico ocupacional dos ultimos 24 meses.
