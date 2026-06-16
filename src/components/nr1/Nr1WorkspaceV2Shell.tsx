@@ -34,39 +34,6 @@ type Nr1WorkspaceV2ShellProps = {
   children?: ReactNode;
 };
 
-const defaultMacroblocks: Nr1WorkspaceV2Macroblock[] = [
-  {
-    title: "Preparar base",
-    status: "Pronto",
-    description: "Empresa, unidade, setor e atividade principal organizados.",
-    detail: "Base mínima para iniciar o GRO/PGR.",
-  },
-  {
-    title: "Mapear o trabalho",
-    status: "Atual",
-    description: "Entender quem trabalha, onde trabalha e como a atividade acontece.",
-    detail: "Rotina real, grupo exposto e histórico agregado.",
-  },
-  {
-    title: "Identificar e priorizar riscos",
-    status: "Pendente",
-    description: "Converter as informações em riscos ocupacionais priorizados.",
-    detail: "Inclui fatores psicossociais relacionados ao trabalho.",
-  },
-  {
-    title: "Executar plano de ação",
-    status: "Pendente",
-    description: "Definir medidas, responsáveis, prazos e acompanhamentos.",
-    detail: "Plano preventivo conectado ao inventário.",
-  },
-  {
-    title: "Documentar e acompanhar o PGR",
-    status: "Pendente",
-    description: "Reunir evidências, revisar e gerar o documento formal.",
-    detail: "Rastreabilidade, auditoria e consolidação.",
-  },
-];
-
 const defaultModules = ["Base", "Mapeamento", "Riscos", "Plano", "Evidências", "PGR"];
 
 const defaultPendingItems = [
@@ -90,14 +57,13 @@ function clampProgress(value: number) {
 }
 
 export default function Nr1WorkspaceV2Shell({
-  companyName = "TESTE",
-  establishmentName = "UNIDADE TESTE",
+  companyName = "Empresa não selecionada",
+  establishmentName = "Unidade não selecionada",
   pgrStatus = "Em construção",
   progressPercent = 20,
   progressDescription = "Base pronta. Próximo foco: mapear a rotina real de trabalho.",
   activeModule = "Mapeamento",
   modules = defaultModules,
-  macroblocks = defaultMacroblocks,
   pendingItems = defaultPendingItems,
   nextBestActionLabel = "Próxima melhor ação",
   nextBestActionTitle = "Mapear a rotina real da atividade principal",
@@ -118,7 +84,7 @@ export default function Nr1WorkspaceV2Shell({
 
   return (
     <div className="min-h-screen bg-[#f4efe7] text-[#10243e]">
-      <div className="mx-auto grid min-h-screen max-w-[1440px] grid-cols-1 lg:grid-cols-[300px_1fr]">
+      <div className="mx-auto grid min-h-screen max-w-[1440px] grid-cols-1 lg:grid-cols-[292px_1fr]">
         <aside className="border-r border-[#e2d4bf] bg-[#10243e] px-5 py-6 text-white">
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#d8bd78]">
@@ -128,7 +94,7 @@ export default function Nr1WorkspaceV2Shell({
               Workspace GRO/PGR
             </h1>
             <p className="mt-2 text-sm leading-6 text-white/65">
-              Contexto, progresso e navegação em um painel só.
+              Navegação, contexto e progresso. O preenchimento acontece no módulo em foco.
             </p>
           </div>
 
@@ -146,17 +112,20 @@ export default function Nr1WorkspaceV2Shell({
                 <p className="mt-1 font-semibold">{establishmentName}</p>
               </div>
               <div>
-                <p className="text-xs text-white/50">Status do PGR</p>
-                <p className="mt-1 inline-flex rounded-full bg-[#d8bd78]/15 px-3 py-1 text-xs font-semibold text-[#f4ddb0]">
+                <p className="text-xs text-white/50">PGR</p>
+                <a
+                  href={pgrHref}
+                  className="mt-1 inline-flex rounded-full bg-[#d8bd78]/15 px-3 py-1 text-xs font-semibold text-[#f4ddb0] hover:bg-[#d8bd78]/25"
+                >
                   {pgrStatus}
-                </p>
+                </a>
               </div>
             </div>
           </section>
 
           <section className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-5">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold">Progresso macro</p>
+              <p className="text-sm font-semibold">Progresso</p>
               <p className="text-2xl font-semibold text-[#d8bd78]">{safeProgress}%</p>
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
@@ -172,7 +141,7 @@ export default function Nr1WorkspaceV2Shell({
               return (
                 <a
                   key={module}
-                  href="#"
+                  href={isActive ? moduleHref : "#"}
                   className={`flex items-center justify-between rounded-2xl px-3 py-3 text-sm font-medium transition ${
                     isActive
                       ? "bg-white text-[#10243e]"
@@ -187,181 +156,88 @@ export default function Nr1WorkspaceV2Shell({
           </nav>
 
           <section className="mt-5 rounded-3xl border border-white/10 bg-[#0b1729] p-5">
-            <p className="text-sm font-semibold">Trilha completa</p>
-            <p className="mt-2 text-xs leading-5 text-white/55">
-              16 etapas disponíveis para auditoria e rastreabilidade.
-            </p>
-            <button className="mt-4 w-full rounded-2xl border border-white/15 px-3 py-2 text-sm font-semibold text-white/80">
-              Ver trilha
-            </button>
+            <p className="text-sm font-semibold">Pendências do foco atual</p>
+            <div className="mt-4 space-y-2">
+              {pendingItems.map((item) => (
+                <div key={item} className="flex gap-2 rounded-2xl bg-white/[0.06] p-3 text-xs leading-5 text-white/65">
+                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#d8bd78]" />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
           </section>
         </aside>
 
         <section className="px-5 py-6 lg:px-8">
           <header className="rounded-[2rem] border border-[#e2d4bf] bg-[#fffaf3] p-6 shadow-sm">
-            <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#9d7b37]">
-                  Workspace NR-1
+                  Módulo em foco
                 </p>
                 <h2 className="mt-3 text-3xl font-semibold tracking-tight text-[#10243e]">
-                  Decisão guiada para o GRO/PGR
+                  {activeModule}
                 </h2>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
-                  Organize a base, entenda o trabalho real, priorize riscos e acompanhe o PGR sem transformar a tela em formulário técnico.
+                  Uma etapa por vez. Primeiro entenda a rotina real; depois o sistema ajuda a transformar a leitura em riscos, plano e evidências.
                 </p>
               </div>
 
-              <div className="rounded-3xl border border-[#eadfce] bg-white p-4 xl:w-[320px]">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-semibold">PGR em construção</p>
-                    <p className="mt-1 text-xs text-[#6f665b]">
-                      Documento será consolidado a partir dos riscos e evidências.
-                    </p>
-                  </div>
-                  <span className="rounded-full bg-[#e9f0e5] px-3 py-1 text-xs font-semibold text-[#2f6f4e]">
-                    Seguro
-                  </span>
-                </div>
-                <a
-                  href={pgrHref}
-                  className="mt-4 inline-flex rounded-2xl border border-[#10243e] px-4 py-2 text-sm font-semibold text-[#10243e]"
-                >
-                  Ver resumo do PGR
-                </a>
+              <div className="w-fit rounded-full border border-[#eadfce] bg-white px-4 py-2 text-sm font-semibold text-[#10243e]">
+                {safeProgress}% concluído
               </div>
             </div>
           </header>
 
-          <section className="mt-6 overflow-hidden rounded-[2rem] border border-[#d8bd78] bg-[#10243e] shadow-lg">
-            <div className="grid gap-0 xl:grid-cols-[1.4fr_0.9fr]">
-              <div className="p-7 text-white">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#d8bd78]">
-                  {nextBestActionLabel}
-                </p>
-                <h2 className="mt-4 text-4xl font-semibold leading-tight tracking-tight">
-                  {nextBestActionTitle}
-                </h2>
-                <p className="mt-4 max-w-2xl text-base leading-7 text-white/72">
-                  {nextBestActionDescription}
-                </p>
-
-                <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                  <a
-                    href={nextBestActionPrimaryHref}
-                    onClick={(event) => {
-                      if (!nextBestActionPrimaryOnClick) return;
-                      event.preventDefault();
-                      nextBestActionPrimaryOnClick();
-                    }}
-                    className="inline-flex justify-center rounded-2xl bg-[#d8bd78] px-5 py-3 text-sm font-bold text-[#10243e]"
-                  >
-                    {nextBestActionPrimaryLabel}
-                  </a>
-                  <a
-                    href={nextBestActionSecondaryHref}
-                    className="inline-flex justify-center rounded-2xl border border-white/20 px-5 py-3 text-sm font-semibold text-white"
-                  >
-                    {nextBestActionSecondaryLabel}
-                  </a>
-                </div>
-              </div>
-
-              <div className="border-t border-white/10 bg-white/[0.05] p-7 xl:border-l xl:border-t-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#d8bd78]">
-                  Por que agora?
-                </p>
-                <div className="mt-4 space-y-4">
-                  {nextBestActionReasons.map((item) => (
-                    <div key={item} className="rounded-2xl bg-white/[0.07] p-4 text-sm leading-6 text-white/75">
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-
           {topContextSlot ? (
-            <div className="mb-6">
+            <div className="mt-5">
               {topContextSlot}
             </div>
           ) : null}
 
-          <section className="mt-6">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <section className="mt-5 rounded-[2rem] border border-[#d8bd78] bg-[#10243e] p-5 text-white shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#d8bd78]">
+              {nextBestActionLabel}
+            </p>
+            <div className="mt-3 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#9d7b37]">
-                  Macroblocos
+                <h3 className="text-2xl font-semibold tracking-tight">{nextBestActionTitle}</h3>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-white/70">
+                  {nextBestActionDescription}
                 </p>
-                <h3 className="mt-2 text-2xl font-semibold">A jornada em linguagem humana</h3>
               </div>
-              <p className="max-w-xl text-sm leading-6 text-[#6f665b]">
-                Os 16 passos continuam existindo para rastreabilidade. O trabalho diário acontece por estes blocos.
-              </p>
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <a
+                  href={nextBestActionPrimaryHref}
+                  onClick={(event) => {
+                    if (!nextBestActionPrimaryOnClick) return;
+                    event.preventDefault();
+                    nextBestActionPrimaryOnClick();
+                  }}
+                  className="inline-flex justify-center rounded-2xl bg-[#d8bd78] px-5 py-3 text-sm font-bold text-[#10243e]"
+                >
+                  {nextBestActionPrimaryLabel}
+                </a>
+                <a
+                  href={nextBestActionSecondaryHref}
+                  className="inline-flex justify-center rounded-2xl border border-white/20 px-5 py-3 text-sm font-semibold text-white"
+                >
+                  {nextBestActionSecondaryLabel}
+                </a>
+              </div>
             </div>
 
-            <div className="mt-5 grid gap-4 xl:grid-cols-5">
-              {macroblocks.map((block, index) => (
-                <article
-                  key={block.title}
-                  className={`rounded-3xl border p-5 shadow-sm ${
-                    index === 1
-                      ? "border-[#d8bd78] bg-[#fffaf3]"
-                      : "border-[#e2d4bf] bg-white"
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b37]">
-                      0{index + 1}
-                    </span>
-                    <span className="rounded-full bg-[#f0e7d8] px-3 py-1 text-xs font-semibold text-[#6f4f17]">
-                      {block.status}
-                    </span>
-                  </div>
-                  <h4 className="mt-4 text-lg font-semibold">{block.title}</h4>
-                  <p className="mt-3 text-sm leading-6 text-[#6f665b]">{block.description}</p>
-                  <p className="mt-4 text-xs leading-5 text-[#8a7b6a]">{block.detail}</p>
-                </article>
+            <div className="mt-4 grid gap-2 md:grid-cols-3">
+              {nextBestActionReasons.slice(0, 3).map((item) => (
+                <div key={item} className="rounded-2xl bg-white/[0.07] p-3 text-xs leading-5 text-white/70">
+                  {item}
+                </div>
               ))}
             </div>
           </section>
 
-          <section className="mt-6 grid gap-5 xl:grid-cols-[1fr_0.8fr]">
-            <article className="rounded-[2rem] border border-[#e2d4bf] bg-white p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#9d7b37]">
-                Checklist inteligente
-              </p>
-              <h3 className="mt-2 text-2xl font-semibold">Pendências antes da primeira leitura de risco</h3>
-              <div className="mt-5 space-y-3">
-                {pendingItems.map((item) => (
-                  <div key={item} className="flex items-center gap-3 rounded-2xl border border-[#eee2d2] bg-[#fffaf6] p-4">
-                    <span className="h-2.5 w-2.5 rounded-full bg-[#d8bd78]" />
-                    <span className="text-sm text-[#4f463c]">{item}</span>
-                  </div>
-                ))}
-              </div>
-            </article>
-
-            <article className="rounded-[2rem] border border-[#e2d4bf] bg-white p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#9d7b37]">
-                Módulo atual
-              </p>
-              <h3 className="mt-2 text-2xl font-semibold">{activeModule}</h3>
-              <p className="mt-3 text-sm leading-6 text-[#6f665b]">
-                A próxima tela deve abrir apenas o formulário necessário para compreender a rotina da atividade, sem exibir todos os cadastros de uma vez.
-              </p>
-              <a
-                href={moduleHref}
-                className="mt-5 inline-flex rounded-2xl bg-[#10243e] px-5 py-3 text-sm font-semibold text-white"
-              >
-                Abrir módulo atual
-              </a>
-            </article>
-          </section>
-
-          {children ? <section className="mt-6">{children}</section> : null}
+          {children ? <section className="mt-5">{children}</section> : null}
         </section>
       </div>
     </div>
