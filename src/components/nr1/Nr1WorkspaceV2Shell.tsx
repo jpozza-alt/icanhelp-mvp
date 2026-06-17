@@ -2,13 +2,6 @@
 
 import type { ReactNode } from "react";
 
-type Nr1WorkspaceV2Macroblock = {
-  title: string;
-  status: string;
-  description: string;
-  detail: string;
-};
-
 type Nr1WorkspaceV2ShellProps = {
   companyName?: string;
   establishmentName?: string;
@@ -17,7 +10,6 @@ type Nr1WorkspaceV2ShellProps = {
   progressDescription?: string;
   activeModule?: string;
   modules?: string[];
-  macroblocks?: Nr1WorkspaceV2Macroblock[];
   pendingItems?: string[];
   nextBestActionLabel?: string;
   nextBestActionTitle?: string;
@@ -169,40 +161,14 @@ export default function Nr1WorkspaceV2Shell({
         </aside>
 
         <section className="px-5 py-6 lg:px-8">
-          <header className="rounded-[2rem] border border-[#e2d4bf] bg-[#fffaf3] p-6 shadow-sm">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#9d7b37]">
-                  Módulo em foco
-                </p>
-                <h2 className="mt-3 text-3xl font-semibold tracking-tight text-[#10243e]">
-                  {activeModule}
-                </h2>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
-                  Uma etapa por vez. Primeiro entenda a rotina real; depois o sistema ajuda a transformar a leitura em riscos, plano e evidências.
-                </p>
-              </div>
-
-              <div className="w-fit rounded-full border border-[#eadfce] bg-white px-4 py-2 text-sm font-semibold text-[#10243e]">
-                {safeProgress}% concluído
-              </div>
-            </div>
-          </header>
-
-          {topContextSlot ? (
-            <div className="mt-5">
-              {topContextSlot}
-            </div>
-          ) : null}
-
-          <section className="mt-5 rounded-[2rem] border border-[#d8bd78] bg-[#10243e] p-5 text-white shadow-sm">
+          <section className="rounded-[2rem] border border-[#d8bd78] bg-[#10243e] p-6 text-white shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#d8bd78]">
               {nextBestActionLabel}
             </p>
             <div className="mt-3 flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
               <div>
-                <h3 className="text-2xl font-semibold tracking-tight">{nextBestActionTitle}</h3>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-white/70">
+                <h2 className="text-3xl font-semibold tracking-tight">{nextBestActionTitle}</h2>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-white/70">
                   {nextBestActionDescription}
                 </p>
               </div>
@@ -236,6 +202,12 @@ export default function Nr1WorkspaceV2Shell({
               ))}
             </div>
           </section>
+
+          {topContextSlot ? (
+            <div className="mt-5">
+              {topContextSlot}
+            </div>
+          ) : null}
 
           {children ? <section className="mt-5">{children}</section> : null}
         </section>
