@@ -2614,7 +2614,7 @@ useEffect(() => {
       await saveDiagnosisContextBlock(sessionId);
       await refreshAuditEvents();
 
-      setDiagnosisSuccess("Contexto do trabalho salvo.");
+      setDiagnosisSuccess("Como o trabalho acontece salvo.");
       setDiagnosisStatus("saved");
     } catch (error) {
       setDiagnosisStatus("error");
@@ -4601,13 +4601,13 @@ useEffect(() => {
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
                       Etapa 01
                     </p>
-                    <h3 className="mt-2 text-2xl font-semibold text-[#10243e]">Contexto do trabalho</h3>
+                    <h3 className="mt-2 text-2xl font-semibold text-[#10243e]">Como o trabalho acontece</h3>
                     <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
-                      Descreva a rotina antes de avaliar fatores psicossociais. O objetivo é entender o trabalho real, não sintomas individuais.
+                      Antes de marcar fatores de risco, registre em linguagem simples como a atividade acontece no dia a dia. Use fatos da organização do trabalho, sem nomes de trabalhadores, CID, prontuário ou sintomas individuais.
                     </p>
                   </div>
                   <span className="w-fit rounded-full bg-[#f0e7d8] px-3 py-1 text-xs font-semibold text-[#6f4f17]">
-                    Base do mapeamento
+                    Primeiro passo
                   </span>
                 </div>
 
@@ -4616,26 +4616,26 @@ useEffect(() => {
                     value={diagnosisContextForm.work_description}
                     onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, work_description: event.target.value }))}
                     rows={4}
-                    placeholder="Descreva rotina, demandas, picos, interações, pressão operacional e forma de execução."
+                    placeholder="Ex.: como a tarefa começa, quem participa, horários de pico, interrupções, cobrança de prazos, contato com público, terceiros, máquinas, deslocamentos ou retrabalho."
                     className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                   />
                   <div className="grid gap-4 md:grid-cols-3">
                     <input
                       value={diagnosisContextForm.exposed_people_count}
                       onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, exposed_people_count: event.target.value }))}
-                      placeholder="Pessoas expostas"
+                      placeholder="Quantas pessoas fazem essa atividade?"
                       className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                     />
                     <input
                       value={diagnosisContextForm.work_routine_type}
                       onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, work_routine_type: event.target.value }))}
-                      placeholder="Tipo de rotina"
+                      placeholder="Como é a rotina? Ex.: fixa, por demanda, por turnos"
                       className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                     />
                     <input
                       value={diagnosisContextForm.process_changes_frequency}
                       onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, process_changes_frequency: event.target.value }))}
-                      placeholder="Frequência de mudanças"
+                      placeholder="Mudanças no processo? Ex.: raras, mensais, frequentes"
                       className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                     />
                   </div>
@@ -4643,14 +4643,14 @@ useEffect(() => {
                     value={diagnosisContextForm.incident_history}
                     onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, incident_history: event.target.value }))}
                     rows={3}
-                    placeholder="Histórico agregado de incidentes, queixas, afastamentos ou sinais observados."
+                    placeholder="Sinais agregados: queixas recorrentes, afastamentos por setor, incidentes, retrabalho, conflitos, acidentes ou mudanças críticas. Não informe nomes, CID ou prontuário."
                     className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                   />
                   <textarea
                     value={diagnosisContextForm.notes}
                     onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, notes: event.target.value }))}
                     rows={3}
-                    placeholder="Observações complementares."
+                    placeholder="Algo importante para entender essa atividade? Ex.: metas, liderança, treinamento, equipe reduzida, comunicação, ferramentas ou controles existentes."
                     className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                   />
                   <div className="grid gap-3 text-sm text-[#4f463c] md:grid-cols-2">
@@ -4661,7 +4661,7 @@ useEffect(() => {
                         onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, has_external_work: event.target.checked }))}
                         className="h-4 w-4 rounded border-[#d9c9b8] accent-[#10243e]"
                       />
-                      <span>Há trabalho externo</span>
+                      <span>Parte do trabalho ocorre fora da empresa ou unidade</span>
                     </label>
                     <label className="flex items-center gap-3 rounded-2xl border border-[#eadfce] bg-[#fffaf6] px-4 py-3">
                       <input
@@ -4670,7 +4670,7 @@ useEffect(() => {
                         onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, has_multi_company_interaction: event.target.checked }))}
                         className="h-4 w-4 rounded border-[#d9c9b8] accent-[#10243e]"
                       />
-                      <span>Há interação com outras empresas</span>
+                      <span>A atividade envolve terceiros, clientes, fornecedores ou outra empresa</span>
                     </label>
                   </div>
                 </div>
@@ -4680,7 +4680,7 @@ useEffect(() => {
                   disabled={diagnosisStatus === "saving"}
                   className="mt-6 rounded-xl bg-[#10243e] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0b1729] disabled:opacity-60"
                 >
-                  Salvar contexto do trabalho
+                  Salvar contexto e seguir
                 </button>
               </form>
 
