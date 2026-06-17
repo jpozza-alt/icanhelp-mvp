@@ -3614,6 +3614,8 @@ useEffect(() => {
     const shouldShowLegacyBaseForms = showGuidedSetup || (draft.activeSection === "cadastros" && !isWorkspaceMode);
   const shouldShowPlanResourcesInMainFlow = false;
   const shouldShowLegacyEntityListsInMainFlow = false;
+  const shouldShowWorkspaceIntroCardInMainFlow = false;
+  const shouldShowWorkspaceContextSelectorsInMainFlow = false;
 
   const workspaceV2NextBestActionReasons = isWorkspaceMode
     ? [
@@ -3835,86 +3837,17 @@ useEffect(() => {
             </div>
           ) : null}
 
-          {showWorkspaceDashboardContent && isWorkspaceMode ? (
-          <section className="rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-6 shadow-sm">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                {renderNextBestActionCard("workspace")}
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
-                  Base inicial pronta
-                </p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-[#10243e]">
-                  Agora vamos entender a rotina de trabalho
-                </h2>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
-                  Agora que já sabemos quem trabalha, onde trabalha e qual atividade será analisada, o próximo passo é entender a rotina real de trabalho.
-                </p>
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <button
-                  type="button"
-                  onClick={() => patchDraft({ activeSection: "diagnostico" }, "start_guided_diagnosis")}
-                  className="rounded-xl bg-[#132238] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0f1b2d]"
-                >
-                  Iniciar diagnóstico guiado
-                </button>
-                <button
-                  type="button"
-                  onClick={openGuidedSetupReview}
-                  className="rounded-xl border border-[#d9c9b8] px-4 py-2 text-sm font-semibold text-[#132238] hover:bg-[#f7f1e8]"
-                >
-                  Rever configuração guiada
-                </button>
-              </div>
-            </div>
-            <div className="mt-5 grid gap-2 text-xs font-medium text-[#6f665b] sm:grid-cols-4">
-              <span className="rounded-full bg-[#ead8c8] px-3 py-1">Empresa pronta</span>
-              <span className="rounded-full bg-[#ead8c8] px-3 py-1">Unidade pronta</span>
-              <span className="rounded-full bg-[#ead8c8] px-3 py-1">Setor pronto</span>
-              <span className="rounded-full bg-[#ead8c8] px-3 py-1">Atividade pronta</span>
-            </div>
-          </section>
-          ) : null}
+          {shouldShowWorkspaceIntroCardInMainFlow ? (
+            <section className="rounded-3xl border border-[#d9c9b8] bg-[#fffaf6] p-6 shadow-sm">
+              <div className="hidden" aria-hidden="true">Bloco operacional duplicado oculto pelo fluxo de módulo único.</div>
+            </section>
+            ) : null}
 
-          {showWorkspaceDashboardContent && isWorkspaceMode ? (
-          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div>
-                <p className="text-sm font-semibold text-slate-700">Empresa ativa</p>
-                <select
-                  value={activeCompanyId}
-                  onChange={(event) => { void handleActiveCompanyChange(event.target.value); }}
-                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-                >
-                  <option value="">Selecione uma empresa</option>
-                  {companies.map((item, index) => (
-                    <option key={item.id || index} value={item.id || ""}>
-                      {displayName(item, `Empresa ${index + 1}`)}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-2 text-xs text-slate-500">{selectedCompany ? "Empresa selecionada" : "Nenhuma empresa selecionada"}</p>
-              </div>
-
-              <div>
-                <p className="text-sm font-semibold text-slate-700">Estabelecimento ativo</p>
-                <select
-                  value={context.establishmentId || ""}
-                  onChange={(event) => void selectEstablishment(event.target.value)}
-                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
-                >
-                  <option value="">Selecione um estabelecimento</option>
-                  {establishments.map((item, index) => (
-                    <option key={item.id || index} value={item.id || ""}>
-                      {displayName(item, `Estabelecimento ${index + 1}`)}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-2 text-xs text-slate-500">{selectedEstablishment ? "Estabelecimento selecionado" : "Nenhum estabelecimento selecionado"}</p>
-              </div>
-            </div>
-          </section>
-          ) : null}
+          {shouldShowWorkspaceContextSelectorsInMainFlow ? (
+            <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="hidden" aria-hidden="true">Seletores duplicados ocultos pelo fluxo de módulo único.</div>
+            </section>
+            ) : null}
 
 
           {showGuidedSetup ? (
