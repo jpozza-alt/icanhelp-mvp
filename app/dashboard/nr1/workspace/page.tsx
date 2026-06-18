@@ -4542,8 +4542,8 @@ useEffect(() => {
                       </div>
                       <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
                         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#d8bd78]">03</p>
-                        <p className="mt-2 text-sm font-semibold">Inventário</p>
-                        <p className="mt-1 text-xs leading-5 text-white/60">Geração de risco preliminar para priorização.</p>
+                        <p className="mt-2 text-sm font-semibold">Revisão</p>
+                        <p className="mt-1 text-xs leading-5 text-white/60">Revisão dos sinais antes do risco.</p>
                       </div>
                     </div>
                   </div>
@@ -4627,7 +4627,7 @@ useEffect(() => {
                     value={diagnosisContextForm.work_description}
                     onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, work_description: event.target.value }))}
                     rows={4}
-                    placeholder="Ex.: como a tarefa começa, quem participa, horários de pico, interrupções, cobrança de prazos, contato com público, terceiros, máquinas, deslocamentos ou retrabalho."
+                    placeholder="Descreva a rotina real da atividade." title="Exemplos: como a tarefa começa, quem participa, horários de pico, interrupções, cobrança de prazos, contato com público, terceiros, máquinas, deslocamentos ou retrabalho."
                     className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                   />
                   <div className="grid gap-4 md:grid-cols-3">
@@ -4654,14 +4654,14 @@ useEffect(() => {
                     value={diagnosisContextForm.incident_history}
                     onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, incident_history: event.target.value }))}
                     rows={3}
-                    placeholder="Sinais agregados: queixas recorrentes, afastamentos por setor, incidentes, retrabalho, conflitos, acidentes ou mudanças críticas. Não informe nomes, CID ou prontuário."
+                    placeholder="Registre sinais agregados observados." title="Exemplos: queixas recorrentes, afastamentos por setor, incidentes, retrabalho, conflitos, acidentes ou mudanças críticas. Não informe nomes, CID ou prontuário."
                     className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                   />
                   <textarea
                     value={diagnosisContextForm.notes}
                     onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, notes: event.target.value }))}
                     rows={3}
-                    placeholder="Algo importante para entender essa atividade? Ex.: metas, liderança, treinamento, equipe reduzida, comunicação, ferramentas ou controles existentes."
+                    placeholder="Registre observações complementares." title="Exemplos: metas, liderança, treinamento, equipe reduzida, comunicação, ferramentas ou controles existentes."
                     className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                   />
                   <div className="grid gap-3 text-sm text-[#4f463c] md:grid-cols-2">
@@ -4800,18 +4800,23 @@ useEffect(() => {
                         "Marque quando existe canal conhecido para relatar conflitos, assédio, violência, falhas de organização ou riscos, com possibilidade de acompanhamento.",
                       ],
                     ].map(([key, label, helper]) => (
-                      <label key={key} className="flex items-start gap-3 rounded-2xl border border-[#eadfce] bg-[#fffaf6] px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(psychosocialForm[key as keyof PsychosocialForm])}
-                          onChange={(event) => setPsychosocialForm((prev) => ({ ...prev, [key]: event.target.checked }))}
-                          className="mt-1 h-4 w-4 rounded border-[#d9c9b8] accent-[#10243e]"
-                        />
-                        <span className="grid gap-1">
+                      <div key={key} className="rounded-2xl border border-[#eadfce] bg-[#fffaf6] px-4 py-3">
+                        <label className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(psychosocialForm[key as keyof PsychosocialForm])}
+                            onChange={(event) => setPsychosocialForm((prev) => ({ ...prev, [key]: event.target.checked }))}
+                            className="mt-1 h-4 w-4 rounded border-[#d9c9b8] accent-[#10243e]"
+                          />
                           <span className="font-semibold text-[#10243e]">{label}</span>
-                          <span className="text-xs leading-5 text-[#6f665b]">{helper}</span>
-                        </span>
-                      </label>
+                        </label>
+                        <details className="ml-7 mt-2 text-xs leading-5 text-[#6f665b]">
+                          <summary className="w-fit cursor-pointer font-semibold text-[#9d7b37]">
+                            Como saber?
+                          </summary>
+                          <p className="mt-2">{helper}</p>
+                        </details>
+                      </div>
                     ))}
                   </div>
 
