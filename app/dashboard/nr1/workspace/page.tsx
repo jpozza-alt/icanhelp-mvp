@@ -968,6 +968,8 @@ export default function Nr1WorkspacePage() {
   const [diagnosisStatus, setDiagnosisStatus] = useState<FormStatus>("idle");
   const [diagnosisError, setDiagnosisError] = useState<string | null>(null);
   const [diagnosisSuccess, setDiagnosisSuccess] = useState<string | null>(null);
+  const [diagnosisContextSaved, setDiagnosisContextSaved] = useState(false);
+  const [psychosocialDiagnosisSaved, setPsychosocialDiagnosisSaved] = useState(false);
   const [diagnosisContextForm, setDiagnosisContextForm] = useState<DiagnosisContextForm>(INITIAL_DIAGNOSIS_CONTEXT_FORM);
   const [psychosocialForm, setPsychosocialForm] = useState<PsychosocialForm>(INITIAL_PSYCHOSOCIAL_FORM);
   const [fqbForm, setFqbForm] = useState<DiagnosisFqbForm>(INITIAL_DIAGNOSIS_FQB_FORM);
@@ -1100,6 +1102,8 @@ useEffect(() => {
     setDiagnosisActivityId("");
     setDiagnosisSessionId("");
     setDiagnosisRiskId("");
+    setDiagnosisContextSaved(false);
+    setPsychosocialDiagnosisSaved(false);
     setSelectedRiskId("");
 
     patchDraft({ activeSection: "cadastros" }, "company_active_selector");
@@ -1985,6 +1989,8 @@ useEffect(() => {
       setDiagnosisActivityId("");
       setDiagnosisSessionId("");
       setDiagnosisRiskId("");
+      setDiagnosisContextSaved(false);
+      setPsychosocialDiagnosisSaved(false);
       setSelectedRiskId("");
 
       if (!currentTenantId || !selectedCompanyId) {
@@ -2614,8 +2620,10 @@ useEffect(() => {
       await saveDiagnosisContextBlock(sessionId);
       await refreshAuditEvents();
 
-      setDiagnosisSuccess("Como o trabalho acontece salvo.");
-      setDiagnosisStatus("saved");
+              setDiagnosisContextSaved(true);
+        setPsychosocialDiagnosisSaved(false);
+        setDiagnosisSuccess("Contexto salvo. Agora avance para os fatores do trabalho.");
+        setDiagnosisStatus("saved");
     } catch (error) {
       setDiagnosisStatus("error");
       setDiagnosisError(error instanceof Error ? error.message : "Erro ao salvar contexto.");
@@ -2675,8 +2683,9 @@ useEffect(() => {
       await savePsychosocialDiagnosisBlock(sessionId);
       await refreshAuditEvents();
 
-      setDiagnosisSuccess("Diagnóstico psicossocial salvo.");
-      setDiagnosisStatus("saved");
+              setPsychosocialDiagnosisSaved(true);
+        setDiagnosisSuccess("Fatores do trabalho salvos. Agora revise se deve gerar risco preliminar.");
+        setDiagnosisStatus("saved");
     } catch (error) {
       setDiagnosisStatus("error");
       setDiagnosisError(error instanceof Error ? error.message : "Erro ao salvar diagnóstico psicossocial.");
@@ -4556,6 +4565,8 @@ useEffect(() => {
                           setDiagnosisActivityId(event.target.value);
                           setDiagnosisSessionId("");
                           setDiagnosisRiskId("");
+                          setDiagnosisContextSaved(false);
+                          setPsychosocialDiagnosisSaved(false);
                         }}
                         className="mt-2 w-full rounded-xl border border-[#d9c9b8] bg-white px-3 py-2 text-sm"
                       >
@@ -4684,7 +4695,28 @@ useEffect(() => {
                 </button>
               </form>
 
-              <form onSubmit={handleSavePsychosocialDiagnosis} className="rounded-[2rem] border border-[#e2d4bf] bg-white p-6 shadow-sm">
+              {!diagnosisContextSaved ? (
+                  <div className="rounded-[2rem] border border-[#e2d4bf] bg-white/70 p-6 shadow-sm">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
+                          Etapa 02
+                        </p>
+                        <h3 className="mt-2 text-2xl font-semibold text-[#10243e]">
+                          Fatores psicossociais relacionados ao trabalho
+                        </h3>
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
+                          Salve primeiro como o trabalho acontece. Depois o sistema libera os fatores organizacionais observados.
+                        </p>
+                      </div>
+                      <span className="w-fit rounded-full bg-[#f0e7d8] px-3 py-1 text-xs font-semibold text-[#6f4f17]">
+                        Aguardando Etapa 01
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
+
+                <form onSubmit={handleSavePsychosocialDiagnosis} className={diagnosisContextSaved ? "rounded-[2rem] border border-[#e2d4bf] bg-white p-6 shadow-sm" : "hidden"}>
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
@@ -4745,7 +4777,28 @@ useEffect(() => {
                 </button>
               </form>
 
-              <div className="rounded-[2rem] border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
+              {!psychosocialDiagnosisSaved ? (
+                  <div className="rounded-[2rem] border border-[#e2d4bf] bg-white/70 p-6 shadow-sm">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
+                          Etapa 03
+                        </p>
+                        <h3 className="mt-2 text-2xl font-semibold text-[#10243e]">
+                          Encaminhar para inventário de riscos
+                        </h3>
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
+                          Esta etapa será liberada depois que os fatores do trabalho forem salvos.
+                        </p>
+                      </div>
+                      <span className="w-fit rounded-full bg-[#f0e7d8] px-3 py-1 text-xs font-semibold text-[#6f4f17]">
+                        Aguardando Etapa 02
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className={psychosocialDiagnosisSaved ? "rounded-[2rem] border border-emerald-200 bg-emerald-50 p-6 shadow-sm" : "hidden"}>
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-800">
