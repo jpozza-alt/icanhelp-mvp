@@ -2684,7 +2684,7 @@ useEffect(() => {
       await refreshAuditEvents();
 
               setPsychosocialDiagnosisSaved(true);
-        setDiagnosisSuccess("Fatores do trabalho salvos. Agora revise se deve gerar risco preliminar.");
+        setDiagnosisSuccess("Sinais observados salvos. Agora revise se há evidência suficiente para gerar risco preliminar.");
         setDiagnosisStatus("saved");
     } catch (error) {
       setDiagnosisStatus("error");
@@ -4703,10 +4703,10 @@ useEffect(() => {
                           Etapa 02
                         </p>
                         <h3 className="mt-2 text-2xl font-semibold text-[#10243e]">
-                          Fatores psicossociais relacionados ao trabalho
+                          Sinais organizacionais observados
                         </h3>
                         <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
-                          Salve primeiro como o trabalho acontece. Depois o sistema libera os fatores organizacionais observados.
+                          Salve primeiro como o trabalho acontece. Depois o sistema libera a identificação dos sinais observáveis da rotina.
                         </p>
                       </div>
                       <span className="w-fit rounded-full bg-[#f0e7d8] px-3 py-1 text-xs font-semibold text-[#6f4f17]">
@@ -4722,49 +4722,104 @@ useEffect(() => {
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
                       Etapa 02
                     </p>
-                    <h3 className="mt-2 text-2xl font-semibold text-[#10243e]">Fatores psicossociais relacionados ao trabalho</h3>
+                    <h3 className="mt-2 text-2xl font-semibold text-[#10243e]">Sinais organizacionais observados</h3>
                     <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
-                      Marque fatores organizacionais observados na atividade. Este registro não classifica pessoas e não substitui avaliação especializada.
+                      Marque apenas sinais observáveis da organização do trabalho. Não é diagnóstico clínico; use fatos da rotina, relatos agregados, registros, conflitos, retrabalho ou falhas de comunicação.
                     </p>
                   </div>
                   <span className="w-fit rounded-full bg-[#f0e7d8] px-3 py-1 text-xs font-semibold text-[#6f4f17]">
-                    Foco ocupacional
+                    Triagem ocupacional
                   </span>
                 </div>
 
-                <div className="mt-6 grid gap-3 text-sm text-[#4f463c] md:grid-cols-2">
-                  {[
-                    ["has_work_overload", "Sobrecarga de trabalho"],
-                    ["has_excessive_pressure", "Pressão excessiva"],
-                    ["has_role_ambiguity", "Ambiguidade de papel"],
-                    ["has_low_autonomy", "Baixa autonomia"],
-                    ["has_leadership_support_failure", "Falha de apoio da liderança"],
-                    ["has_peer_conflict", "Conflito entre pares"],
-                    ["has_hostile_public_contact", "Contato hostil com público"],
-                    ["has_constant_interruptions", "Interrupções constantes"],
-                    ["has_task_accumulation", "Acúmulo de tarefas"],
-                    ["has_communication_difficulty", "Dificuldade de comunicação"],
-                    ["has_remote_isolation", "Isolamento no trabalho remoto"],
-                    ["has_badly_managed_change", "Mudança mal gerida"],
-                    ["has_report_channel", "Existe canal de relato"],
-                  ].map(([key, label]) => (
-                    <label key={key} className="flex items-center gap-3 rounded-2xl border border-[#eadfce] bg-[#fffaf6] px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(psychosocialForm[key as keyof PsychosocialForm])}
-                        onChange={(event) => setPsychosocialForm((prev) => ({ ...prev, [key]: event.target.checked }))}
-                        className="h-4 w-4 rounded border-[#d9c9b8] accent-[#10243e]"
-                      />
-                      <span>{label}</span>
-                    </label>
-                  ))}
-                </div>
+                  <div className="mt-6 grid gap-3 text-sm text-[#4f463c] md:grid-cols-2">
+                    {[
+                      [
+                        "has_work_overload",
+                        "Sobrecarga de trabalho",
+                        "Marque quando o volume de tarefas costuma ser maior que a equipe consegue cumprir no tempo disponível, com fila constante, horas extras ou acúmulo recorrente.",
+                      ],
+                      [
+                        "has_excessive_pressure",
+                        "Pressão excessiva",
+                        "Marque quando há cobrança intensa por prazo, produção, metas ou resposta imediata, com pouco espaço para organizar o trabalho.",
+                      ],
+                      [
+                        "has_role_ambiguity",
+                        "Falta de clareza sobre responsabilidades",
+                        "Marque quando as pessoas recebem ordens conflitantes, não sabem quem decide ou executam tarefas sem papel bem definido.",
+                      ],
+                      [
+                        "has_low_autonomy",
+                        "Baixa autonomia",
+                        "Marque quando a pessoa tem pouca margem para priorizar, organizar a sequência da tarefa, pausar ou decidir como executar o trabalho dentro de limites razoáveis.",
+                      ],
+                      [
+                        "has_leadership_support_failure",
+                        "Falha de apoio da liderança",
+                        "Marque quando faltam orientação, retorno, acompanhamento, mediação de conflitos ou suporte para resolver problemas da rotina.",
+                      ],
+                      [
+                        "has_peer_conflict",
+                        "Conflito entre colegas",
+                        "Marque quando há atritos recorrentes, comunicação hostil, disputa de responsabilidades ou dificuldade de cooperação entre pessoas da atividade.",
+                      ],
+                      [
+                        "has_hostile_public_contact",
+                        "Contato hostil com público",
+                        "Marque quando a atividade expõe a pessoa a reclamações agressivas, ameaças, humilhações, atendimento tenso ou risco de violência verbal ou física.",
+                      ],
+                      [
+                        "has_constant_interruptions",
+                        "Interrupções constantes",
+                        "Marque quando a tarefa exige concentração, mas é interrompida o tempo todo por chamados, urgências, mensagens, retrabalho ou demandas simultâneas.",
+                      ],
+                      [
+                        "has_task_accumulation",
+                        "Acúmulo de tarefas",
+                        "Marque quando uma mesma pessoa ou equipe absorve funções demais, substituições frequentes, demandas represadas ou atividades fora da capacidade normal.",
+                      ],
+                      [
+                        "has_communication_difficulty",
+                        "Falha de comunicação",
+                        "Marque quando informações chegam incompletas, atrasadas, contraditórias ou por canais informais que geram erro, retrabalho ou conflito.",
+                      ],
+                      [
+                        "has_remote_isolation",
+                        "Isolamento no trabalho remoto",
+                        "Marque quando o trabalho remoto ou isolado reduz apoio, integração, acompanhamento, troca com a equipe ou acesso à liderança.",
+                      ],
+                      [
+                        "has_badly_managed_change",
+                        "Mudança mal conduzida",
+                        "Marque quando mudanças de processo, sistema, chefia, metas ou equipe ocorreram sem orientação suficiente, treinamento ou transição clara.",
+                      ],
+                      [
+                        "has_report_channel",
+                        "Canal para relatar problemas",
+                        "Marque quando existe canal conhecido para relatar conflitos, assédio, violência, falhas de organização ou riscos, com possibilidade de acompanhamento.",
+                      ],
+                    ].map(([key, label, helper]) => (
+                      <label key={key} className="flex items-start gap-3 rounded-2xl border border-[#eadfce] bg-[#fffaf6] px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(psychosocialForm[key as keyof PsychosocialForm])}
+                          onChange={(event) => setPsychosocialForm((prev) => ({ ...prev, [key]: event.target.checked }))}
+                          className="mt-1 h-4 w-4 rounded border-[#d9c9b8] accent-[#10243e]"
+                        />
+                        <span className="grid gap-1">
+                          <span className="font-semibold text-[#10243e]">{label}</span>
+                          <span className="text-xs leading-5 text-[#6f665b]">{helper}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
 
                 <textarea
                   value={psychosocialForm.notes}
                   onChange={(event) => setPsychosocialForm((prev) => ({ ...prev, notes: event.target.value }))}
                   rows={4}
-                  placeholder="Comentários técnicos sobre os fatores organizacionais observados."
+                  placeholder="O que justifica os itens marcados? Informe fatos, exemplos, indicadores ou relatos agregados. Não registre nomes, CID, prontuário ou sintomas individuais."
                   className="mt-6 w-full rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                 />
 
@@ -4773,7 +4828,7 @@ useEffect(() => {
                   disabled={diagnosisStatus === "saving"}
                   className="mt-6 rounded-xl bg-[#10243e] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0b1729] disabled:opacity-60"
                 >
-                  Salvar fatores psicossociais
+                  Salvar sinais observados
                 </button>
               </form>
 
@@ -4788,7 +4843,7 @@ useEffect(() => {
                           Encaminhar para inventário de riscos
                         </h3>
                         <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
-                          Esta etapa será liberada depois que os fatores do trabalho forem salvos.
+                          Esta etapa será liberada depois que os sinais observados forem salvos.
                         </p>
                       </div>
                       <span className="w-fit rounded-full bg-[#f0e7d8] px-3 py-1 text-xs font-semibold text-[#6f4f17]">
