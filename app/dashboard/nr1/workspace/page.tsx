@@ -4627,9 +4627,20 @@ useEffect(() => {
                     value={diagnosisContextForm.work_description}
                     onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, work_description: event.target.value }))}
                     rows={4}
-                    placeholder="Descreva a rotina real da atividade." title="Exemplos: como a tarefa começa, quem participa, horários de pico, interrupções, cobrança de prazos, contato com público, terceiros, máquinas, deslocamentos ou retrabalho."
+                    placeholder="Descreva a rotina real da atividade."
                     className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                   />
+                  <details className="mt-2 rounded-2xl border border-[#eadfce] bg-[#fffaf6] px-4 py-3 text-sm text-[#6f665b] shadow-sm">
+                    <summary className="cursor-pointer select-none font-semibold text-[#9d7b37]">
+                      Ver exemplos de preenchimento
+                    </summary>
+                    <ul className="mt-3 grid gap-1 pl-4 text-xs leading-5">
+                      <li>Como a tarefa começa e termina.</li>
+                      <li>Quem participa da atividade.</li>
+                      <li>Horários de pico, interrupções e retrabalho.</li>
+                      <li>Cobrança de prazos, contato com público, terceiros, máquinas ou deslocamentos.</li>
+                    </ul>
+                  </details>
                   <div className="grid gap-4 md:grid-cols-3">
                     <input
                       value={diagnosisContextForm.exposed_people_count}
@@ -4654,16 +4665,37 @@ useEffect(() => {
                     value={diagnosisContextForm.incident_history}
                     onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, incident_history: event.target.value }))}
                     rows={3}
-                    placeholder="Registre sinais agregados observados." title="Exemplos: queixas recorrentes, afastamentos por setor, incidentes, retrabalho, conflitos, acidentes ou mudanças críticas. Não informe nomes, CID ou prontuário."
+                    placeholder="Registre sinais agregados observados."
                     className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                   />
+                  <details className="mt-2 rounded-2xl border border-[#eadfce] bg-[#fffaf6] px-4 py-3 text-sm text-[#6f665b] shadow-sm">
+                    <summary className="cursor-pointer select-none font-semibold text-[#9d7b37]">
+                      Ver exemplos de preenchimento
+                    </summary>
+                    <ul className="mt-3 grid gap-1 pl-4 text-xs leading-5">
+                      <li>Queixas recorrentes sem identificar pessoas.</li>
+                      <li>Afastamentos por setor ou atividade, sem CID ou prontuário.</li>
+                      <li>Incidentes, conflitos, retrabalho, acidentes ou mudanças críticas.</li>
+                      <li>Use apenas dados agregados e fatos observáveis.</li>
+                    </ul>
+                  </details>
                   <textarea
                     value={diagnosisContextForm.notes}
                     onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, notes: event.target.value }))}
                     rows={3}
-                    placeholder="Registre observações complementares." title="Exemplos: metas, liderança, treinamento, equipe reduzida, comunicação, ferramentas ou controles existentes."
+                    placeholder="Registre observações complementares."
                     className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                   />
+                  <details className="mt-2 rounded-2xl border border-[#eadfce] bg-[#fffaf6] px-4 py-3 text-sm text-[#6f665b] shadow-sm">
+                    <summary className="cursor-pointer select-none font-semibold text-[#9d7b37]">
+                      Ver exemplos de preenchimento
+                    </summary>
+                    <ul className="mt-3 grid gap-1 pl-4 text-xs leading-5">
+                      <li>Metas, liderança, treinamento ou comunicação.</li>
+                      <li>Equipe reduzida, ferramentas, controles existentes ou falhas de processo.</li>
+                      <li>Registre apenas informações úteis para entender a atividade.</li>
+                    </ul>
+                  </details>
                   <div className="grid gap-3 text-sm text-[#4f463c] md:grid-cols-2">
                     <label className="flex items-center gap-3 rounded-2xl border border-[#eadfce] bg-[#fffaf6] px-4 py-3">
                       <input
@@ -4810,11 +4842,11 @@ useEffect(() => {
                           />
                           <span className="font-semibold text-[#10243e]">{label}</span>
                         </label>
-                        <details className="ml-7 mt-2 text-xs leading-5 text-[#6f665b]">
-                          <summary className="w-fit cursor-pointer font-semibold text-[#9d7b37]">
+                        <details className="ml-7 mt-3 rounded-2xl border border-[#eadfce] bg-white px-4 py-3 text-xs leading-5 text-[#6f665b] shadow-sm">
+                          <summary className="w-fit cursor-pointer select-none font-semibold text-[#9d7b37]">
                             Como saber?
                           </summary>
-                          <p className="mt-2">{helper}</p>
+                          <p className="mt-3 rounded-xl bg-[#fffaf6] p-3">{helper}</p>
                         </details>
                       </div>
                     ))}
