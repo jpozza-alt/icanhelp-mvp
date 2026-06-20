@@ -1191,6 +1191,8 @@ useEffect(() => {
       return;
     }
 
+    setFormError(null);
+    setSuccessMessage(null);
     setGuidedSetupChoice("dashboard");
     setGuidedSetupOpen(false);
   }
