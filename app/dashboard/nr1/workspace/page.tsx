@@ -3608,19 +3608,19 @@ useEffect(() => {
 
   const workspaceV2ProgressDescription = isWorkspaceMode
     ? "Base pronta. Próximo foco: mapear a rotina real de trabalho."
-    : "Continue a implantação mínima para liberar riscos, plano de ação e PGR.";
+    : "Continue pela base inicial para liberar riscos, plano de ação e PGR.";
 
   const workspaceV2NextBestActionTitle = isWorkspaceMode
     ? "Mapear a rotina real da atividade principal"
-    : "Concluir a implantação mínima";
+    : "Concluir a base inicial da empresa";
 
   const workspaceV2NextBestActionDescription = isWorkspaceMode
     ? "A base inicial está pronta. Agora o sistema deve entender como o trabalho acontece na prática para transformar essa leitura em riscos, prioridades e plano de ação."
-    : "Complete empresa, unidade, setor e atividade principal para liberar a proxima etapa da jornada GRO/PGR.";
+    : "Complete empresa, unidade, setor e atividade principal. Depois disso, a jornada segue para rotina, sinais, riscos e plano de ação.";
 
-  const workspaceV2PrimaryLabel = isWorkspaceMode ? "Mapear rotina da atividade" : "Continuar implantação";
+  const workspaceV2PrimaryLabel = isWorkspaceMode ? "Mapear rotina da atividade" : "Continuar base guiada";
 
-    const shouldShowLegacyBaseForms = showGuidedSetup || (draft.activeSection === "cadastros" && !isWorkspaceMode);
+    const shouldShowLegacyBaseForms = showGuidedSetup;
   const shouldShowPlanResourcesInMainFlow = false;
   const shouldShowLegacyEntityListsInMainFlow = false;
   const shouldShowWorkspaceIntroCardInMainFlow = false;
@@ -3633,23 +3633,26 @@ useEffect(() => {
         "O PGR precisa de riscos priorizados e evidências.",
       ]
     : [
-        "A implantação mínima ainda não está completa.",
-        "O PGR depende da base minima da empresa, unidade, setor e atividade.",
-        "A proxima tela sera liberada com a base pronta.",
+        "A base inicial ainda não está completa.",
+        "O PGR depende da empresa, unidade, setor e atividade.",
+        "A próxima etapa será liberada com a base pronta.",
       ];
 
   const handleWorkspaceV2PrimaryAction = () => {
-    const targetSection = isWorkspaceMode ? "diagnostico" : "cadastros";
+      if (!isWorkspaceMode) {
+        openGuidedSetupReview();
+        return;
+      }
 
-    patchDraft({ activeSection: targetSection }, "workspace_v2_primary_action");
+      patchDraft({ activeSection: "diagnostico" }, "workspace_v2_primary_action");
 
-    window.setTimeout(() => {
-      document.getElementById("nr1-operational-content")?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 0);
-  };
+      window.setTimeout(() => {
+        document.getElementById("nr1-operational-content")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 0);
+    };
 
 
   return (
@@ -3775,8 +3778,8 @@ useEffect(() => {
           nextBestActionPrimaryHref="#nr1-operational-content"
           nextBestActionPrimaryLabel={workspaceV2PrimaryLabel}
           nextBestActionPrimaryOnClick={handleWorkspaceV2PrimaryAction}
-          nextBestActionSecondaryHref="/dashboard/nr1/relatorio-pgr"
-          nextBestActionSecondaryLabel="Ver resumo do PGR"
+          nextBestActionSecondaryHref="#nr1-operational-content"
+          nextBestActionSecondaryLabel="Ver progresso da jornada"
           nextBestActionReasons={workspaceV2NextBestActionReasons}
           pgrHref="/dashboard/nr1/relatorio-pgr"
           moduleHref="#nr1-operational-content"
