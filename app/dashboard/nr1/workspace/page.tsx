@@ -1361,8 +1361,8 @@ useEffect(() => {
               title: "Avançar a partir da base pronta",
               description:
                 "A empresa já tem uma base inicial. O próximo passo é transformar o mapeamento em análise do trabalho, riscos priorizados, plano de ação e evidências.",
-              action: "Ação recomendada: iniciar diagnóstico guiado.",
-              outcome: "Resultado esperado: primeira leitura de risco para o PGR.",
+              action: "Ação recomendada: mapear a rotina real da atividade.",
+              outcome: "Resultado esperado: sinais e evidências revisados antes do risco preliminar.",
             };
 
     return (
@@ -3618,7 +3618,7 @@ useEffect(() => {
     ? "A base inicial está pronta. Agora o sistema deve entender como o trabalho acontece na prática para transformar essa leitura em riscos, prioridades e plano de ação."
     : "Complete empresa, unidade, setor e atividade principal para liberar a proxima etapa da jornada GRO/PGR.";
 
-  const workspaceV2PrimaryLabel = isWorkspaceMode ? "Abrir mapeamento" : "Continuar implantação";
+  const workspaceV2PrimaryLabel = isWorkspaceMode ? "Mapear rotina da atividade" : "Continuar implantação";
 
     const shouldShowLegacyBaseForms = showGuidedSetup || (draft.activeSection === "cadastros" && !isWorkspaceMode);
   const shouldShowPlanResourcesInMainFlow = false;
@@ -4550,11 +4550,11 @@ useEffect(() => {
 
                   <div className="border-t border-[#eadfce] bg-[#fffaf3] p-6 lg:border-l lg:border-t-0">
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
-                      Status da análise
+                      Andamento da atividade
                     </p>
-                    <p className="mt-3 text-lg font-semibold text-[#10243e]">{diagnosisStatus}</p>
+                    <p className="mt-3 text-lg font-semibold text-[#10243e]">{diagnosisStatus === "saving" ? "Salvando análise" : diagnosisStatus === "saved" ? "Análise salva" : diagnosisStatus === "error" ? "Precisa revisar" : "Pronta para continuar"}</p>
                     <p className="mt-2 text-xs leading-5 text-[#6f665b]">
-                      {diagnosisSessionId ? `Sessão ativa: ${diagnosisSessionId}` : "Sessão ainda não iniciada"}
+                      {diagnosisSessionId ? "Análise em andamento" : "Análise ainda não iniciada"}
                     </p>
 
                     <div className="mt-5 rounded-2xl border border-[#eadfce] bg-white p-4">
@@ -4578,7 +4578,7 @@ useEffect(() => {
                         ))}
                       </select>
                       <p className="mt-2 text-xs leading-5 text-[#6f665b]">
-                        A sessão exige estabelecimento, setor e atividade reais.
+                        A análise exige estabelecimento, setor e atividade reais.
                       </p>
 
                       <button
@@ -4587,7 +4587,7 @@ useEffect(() => {
                         disabled={diagnosisStatus === "saving"}
                         className="mt-4 w-full rounded-xl bg-[#10243e] px-4 py-2 text-sm font-semibold text-white hover:bg-[#0b1729] disabled:opacity-60"
                       >
-                        Iniciar diagnóstico guiado
+                        Começar análise da atividade
                       </button>
                     </div>
                   </div>
@@ -4877,7 +4877,7 @@ useEffect(() => {
                           Etapa 03
                         </p>
                         <h3 className="mt-2 text-2xl font-semibold text-[#10243e]">
-                          Encaminhar para inventário de riscos
+                          Revisar sinais e gerar risco preliminar
                         </h3>
                         <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
                           Esta etapa será liberada depois que os sinais observados forem salvos.
@@ -4896,9 +4896,9 @@ useEffect(() => {
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-800">
                       Etapa 03
                     </p>
-                    <h3 className="mt-2 text-2xl font-semibold text-emerald-950">Encaminhar para inventário de riscos</h3>
+                    <h3 className="mt-2 text-2xl font-semibold text-emerald-950">Revisar sinais e gerar risco preliminar</h3>
                     <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-900">
-                      Fecha a revisão do diagnóstico e gera um risco preliminar vinculado à atividade, setor, estabelecimento e sessão.
+                      Consolida a revisão dos sinais e prepara um risco preliminar vinculado à atividade, setor e estabelecimento.
                     </p>
                   </div>
                   <button
@@ -4912,7 +4912,7 @@ useEffect(() => {
                 </div>
 
                 <div className="mt-5 rounded-2xl border border-emerald-200 bg-white/70 p-4 text-sm text-emerald-950">
-                  A ação usa a rota real de revisão do diagnóstico com geração de risco e prepara o próximo passo para o plano de ação.
+                  Depois da revisão, o sistema gera um risco preliminar para conferência antes do plano de ação.
                 </div>
 
                 {diagnosisRiskId ? (
