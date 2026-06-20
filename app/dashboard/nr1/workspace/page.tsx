@@ -1223,7 +1223,7 @@ useEffect(() => {
         title: "Triagem Empresarial NR-1",
         question: "Triagem Empresarial NR-1",
         intro: "Antes do diagnóstico, vamos qualificar a empresa para formar a base do PGR.",
-        helper: "Comece pelo CNPJ. Depois revise a identificacao formal, a atividade economica, o porte, a quantidade de trabalhadores e a caracterizacao inicial de SST.",
+        helper: "Comece pelo CNPJ. Depois revise a identificação formal, a atividade econômica, o porte, a quantidade de trabalhadores e a caracterização inicial de SST.",
         buttonLabel: "Salvar e continuar",
       }
     : !hasEstablishment
@@ -1264,7 +1264,7 @@ useEffect(() => {
           title: "Triagem Empresarial NR-1",
           question: "Triagem Empresarial NR-1",
           intro: "Antes do diagnóstico, vamos qualificar a empresa para formar a base do PGR.",
-          helper: "Comece pelo CNPJ. Depois revise a identificacao formal, a atividade economica, o porte, a quantidade de trabalhadores e a caracterizacao inicial de SST.",
+          helper: "Comece pelo CNPJ. Depois revise a identificação formal, a atividade econômica, o porte, a quantidade de trabalhadores e a caracterização inicial de SST.",
           buttonLabel: "Salvar e continuar",
         }
       : guidedStepKey === "estabelecimento"
@@ -1441,9 +1441,9 @@ useEffect(() => {
       ? [
                               { question: "Qual é o CNPJ da empresa?", helper: "Informe o CNPJ para comecar." },
           { question: "Qual é a razão social da empresa?", helper: "Informe a identificação formal da organização ou revise o dado preenchido pela consulta cadastral." },
-          { question: "Qual e o nome fantasia?", helper: "Se nao houver nome fantasia, repita a razao social." },
-          { question: "Qual e o CNAE principal?", helper: "Informe 7 dígitos. A validação contra tabela CNAE fica para a próxima etapa técnica." },
-          { question: "Qual e o porte da empresa?", helper: "O porte ajuda a orientar a leitura da obrigacao e da jornada." },
+          { question: "Qual é o nome fantasia?", helper: "Se não houver nome fantasia, repita a razão social." },
+          { question: "Qual é o CNAE principal?", helper: "Informe 7 dígitos. A validação contra a tabela CNAE fica para a próxima etapa técnica." },
+          { question: "Qual é o porte da empresa?", helper: "O porte ajuda a orientar a leitura da obrigação e da jornada." },
           { question: "Quantos trabalhadores existem aproximadamente?", helper: "A quantidade de trabalhadores ajuda a priorizar a base do PGR." },
           { question: "A empresa possui CIPA, SESMT, terceiros, trabalho remoto ou atividades externas?", helper: "Esses dados ajudam a caracterizar a realidade inicial de SST." },
           { question: "Conferir e salvar a base da empresa.", helper: "Revise os dados essenciais. Depois, a jornada segue para o estabelecimento." },
@@ -1478,7 +1478,7 @@ useEffect(() => {
   const companyEmployeeCountValue = numberOrNull(companyForm.employee_count);
   const companyRequiredFieldSummary = [
     { label: "CNPJ", ok: isValidCnpj(companyForm.cnpj) },
-    { label: "Razao social", ok: companyForm.legal_name.trim().length >= 3 },
+    { label: "Razão social", ok: companyForm.legal_name.trim().length >= 3 },
     { label: "Nome fantasia", ok: companyForm.trade_name.trim().length >= 2 },
     { label: "CNAE principal", ok: normalizeCnae(companyForm.cnae_main).length === 7 },
     { label: "Porte", ok: companyForm.company_size.trim().length > 0 },
@@ -1521,7 +1521,7 @@ useEffect(() => {
     if (companies.length === 0) {
       return {
         title: "Iniciar Triagem Empresarial NR-1",
-        helper: "Comece pela qualificacao da empresa: razao social, nome fantasia, CNPJ, CNAE, porte, trabalhadores e caracterizacao inicial de SST.",
+        helper: "Comece pela qualificação da empresa: razão social, nome fantasia, CNPJ, CNAE, porte, trabalhadores e caracterização inicial de SST.",
         metric: "1",
       };
     }
@@ -1560,7 +1560,7 @@ useEffect(() => {
     });
 
     if (!accessToken) {
-      throw new Error("Sessao local sem token de acesso. Faca login novamente e tente de novo.");
+      throw new Error("Sua sessão expirou. Faça login novamente para salvar com segurança.");
     }
 
     if (accessToken) {
@@ -1620,7 +1620,7 @@ useEffect(() => {
     }
 
     if (authFailed) {
-      throw new Error("Sessao local sem token de acesso. Faca login novamente e tente de novo.");
+      throw new Error("Sua sessão expirou. Faça login novamente para salvar com segurança.");
     }
 
     return {
@@ -2108,13 +2108,13 @@ useEffect(() => {
 
     if (companyForm.legal_name.trim().length < 3) {
       setFormStatus("error");
-      setFormError("Informe a razao social com pelo menos 3 caracteres.");
+      setFormError("Informe a razão social com pelo menos 3 caracteres.");
       return;
     }
 
     if (companyForm.trade_name.trim().length < 2) {
       setFormStatus("error");
-      setFormError("Informe o nome fantasia. Se nao houver, repita a razao social.");
+      setFormError("Informe o nome fantasia. Se não houver, repita a razão social.");
       return;
     }
 
@@ -3957,7 +3957,7 @@ useEffect(() => {
                       <div className="rounded-2xl border border-[#d9c9b8] bg-white p-4">
                         <label className="block">
                           <span className="text-sm font-semibold text-[#10243e]">CNPJ</span>
-                          <span className="mt-1 block text-xs text-[#6f665b]">Informe 14 digitos. O sistema valida os digitos verificadores antes de continuar.</span>
+                          <span className="mt-1 block text-xs text-[#6f665b]">Informe 14 dígitos. O sistema valida os digitos verificadores antes de continuar.</span>
                           <input
                             value={companyForm.cnpj}
                             onChange={(event) => {
@@ -3992,12 +3992,12 @@ useEffect(() => {
                     ) : null}
                     {onboardingMicroStepIndex === 1 ? (
                       <label className="block">
-                        <span className="text-sm font-semibold text-[#10243e]">Razao social</span>
+                        <span className="text-sm font-semibold text-[#10243e]">Razão social</span>
                         <span className="mt-1 block text-xs text-[#6f665b]">Informe a identificação formal da organização ou revise o dado preenchido pela consulta cadastral.</span>
                         <input
                           value={companyForm.legal_name}
                           onChange={(event) => setCompanyForm((prev) => ({ ...prev, legal_name: event.target.value }))}
-                          placeholder="Razao social"
+                          placeholder="Razão social"
                           className="mt-2 w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
                         />
                       </label>
@@ -4005,7 +4005,7 @@ useEffect(() => {
                     {onboardingMicroStepIndex === 2 ? (
                       <label className="block">
                         <span className="text-sm font-semibold text-[#10243e]">Nome fantasia</span>
-                        <span className="mt-1 block text-xs text-[#6f665b]">Se nao houver nome fantasia, repita a razao social.</span>
+                        <span className="mt-1 block text-xs text-[#6f665b]">Se não houver nome fantasia, repita a razão social.</span>
                         <input
                           value={companyForm.trade_name}
                           onChange={(event) => setCompanyForm((prev) => ({ ...prev, trade_name: event.target.value }))}
@@ -4017,7 +4017,7 @@ useEffect(() => {
                     {onboardingMicroStepIndex === 3 ? (
                       <label className="block">
                         <span className="text-sm font-semibold text-[#10243e]">CNAE principal</span>
-                        <span className="mt-1 block text-xs text-[#6f665b]">Informe 7 dígitos. A validação contra tabela CNAE fica para a próxima etapa técnica.</span>
+                        <span className="mt-1 block text-xs text-[#6f665b]">Informe 7 dígitos. A validação contra a tabela CNAE fica para a próxima etapa técnica.</span>
                         <input
                           value={companyForm.cnae_main}
                           onChange={(event) => setCompanyForm((prev) => ({ ...prev, cnae_main: event.target.value }))}
@@ -4029,7 +4029,7 @@ useEffect(() => {
                     {onboardingMicroStepIndex === 4 ? (
                       <label className="block">
                         <span className="text-sm font-semibold text-[#10243e]">Porte da empresa</span>
-                        <span className="mt-1 block text-xs text-[#6f665b]">O porte ajuda a orientar a leitura da obrigacao e da jornada.</span>
+                        <span className="mt-1 block text-xs text-[#6f665b]">O porte ajuda a orientar a leitura da obrigação e da jornada.</span>
                         <input
                           value={companyForm.company_size}
                           onChange={(event) => setCompanyForm((prev) => ({ ...prev, company_size: event.target.value }))}
@@ -4052,8 +4052,8 @@ useEffect(() => {
                     ) : null}
                     {onboardingMicroStepIndex === 6 ? (
                       <div className="rounded-2xl border border-[#d9c9b8] bg-white p-4">
-                        <p className="text-sm font-semibold text-[#10243e]">Caracterizacao inicial de SST</p>
-                        <p className="mt-1 text-xs text-[#6f665b]">Marque o que ja existe na realidade da empresa.</p>
+                        <p className="text-sm font-semibold text-[#10243e]">Caracterização inicial de SST</p>
+                        <p className="mt-1 text-xs text-[#6f665b]">Marque o que já existe na realidade da empresa.</p>
                         <div className="mt-4 grid gap-3 text-sm text-[#10243e] sm:grid-cols-2">
                           {[
                             ["has_cipa", "Possui CIPA"],
@@ -4111,7 +4111,7 @@ useEffect(() => {
                   <input
                     value={companyForm.legal_name}
                     onChange={(event) => setCompanyForm((prev) => ({ ...prev, legal_name: event.target.value }))}
-                    placeholder="Razao social"
+                    placeholder="Razão social"
                     className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
                   />
                   <input
