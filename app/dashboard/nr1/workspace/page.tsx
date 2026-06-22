@@ -1481,6 +1481,10 @@ useEffect(() => {
       !showGuidedSetup && formError !== "Sua sessão expirou. Faça login novamente para salvar com segurança."
         ? formError
         : null;
+    const dashboardLoadError =
+      loadError !== "Sua sessão expirou. Faça login novamente para salvar com segurança."
+        ? loadError
+        : null;
   const companyEmployeeCountValue = numberOrNull(companyForm.employee_count);
   const companyRequiredFieldSummary = [
     { label: "CNPJ", ok: isValidCnpj(companyForm.cnpj) },
@@ -3837,9 +3841,9 @@ useEffect(() => {
             </div>
           </div>
           ) : null}
-          {loadError ? (
+          {dashboardLoadError ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-              {loadError}
+              {dashboardLoadError}
             </div>
           ) : null}
 
