@@ -4748,7 +4748,7 @@ useEffect(() => {
                           Etapa 02
                         </p>
                         <h3 className="mt-2 text-2xl font-semibold text-[#10243e]">
-                          Sinais organizacionais observados
+                          Verificar fatores da organização do trabalho
                         </h3>
                         <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
                           Salve primeiro como o trabalho acontece. Depois o sistema libera a identificação dos sinais observáveis da rotina.
@@ -4767,9 +4767,9 @@ useEffect(() => {
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
                       Etapa 02
                     </p>
-                    <h3 className="mt-2 text-2xl font-semibold text-[#10243e]">Sinais organizacionais observados</h3>
+                    <h3 className="mt-2 text-2xl font-semibold text-[#10243e]">Verificar fatores da organização do trabalho</h3>
                     <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
-                      Marque apenas sinais observáveis da organização do trabalho. Não é diagnóstico clínico; use fatos da rotina, relatos agregados, registros, conflitos, retrabalho ou falhas de comunicação.
+                      Marque apenas situações observáveis na rotina da atividade. Esta etapa não avalia saúde mental, sintomas ou pessoas. Ela identifica fatores do trabalho que podem gerar risco ocupacional.
                     </p>
                   </div>
                   <span className="w-fit rounded-full bg-[#f0e7d8] px-3 py-1 text-xs font-semibold text-[#6f4f17]">
