@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import type {
+  Nr1DiagnosisPsychosocialFactorInsert,
   Nr1DiagnosisPsychosocialRow,
   Nr1DiagnosisSessionRow,
 } from "@/lib/nr1-db-types"
@@ -30,6 +31,58 @@ type UpsertDiagnosisPsychosocialBody = {
   has_badly_managed_change?: boolean | null
   has_report_channel?: boolean | null
   notes?: string | null
+}
+
+type PsychosocialFactorKey =
+  | "has_work_overload"
+  | "has_excessive_pressure"
+  | "has_role_ambiguity"
+  | "has_low_autonomy"
+  | "has_leadership_support_failure"
+  | "has_peer_conflict"
+  | "has_hostile_public_contact"
+  | "has_constant_interruptions"
+  | "has_task_accumulation"
+  | "has_communication_difficulty"
+  | "has_remote_isolation"
+  | "has_badly_managed_change"
+  | "has_report_channel"
+
+const PSYCHOSOCIAL_FACTORS: Array<{ key: PsychosocialFactorKey; label: string }> = [
+  { key: "has_work_overload", label: "Sobrecarga de trabalho" },
+  { key: "has_excessive_pressure", label: "Pressao excessiva" },
+  { key: "has_role_ambiguity", label: "Ambiguidade de papel" },
+  { key: "has_low_autonomy", label: "Baixa autonomia" },
+  { key: "has_leadership_support_failure", label: "Falha de apoio da lideranca" },
+  { key: "has_peer_conflict", label: "Conflito entre pares" },
+  { key: "has_hostile_public_contact", label: "Contato hostil com publico" },
+  { key: "has_constant_interruptions", label: "Interrupcoes constantes" },
+  { key: "has_task_accumulation", label: "Acumulo de tarefas" },
+  { key: "has_communication_difficulty", label: "Dificuldade de comunicacao" },
+  { key: "has_remote_isolation", label: "Isolamento remoto" },
+  { key: "has_badly_managed_change", label: "Mudanca mal gerida" },
+  { key: "has_report_channel", label: "Canal de relato" },
+]
+
+async function upsertPsychosocialFactors(
+  userClient: ReturnType<typeof createNr1UserClientFromBearer>,
+  row: Nr1DiagnosisPsychosocialRow,
+) {
+  const factorRows: Nr1DiagnosisPsychosocialFactorInsert[] = PSYCHOSOCIAL_FACTORS.map((factor) => ({
+    tenant_id: row.tenant_id,
+    diagnosis_psychosocial_id: row.id,
+    diagnosis_session_id: row.diagnosis_session_id,
+    factor_key: factor.key,
+    factor_label: factor.label,
+    status: row[factor.key] === true ? "evidence_found" : "not_observed",
+    confidence_level: "low",
+    sources: [],
+    investigation_pending: false,
+  }))
+
+  return userClient
+    .from("nr1_diagnosis_psychosocial_factors")
+    .upsert(factorRows, { onConflict: "diagnosis_psychosocial_id,factor_key" })
 }
 
 function json(status: number, payload: Record<string, unknown>) {
@@ -404,6 +457,16 @@ export async function POST(req: NextRequest) {
 
       const row = rows[0]
 
+      const factorsResult = await upsertPsychosocialFactors(userClient, row)
+
+      if (factorsResult.error) {
+        return json(500, {
+          ok: false,
+          error: "nr1_diagnosis_psychosocial_factors_upsert_failed",
+          message: factorsResult.error.message,
+        })
+      }
+
       return json(201, {
         ok: true,
         upserted: "created",
@@ -478,6 +541,16 @@ export async function POST(req: NextRequest) {
     }
 
     const row = rows[0]
+
+    const factorsResult = await upsertPsychosocialFactors(userClient, row)
+
+    if (factorsResult.error) {
+      return json(500, {
+        ok: false,
+        error: "nr1_diagnosis_psychosocial_factors_upsert_failed",
+        message: factorsResult.error.message,
+      })
+    }
 
     return json(200, {
       ok: true,
