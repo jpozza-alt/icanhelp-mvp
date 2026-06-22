@@ -1477,6 +1477,10 @@ useEffect(() => {
     isGuidedCompanyCnpjMicroStep && formError?.startsWith("Contexto do workspace nao resolvido")
       ? null
       : formError;
+    const dashboardFormError =
+      !showGuidedSetup && formError !== "Sua sessão expirou. Faça login novamente para salvar com segurança."
+        ? formError
+        : null;
   const companyEmployeeCountValue = numberOrNull(companyForm.employee_count);
   const companyRequiredFieldSummary = [
     { label: "CNPJ", ok: isValidCnpj(companyForm.cnpj) },
@@ -3839,9 +3843,9 @@ useEffect(() => {
             </div>
           ) : null}
 
-          {formError ? (
+          {dashboardFormError ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-              {formError}
+              {dashboardFormError}
             </div>
           ) : null}
 
