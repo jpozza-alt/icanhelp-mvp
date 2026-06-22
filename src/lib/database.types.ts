@@ -1809,6 +1809,88 @@ export type Database = {
           },
         ]
       }
+      nr1_diagnosis_psychosocial_factors: {
+        Row: {
+          confidence_level: string
+          created_at: string
+          created_by: string | null
+          diagnosis_psychosocial_id: string
+          diagnosis_session_id: string
+          evidence_summary: string | null
+          factor_key: string
+          factor_label: string
+          id: string
+          investigation_pending: boolean
+          justification: string | null
+          pending_action: string | null
+          sources: Json
+          status: string
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          confidence_level?: string
+          created_at?: string
+          created_by?: string | null
+          diagnosis_psychosocial_id: string
+          diagnosis_session_id: string
+          evidence_summary?: string | null
+          factor_key: string
+          factor_label: string
+          id?: string
+          investigation_pending?: boolean
+          justification?: string | null
+          pending_action?: string | null
+          sources?: Json
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          confidence_level?: string
+          created_at?: string
+          created_by?: string | null
+          diagnosis_psychosocial_id?: string
+          diagnosis_session_id?: string
+          evidence_summary?: string | null
+          factor_key?: string
+          factor_label?: string
+          id?: string
+          investigation_pending?: boolean
+          justification?: string | null
+          pending_action?: string | null
+          sources?: Json
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nr1_diag_psy_factors_psychosocial_fk"
+            columns: ["diagnosis_psychosocial_id", "diagnosis_session_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "nr1_diagnosis_psychosocial"
+            referencedColumns: ["id", "diagnosis_session_id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "nr1_diag_psy_factors_session_fk"
+            columns: ["diagnosis_session_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "nr1_diagnosis_sessions"
+            referencedColumns: ["id", "tenant_id"]
+          },
+          {
+            foreignKeyName: "nr1_diagnosis_psychosocial_factors_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       nr1_diagnosis_review: {
         Row: {
           confirmed_exposed_group_json: Json

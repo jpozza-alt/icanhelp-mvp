@@ -26,6 +26,9 @@ export type Nr1DiagnosisFqbRow = Row<"nr1_diagnosis_fqb">
 export type Nr1DiagnosisAccidentsRow = Row<"nr1_diagnosis_accidents">
 export type Nr1DiagnosisErgonomicsRow = Row<"nr1_diagnosis_ergonomics">
 export type Nr1DiagnosisPsychosocialRow = Row<"nr1_diagnosis_psychosocial">
+export type Nr1DiagnosisPsychosocialFactorRow = Row<"nr1_diagnosis_psychosocial_factors">
+export type Nr1DiagnosisPsychosocialFactorInsert = InsertDto<"nr1_diagnosis_psychosocial_factors">
+export type Nr1DiagnosisPsychosocialFactorUpdate = UpdateDto<"nr1_diagnosis_psychosocial_factors">
 export type Nr1DiagnosisControlsRow = Row<"nr1_diagnosis_controls">
 export type Nr1DiagnosisReviewRow = Row<"nr1_diagnosis_review">
 
@@ -108,6 +111,7 @@ export const NR1_TABLES = {
   diagnosisAccidents: "nr1_diagnosis_accidents",
   diagnosisErgonomics: "nr1_diagnosis_ergonomics",
   diagnosisPsychosocial: "nr1_diagnosis_psychosocial",
+  diagnosisPsychosocialFactors: "nr1_diagnosis_psychosocial_factors",
   diagnosisControls: "nr1_diagnosis_controls",
   diagnosisReview: "nr1_diagnosis_review",
   risks: "nr1_risks",
