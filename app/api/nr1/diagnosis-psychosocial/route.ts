@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import type {
   Nr1DiagnosisPsychosocialFactorInsert,
+  Nr1DiagnosisPsychosocialFactorRow,
   Nr1DiagnosisPsychosocialRow,
   Nr1DiagnosisSessionRow,
 } from "@/lib/nr1-db-types"
@@ -272,6 +273,23 @@ export async function GET(req: NextRequest) {
 
     const row = rows[0]
 
+    const factorsResult = await userClient
+      .from("nr1_diagnosis_psychosocial_factors")
+      .select("*")
+      .eq("tenant_id", scope.tenantId)
+      .eq("diagnosis_psychosocial_id", row.id)
+      .eq("diagnosis_session_id", diagnosisSessionId)
+      .order("factor_key", { ascending: true })
+
+    if (factorsResult.error) {
+      return json(500, {
+        ok: false,
+        error: "nr1_diagnosis_psychosocial_factors_get_failed",
+        message: factorsResult.error.message,
+      })
+    }
+
+    const factorRows = (factorsResult.data || []) as Nr1DiagnosisPsychosocialFactorRow[]
     return json(200, {
       ok: true,
       tenantId: scope.tenantId,
@@ -306,6 +324,7 @@ export async function GET(req: NextRequest) {
         notes: row.notes,
         created_at: row.created_at,
         updated_at: row.updated_at,
+        factors: factorRows,
       },
     })
   } catch (error) {
