@@ -45,6 +45,18 @@ type EvidenceItem = {
   deleted_at?: string | null;
 };
 
+type PsychosocialFactorItem = {
+  id: string;
+  factor_key?: string | null;
+  factor_label?: string | null;
+  status?: string | null;
+  confidence_level?: string | null;
+  evidence_summary?: string | null;
+  justification?: string | null;
+  investigation_pending?: boolean | null;
+  pending_action?: string | null;
+};
+
 type ApiRecord = Record<string, unknown>;
 
 const sectionClassName =
@@ -159,6 +171,53 @@ function parseEvidenceItems(payload: unknown): EvidenceItem[] {
     .filter((item: EvidenceItem) => item.id);
 }
 
+function parsePsychosocialFactors(payload: unknown): PsychosocialFactorItem[] {
+  const record = asApiRecord(payload);
+  const item = asApiRecord(record.item);
+  const raw = Array.isArray(item.factors) ? item.factors : [];
+
+  return raw
+    .map((factor) => {
+      const factorRecord = asApiRecord(factor);
+
+      return {
+        id: String(factorRecord.id ?? "").trim(),
+        factor_key: nullableString(factorRecord.factor_key),
+        factor_label: nullableString(factorRecord.factor_label),
+        status: nullableString(factorRecord.status),
+        confidence_level: nullableString(factorRecord.confidence_level),
+        evidence_summary: nullableString(factorRecord.evidence_summary),
+        justification: nullableString(factorRecord.justification),
+        investigation_pending:
+          typeof factorRecord.investigation_pending === "boolean" ? factorRecord.investigation_pending : null,
+        pending_action: nullableString(factorRecord.pending_action),
+      };
+    })
+    .filter((factor: PsychosocialFactorItem) => factor.id);
+}
+
+function getPsychosocialFactorStatusLabel(status: string | null | undefined): string {
+  switch (String(status || "").trim().toLowerCase()) {
+    case "evidence_found":
+      return "Evidência encontrada";
+    case "not_observed":
+      return "Não observado";
+    default:
+      return "A verificar";
+  }
+}
+
+function getPsychosocialFactorStatusClassName(status: string | null | undefined): string {
+  switch (String(status || "").trim().toLowerCase()) {
+    case "evidence_found":
+      return "border-[#E9D4C4] bg-[#FBF5EF] text-[#8C5A33]";
+    case "not_observed":
+      return "border-[#D6E5D7] bg-[#F3F8F4] text-[#4E7355]";
+    default:
+      return "border-[#D9E0E7] bg-[#FAFBFC] text-[#5B6B79]";
+  }
+}
+
 function formatValidationStatus(value: string | null | undefined) {
   switch (String(value || "").trim().toLowerCase()) {
     case "pending_validation":
@@ -208,9 +267,11 @@ function Nr1EvidenciasAcompanhamentoContent() {
   const [establishments, setEstablishments] = useState<EstablishmentItem[]>([]);
   const [selectedEstablishmentId, setSelectedEstablishmentId] = useState("");
   const [items, setItems] = useState<EvidenceItem[]>([]);
+  const [psychosocialFactors, setPsychosocialFactors] = useState<PsychosocialFactorItem[]>([]);
   const [loadingSession, setLoadingSession] = useState(true);
   const [loadingEstablishments, setLoadingEstablishments] = useState(false);
   const [loadingItems, setLoadingItems] = useState(false);
+  const [loadingPsychosocialFactors, setLoadingPsychosocialFactors] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [saving, setSaving] = useState(false);
@@ -233,6 +294,15 @@ function Nr1EvidenciasAcompanhamentoContent() {
 
   const urlEstablishmentId = useMemo(() => {
     return (searchParams.get("establishmentId") || searchParams.get("establishment_id") || "").trim();
+  }, [searchParams]);
+
+  const urlDiagnosisSessionId = useMemo(() => {
+    return (
+      searchParams.get("diagnosisSessionId") ||
+      searchParams.get("diagnosis_session_id") ||
+      searchParams.get("sessionId") ||
+      ""
+    ).trim();
   }, [searchParams]);
 
   const pendingValidationCount = useMemo(() => {
@@ -389,6 +459,51 @@ function Nr1EvidenciasAcompanhamentoContent() {
       }
     })();
   }, [jwt, tenantId, selectedEstablishmentId]);
+
+
+  useEffect(() => {
+    if (!jwt || !tenantId || !selectedEstablishmentId || !urlDiagnosisSessionId) {
+      setPsychosocialFactors([]);
+      return;
+    }
+
+    (async () => {
+      setLoadingPsychosocialFactors(true);
+
+      try {
+        const response = await fetch(
+          "/api/nr1/diagnosis-psychosocial?tenantId=" +
+            encodeURIComponent(tenantId) +
+            "&establishmentId=" +
+            encodeURIComponent(selectedEstablishmentId) +
+            "&diagnosisSessionId=" +
+            encodeURIComponent(urlDiagnosisSessionId),
+          {
+            method: "GET",
+            headers: {
+              Authorization: "Bearer " + jwt,
+              "x-icanhelp-tenant": tenantId,
+            },
+            cache: "no-store",
+            credentials: "same-origin",
+          },
+        );
+
+        const payload = await readJsonSafe(response);
+
+        if (!response.ok) {
+          throw new Error(getErrorMessage(payload, "Falha ao carregar fatores psicossociais."));
+        }
+
+        setPsychosocialFactors(parsePsychosocialFactors(payload));
+      } catch (e: unknown) {
+        setPsychosocialFactors([]);
+        setError(getExceptionMessage(e, "Falha ao carregar fatores psicossociais."));
+      } finally {
+        setLoadingPsychosocialFactors(false);
+      }
+    })();
+  }, [jwt, tenantId, selectedEstablishmentId, urlDiagnosisSessionId]);
 
   async function handleCreateEvidence() {
     setError("");
@@ -756,9 +871,78 @@ function Nr1EvidenciasAcompanhamentoContent() {
           <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
             Lista carregada do backend de evidence-items por estabelecimento.
           </h3>
+        <section className={sectionClassName}>
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8C5A33]">Diagnóstico psicossocial</p>
+              <h2 className="mt-2 text-xl font-semibold text-[#22313F]">Fatores derivados gravados</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-7 text-[#5B6B79]">
+                Esta leitura mostra os fatores psicossociais já persistidos no backend para a sessão de diagnóstico informada na URL.
+                O foco é organizacional: concepção, organização e gestão do trabalho, sem análise clínica individual.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] px-4 py-3 text-sm text-[#5B6B79]">
+              Sessão: <span className="font-mono text-xs text-[#22313F]">{urlDiagnosisSessionId || "não informada"}</span>
+            </div>
+          </div>
+
+          {!urlDiagnosisSessionId ? (
+            <p className="mt-4 text-sm leading-7 text-[#8C5A33]">
+              Informe diagnosisSessionId na URL para carregar os fatores psicossociais desta etapa.
+            </p>
+          ) : loadingPsychosocialFactors ? (
+            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
+              Buscando fatores psicossociais em /api/nr1/diagnosis-psychosocial...
+            </p>
+          ) : psychosocialFactors.length === 0 ? (
+            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
+              Nenhum fator psicossocial retornado para a sessão informada.
+            </p>
+          ) : (
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {psychosocialFactors.map((factor) => (
+                <article key={factor.id} className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-[#22313F]">
+                        {factor.factor_label || factor.factor_key || "Fator psicossocial"}
+                      </h3>
+                      <p className="mt-1 font-mono text-[11px] text-[#7A8894]">{factor.factor_key || "sem_chave"}</p>
+                    </div>
+
+                    <span
+                      className={
+                        "rounded-full border px-3 py-1 text-xs font-semibold " +
+                        getPsychosocialFactorStatusClassName(factor.status)
+                      }
+                    >
+                      {getPsychosocialFactorStatusLabel(factor.status)}
+                    </span>
+                  </div>
+
+                  {factor.evidence_summary ? (
+                    <p className="mt-3 text-sm leading-6 text-[#5B6B79]">{factor.evidence_summary}</p>
+                  ) : null}
+
+                  {factor.investigation_pending ? (
+                    <p className="mt-3 text-sm font-semibold text-[#8C5A33]">
+                      Investigação pendente{factor.pending_action ? ": " + factor.pending_action : ""}
+                    </p>
+                  ) : null}
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+
 
           {loadingItems ? (
+
+
             <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
+
+
               Buscando registros em /api/nr1/evidence-items...
             </p>
           ) : items.length === 0 ? (
