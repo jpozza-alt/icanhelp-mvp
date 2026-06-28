@@ -171,6 +171,25 @@ function parseEvidenceItems(payload: unknown): EvidenceItem[] {
     .filter((item: EvidenceItem) => item.id);
 }
 
+const psychosocialFactorLabelDisplayMap: Record<string, string> = {
+  has_badly_managed_change: "Mudança mal gerida",
+  has_communication_difficulty: "Dificuldade de comunicação",
+  has_constant_interruptions: "Interrupções constantes",
+  has_excessive_pressure: "Pressão excessiva",
+  has_hostile_public_contact: "Contato hostil com público",
+  has_leadership_support_failure: "Falha de apoio da liderança",
+  has_low_autonomy: "Baixa autonomia",
+  has_peer_conflict: "Conflito entre pares",
+  has_remote_isolation: "Isolamento remoto",
+  has_report_channel: "Canal de relato",
+  has_role_ambiguity: "Ambiguidade de papel",
+  has_task_accumulation: "Acúmulo de tarefas",
+  has_work_overload: "Sobrecarga de trabalho",
+};
+
+function getPsychosocialFactorDisplayLabel(item: PsychosocialFactorItem): string {
+  return psychosocialFactorLabelDisplayMap[item.factor_key] || getPsychosocialFactorDisplayLabel(item);
+}
 function parsePsychosocialFactors(payload: unknown): PsychosocialFactorItem[] {
   const record = asApiRecord(payload);
   const item = asApiRecord(record.item);
@@ -365,7 +384,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
 
         setTenantId(parsedTenants[0].id);
       } catch (e: unknown) {
-        setError(getExceptionMessage(e, "Falha ao carregar sessao."));
+        setError(getExceptionMessage(e, "Falha ao carregar sessão."));
       } finally {
         setLoadingSession(false);
       }
@@ -451,7 +470,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
         setItems(parsedItems);
 
         if (parsedItems.length === 0) {
-          setInfo("Nenhuma evidencia encontrada para este estabelecimento.");
+          setInfo("Nenhuma evidência encontrada para este estabelecimento.");
         } else {
           setInfo("Tela ligada ao backend real de evidence-items por estabelecimento.");
         }
@@ -514,12 +533,12 @@ function Nr1EvidenciasAcompanhamentoContent() {
     setInfo("");
 
     if (!jwt || !tenantId || !selectedEstablishmentId) {
-      setError("Contexto incompleto. Recarregue a pagina e confirme tenant e estabelecimento.");
+      setError("Contexto incompleto. Recarregue a página e confirme tenant e estabelecimento.");
       return;
     }
 
     if (!form.title.trim()) {
-      setError("Informe o titulo da evidencia.");
+      setError("Informe o título da evidência.");
       return;
     }
 
@@ -556,7 +575,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
       const createPayload = await readJsonSafe(createResponse);
 
       if (!createResponse.ok) {
-        throw new Error(getErrorMessage(createPayload, "Falha ao gravar evidencia no backend real."));
+        throw new Error(getErrorMessage(createPayload, "Falha ao gravar evidência no backend real."));
       }
 
       const refreshResponse = await fetch(
@@ -590,9 +609,9 @@ function Nr1EvidenciasAcompanhamentoContent() {
         validation_status: "pending_validation",
         responsible_name: "",
       });
-      setInfo("Evidencia gravada com sucesso no backend real.");
+      setInfo("Evidência gravada com sucesso no backend real.");
     } catch (e: unknown) {
-      setError(getExceptionMessage(e, "Falha ao gravar evidencia."));
+      setError(getExceptionMessage(e, "Falha ao gravar evidência."));
     } finally {
       setSaving(false);
     }
@@ -632,7 +651,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
             o que esta tela faz
           </div>
           <h2 className="mt-3 text-2xl font-semibold text-[#22313F]">
-            Mostra evidencias reais do estabelecimento, com status, vinculo e rastreabilidade.
+            Mostra evidências reais do estabelecimento, com status, vínculo e rastreabilidade.
           </h2>
           <p className="mt-4 max-w-3xl text-sm leading-7 text-[#5B6B79]">
             Esta etapa saiu da leitura indevida de assessments e agora consome e grava no contrato real de
@@ -642,7 +661,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
           <div className="mt-5 grid gap-4 md:grid-cols-4">
             <div className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
-                evidencias
+                evidências
               </div>
               <div className="mt-2 text-2xl font-semibold text-[#22313F]">{items.length}</div>
             </div>
@@ -656,7 +675,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
 
             <div className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
-                ligadas a acao
+                ligadas à ação
               </div>
               <div className="mt-2 text-2xl font-semibold text-[#22313F]">{linkedActionPlanCount}</div>
             </div>
@@ -670,7 +689,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
           </div>
 
           {loadingSession ? (
-            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">Carregando sessao...</p>
+            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">Carregando sessão...</p>
           ) : null}
 
           {error ? (
@@ -736,15 +755,15 @@ function Nr1EvidenciasAcompanhamentoContent() {
 
         <section className={sectionClassName}>
           <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
-            registrar evidencia
+            registrar evidência
           </div>
           <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
-            Criacao manual ligada ao backend real de evidence-items.
+            Criação manual ligada ao backend real de evidence-items.
           </h3>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Titulo da evidencia</label>
+              <label className="text-sm font-semibold text-[#22313F]">Título da evidência</label>
               <input
                 value={form.title}
                 onChange={(e) => setForm((current) => ({ ...current, title: e.target.value }))}
@@ -760,8 +779,8 @@ function Nr1EvidenciasAcompanhamentoContent() {
                 onChange={(e) => setForm((current) => ({ ...current, evidence_type: e.target.value }))}
                 className={inputClassName}
               >
-                <option value="document">document</option>
-                <option value="image">image</option>
+                <option value="document">Documento</option>
+                <option value="image">Imagem</option>
                 <option value="checklist">checklist</option>
                 <option value="report">report</option>
                 <option value="other">other</option>
@@ -769,7 +788,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Data de referencia</label>
+              <label className="text-sm font-semibold text-[#22313F]">Data de referência</label>
               <input
                 type="date"
                 value={form.reference_date}
@@ -779,7 +798,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Responsavel</label>
+              <label className="text-sm font-semibold text-[#22313F]">Responsável</label>
               <input
                 value={form.responsible_name}
                 onChange={(e) => setForm((current) => ({ ...current, responsible_name: e.target.value }))}
@@ -795,7 +814,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
                 onChange={(e) => setForm((current) => ({ ...current, linked_entity_type: e.target.value }))}
                 className={inputClassName}
               >
-                <option value="">sem vinculo</option>
+                <option value="">sem vínculo</option>
                 <option value="action_plan">action_plan</option>
                 <option value="action_followup">action_followup</option>
                 <option value="other">other</option>
@@ -833,26 +852,26 @@ function Nr1EvidenciasAcompanhamentoContent() {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Status de validacao</label>
+              <label className="text-sm font-semibold text-[#22313F]">Status de validação</label>
               <select
                 value={form.validation_status}
                 onChange={(e) => setForm((current) => ({ ...current, validation_status: e.target.value }))}
                 className={inputClassName}
               >
-                <option value="pending_validation">pending_validation</option>
-                <option value="validated">validated</option>
-                <option value="rejected">rejected</option>
-                <option value="archived">archived</option>
+                <option value="pending_validation">Pendente de validação</option>
+                <option value="validated">Validada</option>
+                <option value="rejected">Rejeitada</option>
+                <option value="archived">Arquivada</option>
               </select>
             </div>
 
             <div className="md:col-span-2">
-              <label className="text-sm font-semibold text-[#22313F]">Descricao</label>
+              <label className="text-sm font-semibold text-[#22313F]">Descrição</label>
               <textarea
                 value={form.description}
                 onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))}
                 className={inputClassName + " min-h-[120px]"}
-                placeholder="Descreva a evidencia e o contexto do registro"
+                placeholder="Descreva a evidência e o contexto do registro"
               />
             </div>
           </div>
@@ -864,7 +883,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
               disabled={saving || !jwt || !tenantId || !selectedEstablishmentId || !form.title.trim() || !form.evidence_type.trim()}
               className="rounded-xl bg-[#5E7A96] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#516C86] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving ? "Salvando..." : "Salvar evidencia"}
+              {saving ? "Salvando..." : "Salvar evidência"}
             </button>
 
             <button
@@ -892,7 +911,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
 
         <section className={sectionClassName}>
           <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
-            evidencias reais
+            evidências reais
           </div>
           <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
             Lista carregada do backend de evidence-items por estabelecimento.
@@ -932,7 +951,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h3 className="text-sm font-semibold text-[#22313F]">
-                        {factor.factor_label || factor.factor_key || "Fator psicossocial"}
+                        {getPsychosocialFactorDisplayLabel(factor)}
                       </h3>
                       <p className="mt-1 font-mono text-[11px] text-[#7A8894]">{factor.factor_key || "sem_chave"}</p>
                     </div>
@@ -973,7 +992,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
             </p>
           ) : items.length === 0 ? (
             <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
-              Nenhuma evidencia encontrada para o estabelecimento selecionado.
+              Nenhuma evidência encontrada para o estabelecimento selecionado.
             </p>
           ) : (
             <div className="mt-4 space-y-4">
@@ -1010,7 +1029,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
                     </div>
 
                     <div className="rounded-full border border-[#D9E0E7] bg-white px-3 py-2 text-xs font-semibold text-[#5B6B79]">
-                      Responsavel: {item.responsible_name || "Nao informado"}
+                      Responsável: {item.responsible_name || "Nao informado"}
                     </div>
                   </div>
 
@@ -1059,8 +1078,8 @@ function Nr1EvidenciasAcompanhamentoContent() {
           )}
 
           <div className="mt-6 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
-            Esta versao foi ligada ao backend real de evidence-items com leitura e gravacao por estabelecimento.
-            O detalhamento por action-followups agora segue para a tela propria de trilha de acompanhamento.
+            Esta versão foi ligada ao backend real de evidence-items com leitura e gravação por estabelecimento.
+            O detalhamento por action-followups agora segue para a tela própria de trilha de acompanhamento.
           </div>
         </section>
 
@@ -1068,7 +1087,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
-                navegacao da jornada
+                navegação da jornada
               </div>
               <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
                 Acompanhamento documental ligado ao estabelecimento selecionado.
@@ -1080,14 +1099,14 @@ function Nr1EvidenciasAcompanhamentoContent() {
                 href="/dashboard/nr1/plano-de-acao"
                 className="rounded-xl border border-[#D9E0E7] bg-[#FAFBFC] px-5 py-3 text-sm font-semibold text-[#22313F]"
               >
-                Voltar para plano de acao
+                Voltar para plano de ação
               </Link>
 
               <Link
                 href="/dashboard/nr1/trilha-acompanhamento"
                 className="rounded-xl bg-[#5E7A96] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#516C86]"
               >
-                Avancar para trilha
+                Avançar para trilha
               </Link>
             </div>
           </div>
