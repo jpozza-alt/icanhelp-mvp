@@ -472,7 +472,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
         if (parsedItems.length === 0) {
           setInfo("Nenhuma evidência encontrada para este estabelecimento.");
         } else {
-          setInfo("Tela ligada ao backend real de evidence-items por estabelecimento.");
+          setInfo("Tela ligada ao sistema de evidências por estabelecimento.");
         }
       } catch (e: unknown) {
         setItems([]);
@@ -654,8 +654,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
             Mostra evidências reais do estabelecimento, com status, vínculo e rastreabilidade.
           </h2>
           <p className="mt-4 max-w-3xl text-sm leading-7 text-[#5B6B79]">
-            Esta etapa saiu da leitura indevida de assessments e agora consome e grava no contrato real de
-            evidence-items. O acompanhamento detalhado por follow-ups continua como frente separada.
+            Esta etapa registra e consulta evidências documentais reais do estabelecimento. O acompanhamento detalhado das ações segue em tela própria.
           </p>
 
           <div className="mt-5 grid gap-4 md:grid-cols-4">
@@ -682,7 +681,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
 
             <div className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
-                ligadas a followup
+                ligadas ao acompanhamento
               </div>
               <div className="mt-2 text-2xl font-semibold text-[#22313F]">{linkedFollowupCount}</div>
             </div>
@@ -708,16 +707,16 @@ function Nr1EvidenciasAcompanhamentoContent() {
         <section className={sectionClassName}>
           <div className="grid gap-4 md:grid-cols-[1.2fr_2fr]">
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Tenant ativo</label>
+              <label className="text-sm font-semibold text-[#22313F]">Empresa ativa</label>
               <div className="mt-2 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] px-4 py-3 text-sm text-[#5B6B79]">
                 {tenantId
                   ? (tenants.find((item) => item.id === tenantId)?.name || tenantId) + " (" + tenantId + ")"
-                  : "Nao carregado"}
+                  : "Não carregado"}
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Estabelecimento alvo</label>
+              <label className="text-sm font-semibold text-[#22313F]">Estabelecimento selecionado</label>
               <select
                 value={selectedEstablishmentId}
                 onChange={(e) => setSelectedEstablishmentId(e.target.value)}
@@ -744,10 +743,10 @@ function Nr1EvidenciasAcompanhamentoContent() {
               </div>
               <div>
                 <span className="font-semibold text-[#22313F]">Cidade/UF:</span>{" "}
-                {[selectedEstablishment.city, selectedEstablishment.state].filter(Boolean).join(" / ") || "Nao informado"}
+                {[selectedEstablishment.city, selectedEstablishment.state].filter(Boolean).join(" / ") || "Não informado"}
               </div>
               <div>
-                <span className="font-semibold text-[#22313F]">Status:</span> {selectedEstablishment.status || "Nao informado"}
+                <span className="font-semibold text-[#22313F]">Status:</span> {selectedEstablishment.status === "active" ? "Ativo" : selectedEstablishment.status || "Não informado"}
               </div>
             </div>
           ) : null}
@@ -758,7 +757,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
             registrar evidência
           </div>
           <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
-            Criação manual ligada ao backend real de evidence-items.
+            Criação manual de evidência documental.
           </h3>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -768,7 +767,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
                 value={form.title}
                 onChange={(e) => setForm((current) => ({ ...current, title: e.target.value }))}
                 className={inputClassName}
-                placeholder="Ex.: Checklist assinado da verificacao"
+                placeholder="Ex.: Checklist assinado da verificação"
               />
             </div>
 
@@ -781,9 +780,9 @@ function Nr1EvidenciasAcompanhamentoContent() {
               >
                 <option value="document">Documento</option>
                 <option value="image">Imagem</option>
-                <option value="checklist">checklist</option>
-                <option value="report">report</option>
-                <option value="other">other</option>
+                <option value="checklist">Checklist</option>
+                <option value="report">Relatório</option>
+                <option value="other">Outro</option>
               </select>
             </div>
 
@@ -803,7 +802,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
                 value={form.responsible_name}
                 onChange={(e) => setForm((current) => ({ ...current, responsible_name: e.target.value }))}
                 className={inputClassName}
-                placeholder="Nome do responsavel"
+                placeholder="Nome do responsável"
               />
             </div>
 
@@ -815,19 +814,19 @@ function Nr1EvidenciasAcompanhamentoContent() {
                 className={inputClassName}
               >
                 <option value="">sem vínculo</option>
-                <option value="action_plan">action_plan</option>
-                <option value="action_followup">action_followup</option>
-                <option value="other">other</option>
+                <option value="action_plan">Plano de ação</option>
+                <option value="action_followup">Acompanhamento da ação</option>
+                <option value="other">Outro</option>
               </select>
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">ID vinculado</label>
+              <label className="text-sm font-semibold text-[#22313F]">Identificador vinculado</label>
               <input
                 value={form.linked_entity_id}
                 onChange={(e) => setForm((current) => ({ ...current, linked_entity_id: e.target.value }))}
                 className={inputClassName}
-                placeholder="UUID do item vinculado"
+                placeholder="ID do item vinculado"
               />
             </div>
 
@@ -915,7 +914,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8C5A33]">Diagnóstico psicossocial</p>
               <h2 className="mt-2 text-xl font-semibold text-[#22313F]">Fatores derivados gravados</h2>
               <p className="mt-2 max-w-3xl text-sm leading-7 text-[#5B6B79]">
-                Esta leitura mostra os fatores psicossociais já persistidos no backend para a sessão de diagnóstico informada na URL.
+                Esta leitura mostra os fatores psicossociais já gravados no sistema para a sessão de diagnóstico informada na URL.
                 O foco é organizacional: concepção, organização e gestão do trabalho, sem análise clínica individual.
               </p>
             </div>
@@ -931,7 +930,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
             </p>
           ) : loadingPsychosocialFactors ? (
             <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
-              Buscando fatores psicossociais em /api/nr1/diagnosis-psychosocial...
+              Buscando fatores psicossociais...
             </p>
           ) : psychosocialFactors.length === 0 ? (
             <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
@@ -979,7 +978,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
             evidências reais
           </div>
           <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
-            Lista carregada do backend de evidence-items por estabelecimento.
+            Evidências documentais vinculadas ao estabelecimento.
           </h3>
 
 
@@ -989,7 +988,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
             <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
 
 
-              Buscando registros em /api/nr1/evidence-items...
+              Buscando evidências registradas...
             </p>
           ) : items.length === 0 ? (
             <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
@@ -1005,51 +1004,51 @@ function Nr1EvidenciasAcompanhamentoContent() {
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#5E7A96]">
-                        evidencia {index + 1}
+                        evidência {index + 1}
                       </div>
                       <h3 className="mt-2 text-lg font-semibold text-[#22313F]">
-                        {item.title || "Evidencia sem titulo"}
+                        {item.title || "Evidência sem título"}
                       </h3>
                       <p className="mt-2 text-sm leading-7 text-[#5B6B79]">
-                        {item.description || "Sem descricao complementar."}
+                        {item.description || "Sem descrição complementar."}
                       </p>
                     </div>
 
                     <div className="rounded-full border px-3 py-2 text-xs font-semibold border-[#D9E0E7] bg-white text-[#5B6B79]">
-                      Tipo: {item.evidence_type || "Nao informado"}
+                      Tipo: {item.evidence_type || "Não informado"}
                     </div>
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-3">
                     <div className={"rounded-full border px-3 py-2 text-xs font-semibold " + getValidationBadgeClass(item.validation_status)}>
-                      Validacao: {formatValidationStatus(item.validation_status)}
+                      Validação: {formatValidationStatus(item.validation_status)}
                     </div>
 
                     <div className="rounded-full border border-[#D9E0E7] bg-white px-3 py-2 text-xs font-semibold text-[#5B6B79]">
-                      Referencia: {item.reference_date || "Nao informada"}
+                      Referência: {item.reference_date || "Não informada"}
                     </div>
 
                     <div className="rounded-full border border-[#D9E0E7] bg-white px-3 py-2 text-xs font-semibold text-[#5B6B79]">
-                      Responsável: {item.responsible_name || "Nao informado"}
+                      Responsável: {item.responsible_name || "Não informado"}
                     </div>
                   </div>
 
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
-                        entidade vinculada
+                        Entidade vinculada
                       </div>
                       <div className="mt-2 text-sm leading-7 text-[#22313F]">
-                        {item.linked_entity_type || "Nao informada"}
+                        {item.linked_entity_type || "Não informada"}
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
-                        id vinculado
+                        ID vinculado
                       </div>
                       <div className="mt-2 break-all text-sm leading-7 text-[#22313F]">
-                        {item.linked_entity_id || "Nao informado"}
+                        {item.linked_entity_id || "Não informado"}
                       </div>
                     </div>
                   </div>
@@ -1057,19 +1056,19 @@ function Nr1EvidenciasAcompanhamentoContent() {
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
-                        arquivo
+                        Arquivo
                       </div>
                       <div className="mt-2 break-all text-sm leading-7 text-[#22313F]">
-                        {item.file_name || item.file_url || "Nao informado"}
+                        {item.file_name || item.file_url || "Não informado"}
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
-                        atualizacao
+                        Atualização
                       </div>
                       <div className="mt-2 text-sm leading-7 text-[#22313F]">
-                        {item.updated_at || item.created_at || "Nao informada"}
+                        {item.updated_at || item.created_at || "Não informada"}
                       </div>
                     </div>
                   </div>
@@ -1079,8 +1078,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
           )}
 
           <div className="mt-6 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
-            Esta versão foi ligada ao backend real de evidence-items com leitura e gravação por estabelecimento.
-            O detalhamento por action-followups agora segue para a tela própria de trilha de acompanhamento.
+            Esta tela usa registros reais de evidências, com leitura e gravação por estabelecimento. O detalhamento dos acompanhamentos segue na trilha própria.
           </div>
         </section>
 
