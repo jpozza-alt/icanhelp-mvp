@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
-import AppShell from "@/components/AppShell";
+import Nr1WorkspaceV2Shell from "@/components/nr1/Nr1WorkspaceV2Shell";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -291,6 +291,10 @@ function Nr1EvidenciasAcompanhamentoContent() {
   const selectedEstablishment = useMemo(() => {
     return establishments.find((item) => item.id === selectedEstablishmentId) || null;
   }, [establishments, selectedEstablishmentId]);
+
+  const selectedTenant = useMemo(() => {
+    return tenants.find((item) => item.id === tenantId) || null;
+  }, [tenants, tenantId]);
 
   const urlEstablishmentId = useMemo(() => {
     return (searchParams.get("establishmentId") || searchParams.get("establishment_id") || "").trim();
@@ -595,12 +599,34 @@ function Nr1EvidenciasAcompanhamentoContent() {
   }
 
   return (
-    <AppShell
-      active="nr1"
-      title="Evidencias e acompanhamento"
-      description="Quinta etapa da jornada. Agora a tela le e grava evidence-items reais por estabelecimento."
+    <Nr1WorkspaceV2Shell
+      companyName={selectedTenant?.name || "Empresa não selecionada"}
+      establishmentName={selectedEstablishment?.name || "Unidade não selecionada"}
+      pgrStatus="Em construção"
+      progressPercent={75}
+      progressDescription="Evidências e acompanhamento documental em execução."
+      activeModule="Evidências"
+      pendingItems={[
+        "Validar evidências do estabelecimento",
+        "Conferir fatores psicossociais derivados",
+        "Manter rastreabilidade para o PGR",
+      ]}
+      nextBestActionLabel="Etapa da jornada"
+      nextBestActionTitle="Validar evidências e fatores psicossociais"
+      nextBestActionDescription="Revise os registros documentais e os fatores organizacionais derivados da sessão de diagnóstico. Esta etapa apoia o GRO/PGR sem fazer diagnóstico clínico individual."
+      nextBestActionPrimaryHref="#evidencias-operational-content"
+      nextBestActionPrimaryLabel="Ver evidências"
+      nextBestActionSecondaryHref="/dashboard/nr1/workspace"
+      nextBestActionSecondaryLabel="Voltar ao workspace"
+      nextBestActionReasons={[
+        "As evidências sustentam o inventário de riscos.",
+        "Os fatores psicossociais devem permanecer ligados à organização do trabalho.",
+        "A rastreabilidade documental fortalece o PGR.",
+      ]}
+      pgrHref="/dashboard/nr1/relatorio-pgr"
+      moduleHref="#evidencias-operational-content"
     >
-      <div className="space-y-6">
+      <section id="evidencias-operational-content" className="min-w-0 space-y-6">
         <section className={sectionClassName}>
           <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
             o que esta tela faz
@@ -1066,7 +1092,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
             </div>
           </div>
         </section>
-      </div>
-    </AppShell>
+      </section>
+    </Nr1WorkspaceV2Shell>
   );
 }
