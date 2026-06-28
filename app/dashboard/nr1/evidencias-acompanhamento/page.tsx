@@ -64,6 +64,19 @@ const sectionClassName =
 const inputClassName =
   "mt-2 w-full rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] px-4 py-3 text-sm text-[#22313F] outline-none transition focus:border-[#5E7A96]";
 
+const allowedEvidenceLinkedEntityTypes = new Set([
+  "diagnosis_session",
+  "risk",
+  "action_plan",
+  "review_cycle",
+  "training_record",
+  "third_party",
+]);
+
+function isValidEvidenceLinkedEntityType(value: string): boolean {
+  return allowedEvidenceLinkedEntityTypes.has(value.trim());
+}
+
 async function readJsonSafe(response: Response): Promise<unknown> {
   const text = await response.text();
   if (!text.trim()) {
@@ -328,7 +341,33 @@ function Nr1EvidenciasAcompanhamentoContent() {
     ).trim();
   }, [searchParams]);
 
-  const pendingValidationCount = useMemo(() => {
+
+  useEffect(() => {
+    if (!urlDiagnosisSessionId) {
+      return;
+    }
+
+    // Sincroniza o vínculo formal exigido pelo banco quando a tela vem da sessão de diagnóstico.
+    setForm((current) => {
+      const currentType = current.linked_entity_type.trim();
+      const currentId = current.linked_entity_id.trim();
+
+      if (currentType === "diagnosis_session" && currentId === urlDiagnosisSessionId) {
+        return current;
+      }
+
+      if (currentType && isValidEvidenceLinkedEntityType(currentType) && currentId) {
+        return current;
+      }
+
+      return {
+        ...current,
+        linked_entity_type: "diagnosis_session",
+        linked_entity_id: urlDiagnosisSessionId,
+      };
+    });
+  }, [urlDiagnosisSessionId]);
+const pendingValidationCount = useMemo(() => {
     return items.filter((item) => String(item.validation_status || "").trim().toLowerCase() === "pending_validation").length;
   }, [items]);
 
@@ -543,14 +582,30 @@ function Nr1EvidenciasAcompanhamentoContent() {
     }
 
     if (!form.evidence_type.trim()) {
-      setError("Informe o tipo da evidencia.");
+      setError("Informe o tipo da evidência.");
+      return;
+    }
+
+    const linkedEntityType =
+      form.linked_entity_type.trim() || (urlDiagnosisSessionId ? "diagnosis_session" : "");
+    const linkedEntityId =
+      form.linked_entity_id.trim() ||
+      (linkedEntityType === "diagnosis_session" ? urlDiagnosisSessionId : "");
+
+    if (!isValidEvidenceLinkedEntityType(linkedEntityType)) {
+      setError("Selecione um vínculo válido para a evidência.");
+      return;
+    }
+
+    if (!linkedEntityId) {
+      setError("Informe o ID vinculado antes de salvar a evidência.");
       return;
     }
 
     setSaving(true);
 
     try {
-      const createResponse = await fetch("/api/nr1/evidence-items", {
+      const createResponse = await fetch("/api/nr1/evidence-items?tenantId=" + encodeURIComponent(tenantId), {
         method: "POST",
         headers: {
           Authorization: "Bearer " + jwt,
@@ -562,8 +617,8 @@ function Nr1EvidenciasAcompanhamentoContent() {
           title: form.title.trim(),
           evidence_type: form.evidence_type.trim(),
           description: form.description.trim() || null,
-          linked_entity_type: form.linked_entity_type.trim() || null,
-          linked_entity_id: form.linked_entity_id.trim() || null,
+          linked_entity_type: linkedEntityType,
+          linked_entity_id: linkedEntityId,
           reference_date: form.reference_date.trim() || null,
           file_name: form.file_name.trim() || null,
           file_url: form.file_url.trim() || null,
@@ -593,7 +648,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
       const refreshPayload = await readJsonSafe(refreshResponse);
 
       if (!refreshResponse.ok) {
-        throw new Error(getErrorMessage(refreshPayload, "A evidencia foi criada, mas a releitura da lista falhou."));
+        throw new Error(getErrorMessage(refreshPayload, "A evidência foi criada, mas a releitura da lista falhou."));
       }
 
       setItems(parseEvidenceItems(refreshPayload));
@@ -601,8 +656,8 @@ function Nr1EvidenciasAcompanhamentoContent() {
         title: "",
         evidence_type: "document",
         description: "",
-        linked_entity_type: "",
-        linked_entity_id: "",
+        linked_entity_type: urlDiagnosisSessionId ? "diagnosis_session" : "",
+        linked_entity_id: urlDiagnosisSessionId || "",
         reference_date: "",
         file_name: "",
         file_url: "",
@@ -809,15 +864,27 @@ function Nr1EvidenciasAcompanhamentoContent() {
             <div>
               <label className="text-sm font-semibold text-[#22313F]">Entidade vinculada</label>
               <select
-                value={form.linked_entity_type}
-                onChange={(e) => setForm((current) => ({ ...current, linked_entity_type: e.target.value }))}
-                className={inputClassName}
-              >
-                <option value="">sem vínculo</option>
-                <option value="action_plan">Plano de ação</option>
-                <option value="action_followup">Acompanhamento da ação</option>
-                <option value="other">Outro</option>
-              </select>
+                    className={inputClassName}
+                    value={form.linked_entity_type}
+                    onChange={(event) => {
+                      const nextType = event.target.value;
+                      setForm({
+                        ...form,
+                        linked_entity_type: nextType,
+                        linked_entity_id:
+                          nextType === "diagnosis_session" && urlDiagnosisSessionId
+                            ? urlDiagnosisSessionId
+                            : "",
+                      });
+                    }}
+                  >
+                    <option value="diagnosis_session">Diagnóstico</option>
+                    <option value="risk">Risco</option>
+                    <option value="action_plan">Plano de ação</option>
+                    <option value="review_cycle">Ciclo de revisão</option>
+                    <option value="training_record">Treinamento</option>
+                    <option value="third_party">Terceiro</option>
+                  </select>
             </div>
 
             <div>
@@ -826,7 +893,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
                 value={form.linked_entity_id}
                 onChange={(e) => setForm((current) => ({ ...current, linked_entity_id: e.target.value }))}
                 className={inputClassName}
-                placeholder="ID do item vinculado"
+                placeholder={form.linked_entity_type === "diagnosis_session" ? "ID da sessão de diagnóstico" : "ID do item vinculado"}
               />
             </div>
 
