@@ -307,6 +307,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [saving, setSaving] = useState(false);
+  const [archivingEvidenceId, setArchivingEvidenceId] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "",
     evidence_type: "document",
@@ -669,6 +670,78 @@ const pendingValidationCount = useMemo(() => {
       setError(getExceptionMessage(e, "Falha ao gravar evidência."));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleArchiveEvidence(item: EvidenceItem) {
+    setError("");
+    setInfo("");
+
+    if (!jwt || !tenantId || !selectedEstablishmentId) {
+      setError("Contexto incompleto. Recarregue a página e confirme tenant e estabelecimento.");
+      return;
+    }
+
+    if (!item.id) {
+      setError("Evidência sem identificador válido para arquivamento.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Arquivar esta evidência? Ela deixará de aparecer na lista principal, mas continuará registrada para rastreabilidade."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setArchivingEvidenceId(item.id);
+
+    try {
+      const archiveResponse = await fetch("/api/nr1/evidence-items?tenantId=" + encodeURIComponent(tenantId), {
+        method: "PATCH",
+        headers: {
+          Authorization: "Bearer " + jwt,
+          "x-icanhelp-tenant": tenantId,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: item.id,
+          establishment_id: selectedEstablishmentId,
+          action: "archive",
+        }),
+      });
+
+      const archivePayload = await readJsonSafe(archiveResponse);
+
+      if (!archiveResponse.ok) {
+        throw new Error(getErrorMessage(archivePayload, "Falha ao arquivar evidência."));
+      }
+
+      const refreshResponse = await fetch(
+        "/api/nr1/evidence-items?establishmentId=" + encodeURIComponent(selectedEstablishmentId),
+        {
+          method: "GET",
+          headers: {
+            Authorization: "Bearer " + jwt,
+            "x-icanhelp-tenant": tenantId,
+          },
+          cache: "no-store",
+        }
+      );
+
+      const refreshPayload = await readJsonSafe(refreshResponse);
+
+      if (!refreshResponse.ok) {
+        throw new Error(getErrorMessage(refreshPayload, "A evidência foi arquivada, mas a releitura da lista falhou."));
+      }
+
+      setItems(parseEvidenceItems(refreshPayload));
+      setInfo("Evidência arquivada com sucesso.");
+    } catch (e: unknown) {
+      setError(getExceptionMessage(e, "Falha ao arquivar evidência."));
+    } finally {
+      setArchivingEvidenceId(null);
     }
   }
 
@@ -1138,6 +1211,17 @@ const pendingValidationCount = useMemo(() => {
                         {item.updated_at || item.created_at || "Não informada"}
                       </div>
                     </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={() => void handleArchiveEvidence(item)}
+                      disabled={archivingEvidenceId !== null || !jwt || !tenantId || !selectedEstablishmentId}
+                      className="rounded-xl border border-[#E8C8CC] bg-white px-4 py-2 text-xs font-semibold text-[#8A4F58] transition hover:bg-[#F9F1F2] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {archivingEvidenceId === item.id ? "Arquivando..." : "Arquivar evidência"}
+                    </button>
                   </div>
                 </article>
               ))}
