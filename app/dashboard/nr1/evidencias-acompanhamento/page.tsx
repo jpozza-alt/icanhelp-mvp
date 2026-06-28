@@ -910,13 +910,6 @@ function Nr1EvidenciasAcompanhamentoContent() {
         </section>
 
         <section className={sectionClassName}>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
-            evidências reais
-          </div>
-          <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
-            Lista carregada do backend de evidence-items por estabelecimento.
-          </h3>
-        <section className={sectionClassName}>
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8C5A33]">Diagnóstico psicossocial</p>
@@ -980,6 +973,14 @@ function Nr1EvidenciasAcompanhamentoContent() {
             </div>
           )}
         </section>
+
+        <section className={sectionClassName}>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+            evidências reais
+          </div>
+          <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
+            Lista carregada do backend de evidence-items por estabelecimento.
+          </h3>
 
 
           {loadingItems ? (
