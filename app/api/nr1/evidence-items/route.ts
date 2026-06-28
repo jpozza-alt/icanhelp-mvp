@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic"
 
 type EvidenceRow = Database["public"]["Tables"]["nr1_evidence_items"]["Row"]
 type EvidenceInsert = Database["public"]["Tables"]["nr1_evidence_items"]["Insert"]
+type EvidenceUpdate = Database["public"]["Tables"]["nr1_evidence_items"]["Update"]
 
 function getTenantId(req: NextRequest): string {
   const queryValue = (
@@ -185,6 +186,174 @@ export async function GET(req: NextRequest) {
   }
 }
 
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const bearerToken = extractBearerToken(req)
+
+    if (!bearerToken) {
+      return NextResponse.json(
+        {
+          error: "missing_bearer",
+          message: "Missing bearer token",
+        },
+        { status: 401 }
+      )
+    }
+
+    const body = (await req.json()) as Partial<EvidenceRow> & { action?: unknown }
+    const evidenceId = getRequiredString(body.id, "id")
+    const establishmentId = getRequiredString(body.establishment_id, "establishment_id")
+    const action = getOptionalString(body.action) ?? "archive"
+
+    if (action !== "archive") {
+      return NextResponse.json(
+        {
+          error: "unsupported_patch_action",
+          message: "Only archive action is supported for evidence items",
+        },
+        { status: 400 }
+      )
+    }
+
+    const scope = await resolveNr1Scope({
+      req,
+      tenantId: getTenantId(req),
+      establishmentId,
+    })
+
+    if (!isTenantAdminRole(scope.role)) {
+      return NextResponse.json(
+        {
+          error: "forbidden",
+          message: "Admin role required",
+        },
+        { status: 403 }
+      )
+    }
+
+    const userClient = createNr1UserClientFromBearer(bearerToken)
+
+    const { data: existingData, error: existingError } = await userClient
+      .from("nr1_evidence_items")
+      .select("*")
+      .eq("tenant_id", scope.tenantId)
+      .eq("establishment_id", establishmentId)
+      .eq("id", evidenceId)
+      .single()
+
+    if (existingError) {
+      const errorCode =
+        typeof existingError === "object" && existingError !== null && "code" in existingError
+          ? String((existingError as { code?: unknown }).code ?? "")
+          : ""
+
+      if (errorCode === "PGRST116") {
+        return NextResponse.json(
+          {
+            error: "not_found",
+            message: "Evidence item not found",
+          },
+          { status: 404 }
+        )
+      }
+
+      throw existingError
+    }
+
+    const existingEvidence = existingData as EvidenceRow
+
+    if (existingEvidence.deleted_at) {
+      return NextResponse.json(
+        {
+          data: existingEvidence,
+          meta: {
+            tenantId: scope.tenantId,
+            membershipRole: scope.role,
+            alreadyArchived: true,
+          },
+        },
+        { status: 200 }
+      )
+    }
+
+    const archivedAt = new Date().toISOString()
+
+    const updatePayload: EvidenceUpdate = {
+      validation_status: "archived",
+      deleted_at: archivedAt,
+    }
+
+    const { data, error } = await userClient
+      .from("nr1_evidence_items")
+      .update(updatePayload)
+      .eq("tenant_id", scope.tenantId)
+      .eq("establishment_id", establishmentId)
+      .eq("id", evidenceId)
+      .select("*")
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    const updatedEvidence = data as EvidenceRow
+
+    const { data: authData, error: authError } = await userClient.auth.getUser()
+
+    if (authError) {
+      throw authError
+    }
+
+    const userId = authData.user?.id
+
+    if (!userId) {
+      throw new Error("missing_user_id_for_audit")
+    }
+
+    const { error: auditError } = await userClient
+      .from("nr1_audit_events")
+      .insert({
+        tenant_id: scope.tenantId,
+        establishment_id: establishmentId,
+        screen_key: "nr1_evidence_items",
+        entity_type: "nr1_evidence_item",
+        entity_id: updatedEvidence.id,
+        event_type: "nr1_evidence_item_archived",
+        old_value_json: {
+          evidence_id: existingEvidence.id,
+          validation_status: existingEvidence.validation_status,
+          deleted_at: existingEvidence.deleted_at,
+        },
+        new_value_json: {
+          evidence_id: updatedEvidence.id,
+          validation_status: updatedEvidence.validation_status,
+          deleted_at: updatedEvidence.deleted_at,
+        },
+        persistence_type: "formal_version",
+        reason: "nr1_evidence_item_archive",
+        user_id: userId,
+      })
+
+    if (auditError) {
+      throw auditError
+    }
+
+    return NextResponse.json(
+      {
+        data: updatedEvidence,
+        meta: {
+          tenantId: scope.tenantId,
+          membershipRole: scope.role,
+          archived: true,
+        },
+      },
+      { status: 200 }
+    )
+  } catch (error) {
+    return toErrorResponse(error)
+  }
+}
 export async function POST(req: NextRequest) {
   try {
     const bearerToken = extractBearerToken(req)
