@@ -174,7 +174,7 @@ async function maybeGenerateRiskFromReview(params: {
 
   const existingRiskResult = await params.userClient
     .from("nr1_risks")
-    .select("id")
+    .select("id,status,title,risk_category,diagnosis_session_id,deleted_at")
     .eq("tenant_id", params.scope.tenantId)
     .eq("establishment_id", params.establishmentId)
     .eq("diagnosis_session_id", params.diagnosisSessionId)
@@ -184,15 +184,15 @@ async function maybeGenerateRiskFromReview(params: {
     throw new Error("nr1_generated_risk_existing_lookup_failed: " + existingRiskResult.error.message)
   }
 
-  const existingRows = (existingRiskResult.data || []) as Array<{ id: string }>
-
-  if (existingRows.length > 0) {
-    return {
-      generated: false,
-      riskId: existingRows[0].id,
-      reason: "already_exists",
-    }
-  }
+  const existingRows = (existingRiskResult.data || []) as Array<{
+    id: string
+    status: string | null
+    title: string | null
+    risk_category: string | null
+    diagnosis_session_id: string | null
+    deleted_at: string | null
+  }>
+  const existingRisk = existingRows[0] || null
 
   const psychosocialResult = await params.userClient
     .from("nr1_diagnosis_psychosocial")
@@ -354,18 +354,82 @@ async function maybeGenerateRiskFromReview(params: {
     status: "identified",
   }
 
-  const riskResult = await params.userClient
-    .from("nr1_risks")
-    .insert(riskPayload)
-    .select("*")
-    .single()
+  let riskId: string | null = null
+  let riskPersistenceAction: "created" | "updated" = "created"
 
-  if (riskResult.error) {
-    throw new Error("nr1_generated_risk_create_failed: " + riskResult.error.message)
+  if (existingRisk) {
+    const existingRiskId = cleanText(existingRisk.id)
+    const existingRiskStatus = cleanText(existingRisk.status)
+    const existingRiskTitle = cleanText(existingRisk.title)
+    const existingRiskCategory = cleanText(existingRisk.risk_category)
+    const existingRiskDeletedAt = cleanText(existingRisk.deleted_at)
+
+    const isGeneratedDiagnosisRisk =
+      existingRiskTitle === "Risco preliminar gerado pelo diagnostico guiado" ||
+      existingRiskTitle === "Risco psicossocial preliminar gerado pelo diagnostico guiado"
+
+    const canUpdateExistingGeneratedRisk =
+      !existingRiskDeletedAt &&
+      existingRiskStatus === "identified" &&
+      existingRiskCategory === "psychosocial" &&
+      isGeneratedDiagnosisRisk
+
+    if (!canUpdateExistingGeneratedRisk) {
+      return {
+        generated: false,
+        riskId: existingRiskId || null,
+        reason: "existing_requires_manual_review",
+      }
+    }
+
+    const updatePayload = {
+      title: riskPayload.title,
+      risk_category: riskPayload.risk_category,
+      hazard_description: riskPayload.hazard_description,
+      source_circumstance: riskPayload.source_circumstance,
+      exposed_group: riskPayload.exposed_group,
+      possible_harms: riskPayload.possible_harms,
+      existing_controls: riskPayload.existing_controls,
+      exposure_characterization: riskPayload.exposure_characterization,
+      severity_level: riskPayload.severity_level,
+      probability_level: riskPayload.probability_level,
+      risk_level: riskPayload.risk_level,
+      classification: riskPayload.classification,
+      recommended_measure: riskPayload.recommended_measure,
+      suggested_responsible: riskPayload.suggested_responsible,
+      suggested_deadline: riskPayload.suggested_deadline,
+      status: riskPayload.status,
+      updated_by: params.scope.membership.user_id,
+    }
+
+    const updateResult = await params.userClient
+      .from("nr1_risks")
+      .update(updatePayload)
+      .eq("id", existingRiskId)
+      .eq("tenant_id", params.scope.tenantId)
+      .select("id")
+      .single()
+
+    if (updateResult.error) {
+      throw new Error("nr1_generated_risk_update_failed: " + updateResult.error.message)
+    }
+
+    riskId = cleanText(updateResult.data?.id) || existingRiskId
+    riskPersistenceAction = "updated"
+  } else {
+    const riskResult = await params.userClient
+      .from("nr1_risks")
+      .insert(riskPayload)
+      .select("*")
+      .single()
+
+    if (riskResult.error) {
+      throw new Error("nr1_generated_risk_create_failed: " + riskResult.error.message)
+    }
+
+    const riskRow = riskResult.data as { id: string } | null
+    riskId = riskRow?.id || null
   }
-
-  const riskRow = riskResult.data as { id: string } | null
-  const riskId = riskRow?.id || null
 
   if (!riskId) {
     throw new Error("nr1_generated_risk_missing_id")
@@ -380,10 +444,11 @@ async function maybeGenerateRiskFromReview(params: {
     screen_key: "nr1_diagnosis_review",
     entity_type: "nr1_risk",
     entity_id: riskId,
-    event_type: "diagnosis_review_risk_generated",
-    old_value_json: null,
+    event_type: riskPersistenceAction === "updated" ? "diagnosis_review_risk_updated" : "diagnosis_review_risk_generated",
+    old_value_json: existingRisk ? ({ risk_id: existingRisk.id, status: existingRisk.status, title: existingRisk.title, risk_category: existingRisk.risk_category } as Json) : null,
     new_value_json: {
       risk_id: riskId,
+      persistence_action: riskPersistenceAction,
       diagnosis_session_id: params.diagnosisSessionId,
       diagnosis_review_id: params.reviewRow.id,
       department_id: departmentId,
@@ -413,7 +478,7 @@ async function maybeGenerateRiskFromReview(params: {
   return {
     generated: true,
     riskId,
-    reason: "created",
+    reason: riskPersistenceAction,
   }
 }
 
@@ -924,4 +989,3 @@ export async function POST(req: NextRequest) {
     return json(response.status, response.body)
   }
 }
-
