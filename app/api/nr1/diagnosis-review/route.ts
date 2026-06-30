@@ -194,21 +194,139 @@ async function maybeGenerateRiskFromReview(params: {
     }
   }
 
+  const psychosocialResult = await params.userClient
+    .from("nr1_diagnosis_psychosocial")
+    .select("*")
+    .eq("tenant_id", params.scope.tenantId)
+    .eq("diagnosis_session_id", params.diagnosisSessionId)
+    .limit(1)
+
+  if (psychosocialResult.error) {
+    throw new Error("nr1_generated_risk_psychosocial_lookup_failed: " + psychosocialResult.error.message)
+  }
+
+  const factorResult = await params.userClient
+    .from("nr1_diagnosis_psychosocial_factors")
+    .select("factor_key,factor_label,status,confidence_level,sources,justification,evidence_summary,investigation_pending,pending_action")
+    .eq("tenant_id", params.scope.tenantId)
+    .eq("diagnosis_session_id", params.diagnosisSessionId)
+    .order("factor_key", { ascending: true })
+
+  if (factorResult.error) {
+    throw new Error("nr1_generated_risk_psychosocial_factors_lookup_failed: " + factorResult.error.message)
+  }
+
+  const psychosocialRows = (psychosocialResult.data || []) as Array<Record<string, unknown>>
+  const psychosocialRow = psychosocialRows[0] || null
+  const factorRows = (factorResult.data || []) as Array<Record<string, unknown>>
+
+  const relevantFactors = factorRows.filter((factor) => {
+    const key = cleanText(factor.factor_key)
+    const status = cleanText(factor.status)
+    return key !== "has_report_channel" && (status === "evidence_found" || status === "needs_investigation")
+  })
+
+  const evidenceFoundFactors = relevantFactors.filter((factor) => cleanText(factor.status) === "evidence_found")
+
+  const evidenceFoundLabels = evidenceFoundFactors
+    .map((factor) => cleanText(factor.factor_label) || cleanText(factor.factor_key))
+    .filter((value) => Boolean(value)) as string[]
+
+  const needsInvestigationLabels = relevantFactors
+    .filter((factor) => cleanText(factor.status) === "needs_investigation")
+    .map((factor) => cleanText(factor.factor_label) || cleanText(factor.factor_key))
+    .filter((value) => Boolean(value)) as string[]
+
+  const hasFactor = (key: string): boolean => {
+    return evidenceFoundFactors.some((factor) => cleanText(factor.factor_key) === key)
+  }
+
+  const hasReportChannel = Boolean(psychosocialRow && psychosocialRow.has_report_channel === true)
+  const evidenceCount = evidenceFoundLabels.length
+
+  const severityLevel =
+    hasFactor("has_hostile_public_contact") ||
+    hasFactor("has_peer_conflict") ||
+    (hasFactor("has_excessive_pressure") && hasFactor("has_low_autonomy")) ||
+    evidenceCount >= 4
+      ? "high"
+      : evidenceCount >= 1
+        ? "medium"
+        : "low"
+
+  const probabilityLevel =
+    evidenceCount >= 4 ||
+    (hasFactor("has_work_overload") && hasFactor("has_constant_interruptions")) ||
+    (hasFactor("has_excessive_pressure") && hasFactor("has_task_accumulation"))
+      ? "high"
+      : evidenceCount >= 1
+        ? "medium"
+        : "low"
+
+  const matrixRiskLevel =
+    severityLevel === "high" && probabilityLevel === "high"
+      ? "high"
+      : severityLevel === "high" || probabilityLevel === "high"
+        ? "high"
+        : severityLevel === "medium" || probabilityLevel === "medium"
+          ? "medium"
+          : "low"
+
+  const reviewRiskLevel = normalizeGeneratedRiskLevel(params.reviewRow.preliminary_priority)
+  const riskRank: Record<string, number> = {
+    low: 1,
+    medium: 2,
+    high: 3,
+    critical: 4,
+  }
+
+  const riskLevel =
+    riskRank[matrixRiskLevel] >= riskRank[reviewRiskLevel]
+      ? matrixRiskLevel
+      : reviewRiskLevel
+
   const riskCategory = normalizeGeneratedRiskCategory(params.body.generated_risk_category)
-  const riskLevel = normalizeGeneratedRiskLevel(params.reviewRow.preliminary_priority)
+
+  const factorText =
+    evidenceFoundLabels.length > 0
+      ? evidenceFoundLabels.join("; ")
+      : textFromJsonValue(params.reviewRow.confirmed_hazards_json) || "Indicadores psicossociais observados no diagnostico guiado."
+
+  const investigationText =
+    needsInvestigationLabels.length > 0
+      ? " Fatores pendentes de investigacao: " + needsInvestigationLabels.join("; ") + "."
+      : ""
 
   const hazardFromReview =
     cleanText(params.body.generated_risk_hazard_description) ||
     textFromJsonValue(params.reviewRow.confirmed_hazards_json) ||
-    "Perigo identificado no diagnostico guiado."
+    "Fatores da organizacao do trabalho com potencial de gerar risco psicossocial: " + factorText
 
   const exposedGroup =
     textFromJsonValue(params.reviewRow.confirmed_exposed_group_json) ||
-    "Grupo exposto informado no diagnostico guiado."
+    "Trabalhadores vinculados a atividade analisada no diagnostico guiado."
 
   const title =
     cleanText(params.body.generated_risk_title) ||
-    "Risco gerado pelo diagnostico guiado"
+    "Risco psicossocial preliminar gerado pelo diagnostico guiado"
+
+  const possibleHarms =
+    "Possiveis agravos ocupacionais relacionados a organizacao do trabalho, considerando exposicao coletiva ou agregada e sem registro de diagnostico clinico individual."
+
+  const existingControls =
+    hasReportChannel
+      ? "Canal de relato informado no diagnostico. Validar efetividade, confidencialidade, fluxo de tratamento e retorno das medidas."
+      : "Controles existentes nao confirmados no diagnostico. Validar canais de relato, apoio da lideranca, organizacao da demanda e medidas preventivas."
+
+  const exposureCharacterization =
+    "Exposicao preliminar caracterizada a partir do diagnostico guiado NR-1. Fatores evidenciados: " +
+    factorText +
+    "." +
+    investigationText
+
+  const recommendedMeasure =
+    cleanText(params.body.generated_risk_recommended_measure) ||
+    "Validar o risco preliminar com responsavel tecnico, revisar evidencias, confirmar grupo exposto, priorizar medidas organizacionais e registrar plano de acao."
 
   const riskPayload: Nr1RiskInsert = {
     tenant_id: params.scope.tenantId,
@@ -221,18 +339,16 @@ async function maybeGenerateRiskFromReview(params: {
     hazard_description: limitText(hazardFromReview, 1000),
     source_circumstance:
       cleanText(params.body.generated_risk_source_circumstance) ||
-      "Diagnostico guiado NR1",
+      "Diagnostico guiado NR1; fatores observados: " + limitText(factorText, 700),
     exposed_group: limitText(exposedGroup, 1000),
-    possible_harms: "Agravos ocupacionais relacionados ao perigo confirmado no diagnostico guiado.",
-    existing_controls: null,
-    exposure_characterization: "Risco identificado na etapa de revisao do diagnostico guiado.",
-    severity_level: "medium",
-    probability_level: "medium",
+    possible_harms: limitText(possibleHarms, 1000),
+    existing_controls: limitText(existingControls, 1000),
+    exposure_characterization: limitText(exposureCharacterization, 1000),
+    severity_level: severityLevel,
+    probability_level: probabilityLevel,
     risk_level: riskLevel,
     classification: riskLevel,
-    recommended_measure:
-      cleanText(params.body.generated_risk_recommended_measure) ||
-      "Validar o risco com responsavel tecnico e definir plano de acao.",
+    recommended_measure: limitText(recommendedMeasure, 1000),
     suggested_responsible: "Gestao da empresa",
     suggested_deadline: null,
     status: "identified",
@@ -273,7 +389,13 @@ async function maybeGenerateRiskFromReview(params: {
       department_id: departmentId,
       activity_id: activityId,
       risk_category: riskCategory,
+      severity_level: severityLevel,
+      probability_level: probabilityLevel,
       risk_level: riskLevel,
+      classification: riskLevel,
+      psychosocial_factor_count: evidenceCount,
+      psychosocial_factors: evidenceFoundLabels,
+      needs_investigation_factors: needsInvestigationLabels,
     } as Json,
     persistence_type: "formal_version",
     reason: "diagnosis_review_generate_risk",
