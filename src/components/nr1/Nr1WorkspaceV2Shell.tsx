@@ -29,13 +29,13 @@ type Nr1WorkspaceV2ShellProps = {
 const defaultModules = ["Base", "Mapeamento", "Riscos", "Plano", "Evidências", "PGR"];
 
 const defaultPendingItems = [
-  "Confirmar atividade principal da unidade",
+  "Confirmar atividade principal do local de trabalho",
   "Iniciar análise guiada da rotina real",
   "Registrar primeira leitura de risco",
 ];
 
 const defaultNextBestActionReasons = [
-  "Empresa, unidade, setor e atividade já existem.",
+  "Empresa, local de trabalho, setor e atividade já existem.",
   "A próxima decisão depende da rotina real de trabalho.",
   "O PGR precisa de riscos priorizados e evidências.",
 ];
@@ -50,7 +50,7 @@ function clampProgress(value: number) {
 
 export default function Nr1WorkspaceV2Shell({
   companyName = "Empresa não selecionada",
-  establishmentName = "Unidade não selecionada",
+  establishmentName = "Local de trabalho não selecionado",
   pgrStatus = "Em construção",
   progressPercent = 20,
   progressDescription = "Base pronta. Próximo foco: mapear a rotina real de trabalho.",
@@ -100,7 +100,7 @@ export default function Nr1WorkspaceV2Shell({
                 <p className="mt-1 font-semibold">{companyName}</p>
               </div>
               <div>
-                <p className="text-xs text-white/50">Unidade</p>
+                <p className="text-xs text-white/50">Local de trabalho</p>
                 <p className="mt-1 font-semibold">{establishmentName}</p>
               </div>
               <div>
