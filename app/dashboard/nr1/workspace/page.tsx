@@ -1232,11 +1232,11 @@ useEffect(() => {
       ? {
           index: 2,
           key: "estabelecimento",
-          title: "Estabelecimento",
+          title: "Local de trabalho",
           question: "Onde esse trabalho acontece?",
-          intro: "Agora precisamos identificar a unidade que sera usada como referencia.",
-          helper: "Informe o estabelecimento para organizar os proximos passos.",
-          buttonLabel: "Salvar estabelecimento e continuar",
+          intro: "Agora precisamos identificar o local de trabalho que sera usado como referencia do PGR.",
+          helper: "Informe o local de trabalho. Na NR-1, esse local e chamado de estabelecimento.",
+          buttonLabel: "Salvar local de trabalho e continuar",
         }
       : !hasDepartment
         ? {
@@ -1273,11 +1273,11 @@ useEffect(() => {
         ? {
             index: 2,
             key: "estabelecimento",
-            title: "Estabelecimento",
+            title: "Local de trabalho",
             question: "Onde esse trabalho acontece?",
-            intro: "Agora precisamos identificar a unidade que sera usada como referencia.",
-            helper: "Informe o estabelecimento para organizar os proximos passos.",
-            buttonLabel: "Salvar estabelecimento e continuar",
+            intro: "Agora precisamos identificar o local de trabalho que sera usado como referencia do PGR.",
+            helper: "Informe o local de trabalho. Na NR-1, esse local e chamado de estabelecimento.",
+            buttonLabel: "Salvar local de trabalho e continuar",
           }
         : guidedStepKey === "setor"
           ? {
@@ -2334,14 +2334,14 @@ useEffect(() => {
       if (showGuidedSetup) {
         setGuidedStepKey("setor");
         setOnboardingMicroStepIndex(0);
-        setSuccessMessage("Estabelecimento cadastrado. Vamos para o proximo passo.");
+        setSuccessMessage("Local de trabalho cadastrado. Vamos para o proximo passo.");
       } else {
-        setSuccessMessage("Estabelecimento cadastrado.");
+        setSuccessMessage("Local de trabalho cadastrado.");
       }
       setFormStatus("saved");
     } catch (error) {
       setFormStatus("error");
-      setFormError(error instanceof Error ? error.message : "Erro ao cadastrar estabelecimento.");
+      setFormError(error instanceof Error ? error.message : "Erro ao cadastrar local de trabalho.");
     }
   }
 
@@ -2355,7 +2355,7 @@ useEffect(() => {
 
     if (!currentContext.tenantId || !currentContext.establishmentId) {
       setFormStatus("error");
-      setFormError("Selecione um estabelecimento antes.");
+      setFormError("Selecione um local de trabalho antes.");
       return;
     }
 
@@ -2436,7 +2436,7 @@ useEffect(() => {
 
     if (!currentContext.tenantId || !currentContext.establishmentId) {
       setFormStatus("error");
-      setFormError("Selecione um estabelecimento antes.");
+      setFormError("Selecione um local de trabalho antes.");
       return;
     }
 
@@ -3036,9 +3036,9 @@ useEffect(() => {
               "Revisao gerada no fechamento do diagnostico guiado.",
             reviewed_at: reviewForm.reviewed_at || new Date().toISOString(),
             generate_risk: true,
-            generated_risk_title: "Risco preliminar gerado pelo diagnostico guiado",
+            generated_risk_title: "Risco sugerido a partir da revisao dos pontos",
             generated_risk_category: "psychosocial",
-            generated_risk_source_circumstance: "Diagnóstico guiado NR-1",
+            generated_risk_source_circumstance: "Revisao dos pontos do diagnostico guiado NR-1",
             generated_risk_recommended_measure:
               "Validar o risco preliminar com responsavel tecnico e definir plano de acao inicial.",
           }),
@@ -3060,7 +3060,7 @@ useEffect(() => {
       setActionPlanForm((prev) => ({
         ...prev,
         risk_id: riskId,
-        title: prev.title || "Plano de ação inicial para risco preliminar",
+        title: prev.title || "Plano de ação inicial para risco sugerido",
         description:
           prev.description ||
           "Validar o risco preliminar gerado pelo diagnostico guiado e definir medidas de controle.",
@@ -3085,7 +3085,7 @@ useEffect(() => {
 
       await refreshAuditEvents();
 
-      setDiagnosisSuccess("Risco preliminar gerado a partir do diagnostico. O proximo passo e revisar o plano de acao inicial.");
+      setDiagnosisSuccess("Risco sugerido gerado a partir da revisao dos pontos. O proximo passo e adicionar ao inventario e revisar o plano de acao inicial.");
       setDiagnosisStatus("saved");
     } catch (error) {
       setDiagnosisStatus("error");
@@ -3494,7 +3494,7 @@ useEffect(() => {
 
   const checklistItems = [
     ["company_checked", "Empresa revisada"],
-    ["establishment_checked", "Estabelecimento selecionado"],
+    ["establishment_checked", "Local de trabalho selecionado"],
     ["departments_checked", "Setores cadastrados"],
     ["activities_checked", "Atividades cadastradas"],
     ["diagnosis_started", "Diagnostico iniciado"],
@@ -3514,12 +3514,12 @@ useEffect(() => {
             Contexto operacional ativo
           </p>
           <h2 className="mt-2 text-xl font-semibold text-[#10243e]">
-              {workspaceContextReady ? "Empresa e unidade ativas" : "Escolha a empresa e a unidade antes de avançar"}
+              {workspaceContextReady ? "Empresa e local de trabalho ativos" : "Escolha a empresa e o local de trabalho antes de avançar"}
           </h2>
           <p className="mt-1 text-sm leading-6 text-[#6f665b]">
               {workspaceContextReady
                 ? "Contexto pronto para avançar no mapeamento, riscos e PGR."
-                : "Selecione a empresa e a unidade que serão usadas no mapeamento, riscos e PGR."}
+                : "Selecione a empresa e o local de trabalho que serão usados no mapeamento, riscos e PGR."}
           </p>
         </div>
 
@@ -3544,7 +3544,7 @@ useEffect(() => {
           </label>
 
           <label className="text-sm font-semibold text-[#10243e]">
-            Estabelecimento ativo
+            Local de trabalho ativo
             <select
               value={context.establishmentId || ""}
               onChange={(event) =>
@@ -3611,7 +3611,7 @@ useEffect(() => {
 
   const workspaceV2PendingItems = [
     hasCompany ? "Empresa revisada" : "Revisar empresa",
-    hasEstablishment ? "Estabelecimento selecionado" : "Selecionar estabelecimento",
+    hasEstablishment ? "Local de trabalho selecionado" : "Selecionar local de trabalho",
     hasDepartment ? "Setores cadastrados" : "Cadastrar setor",
     hasActivity ? "Atividades cadastradas" : "Cadastrar atividade",
   ];
@@ -3638,7 +3638,7 @@ useEffect(() => {
 
   const workspaceV2NextBestActionReasons = isWorkspaceMode
     ? [
-        "Empresa, unidade, setor e atividade já existem.",
+        "Empresa, local de trabalho, setor e atividade já existem.",
         "A próxima decisão depende da rotina real de trabalho.",
         "O PGR precisa de riscos priorizados e evidências.",
       ]
@@ -4212,7 +4212,7 @@ useEffect(() => {
 
               {(!showGuidedSetup || onboardingCurrentStep.key === "estabelecimento") ? (
               <form onSubmit={handleCreateEstablishment} className={showGuidedSetup ? "mt-6" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
-                <h2 className={showGuidedSetup ? "sr-only" : "text-xl font-semibold"}>2. Estabelecimento</h2>
+                <h2 className={showGuidedSetup ? "sr-only" : "text-xl font-semibold"}>2. Local de trabalho</h2>
                 <p className="mt-1 text-sm text-slate-500">Organize a unidade onde as atividades acontecem e onde a documentacao sera estruturada.</p>
 
                 {showGuidedSetup ? (
@@ -4920,7 +4920,7 @@ useEffect(() => {
                     disabled={diagnosisStatus === "saving"}
                     className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
                   >
-                    Gerar risco preliminar
+                    Gerar risco sugerido
                   </button>
                 </div>
 
@@ -4929,7 +4929,7 @@ useEffect(() => {
                 </div>
 
                 {diagnosisRiskId ? (
-                  <p className="mt-4 text-sm text-emerald-900">Risco preliminar: {diagnosisRiskId}</p>
+                  <p className="mt-4 text-sm text-emerald-900">Risco sugerido criado e pronto para revisao no inventario.<span className="sr-only"> ID interno: {diagnosisRiskId}</span></p>
                 ) : null}
               </div>
             </section>
@@ -4939,7 +4939,7 @@ useEffect(() => {
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <h2 className="text-xl font-semibold">Riscos e plano de acao</h2>
+                    <h2 className="text-xl font-semibold">Riscos da empresa (inventario) e plano de acao</h2>
                     <p className="mt-1 max-w-3xl text-sm text-slate-500">
                       Revise os riscos encontrados, priorize o que precisa de controle e organize as acoes de melhoria.
                     </p>
@@ -4978,7 +4978,7 @@ useEffect(() => {
 
                 <div className="mt-5 grid gap-4 md:grid-cols-3">
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm text-slate-500">Riscos encontrados</p>
+                    <p className="text-sm text-slate-500">Riscos no inventario</p>
                     <p className="mt-2 text-3xl font-semibold">{risks.length}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
