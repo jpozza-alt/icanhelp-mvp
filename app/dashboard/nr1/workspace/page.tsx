@@ -1347,7 +1347,7 @@ useEffect(() => {
         ? {
             title: "Começar pela base da empresa",
             description:
-              "Organize a empresa, a unidade, o primeiro setor e a atividade principal. Com essa base pronta, a jornada segue para diagnóstico, riscos, plano de ação e evidências.",
+              "Organize a empresa, o local de trabalho, o primeiro setor e a atividade principal. Com essa base pronta, a jornada segue para diagnóstico, riscos, plano de ação e evidências.",
             action: "Ação recomendada: iniciar pela base da empresa.",
             outcome: "Resultado esperado: base pronta para o diagnóstico guiado.",
           }
@@ -1452,8 +1452,8 @@ useEffect(() => {
         ]
       : onboardingCurrentStep.key === "estabelecimento"
         ? [
-            { question: "Onde esse trabalho acontece?", helper: "Informe o nome da unidade, matriz, filial ou local principal." },
-            { question: "Em qual cidade e estado?", helper: "Isso ajuda a organizar a documentacao da unidade." },
+            { question: "Onde esse trabalho acontece?", helper: "Informe o nome do local de trabalho, como matriz, filial ou local principal." },
+            { question: "Em qual cidade e estado?", helper: "Isso ajuda a organizar a documentacao do local de trabalho." },
           ]
         : onboardingCurrentStep.key === "setor"
           ? [
@@ -1539,7 +1539,7 @@ useEffect(() => {
     if (!context.establishmentId) {
       return {
         title: "Selecionar estabelecimento",
-        helper: "Escolha a unidade que será usada como referência do diagnóstico.",
+        helper: "Escolha o local de trabalho que será usado como referência do diagnóstico.",
         metric: String(establishments.length),
       };
     }
@@ -3555,12 +3555,12 @@ useEffect(() => {
               }
               className="mt-2 w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-sm font-semibold text-[#10243e]"
             >
-              <option value="">Selecione uma unidade</option>
+              <option value="">Selecione um local de trabalho</option>
               {establishments.map((item, index) => {
                 const establishmentId = firstString(item, ["id"]);
                 return (
                   <option key={establishmentId || index} value={establishmentId || ""}>
-                    {displayName(item, `Unidade ${index + 1}`)}
+                    {displayName(item, `Local de trabalho ${index + 1}`)}
                   </option>
                 );
               })}
@@ -3577,9 +3577,9 @@ useEffect(() => {
           </strong>
         </div>
         <div className="rounded-2xl bg-[#f7efe6] px-4 py-3 text-sm">
-          <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-[#9d7b37]">Unidade</span>
+          <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-[#9d7b37]">Local de trabalho</span>
           <strong className="mt-1 block text-[#10243e]">
-            {selectedEstablishment ? displayName(selectedEstablishment, "Unidade ativa") : "Não selecionada"}
+            {selectedEstablishment ? displayName(selectedEstablishment, "Local de trabalho ativo") : "Não selecionado"}
           </strong>
         </div>
         <div className="rounded-2xl bg-[#f7efe6] px-4 py-3 text-sm">
@@ -3626,7 +3626,7 @@ useEffect(() => {
 
   const workspaceV2NextBestActionDescription = isWorkspaceMode
     ? "A base inicial está pronta. Agora o sistema deve entender como o trabalho acontece na prática para transformar essa leitura em riscos, prioridades e plano de ação."
-    : "Complete empresa, unidade, setor e atividade principal. Depois disso, a jornada segue para rotina, sinais, riscos e plano de ação.";
+    : "Complete empresa, local de trabalho, setor e atividade principal. Depois disso, a jornada segue para rotina, sinais, riscos e plano de ação.";
 
   const workspaceV2PrimaryLabel = isWorkspaceMode ? "Mapear rotina da atividade" : "Continuar base guiada";
 
@@ -3644,7 +3644,7 @@ useEffect(() => {
       ]
     : [
         "A base inicial ainda não está completa.",
-        "O PGR depende da empresa, unidade, setor e atividade.",
+        "O PGR depende da empresa, local de trabalho, setor e atividade.",
         "A próxima etapa será liberada com a base pronta.",
       ];
 
@@ -3695,7 +3695,7 @@ useEffect(() => {
               <p className="text-sm font-semibold text-[#10243e]">Primeiro passo</p>
               <ul className="mt-4 space-y-3 text-sm leading-6 text-[#6f665b]">
                 <li>Informar os dados básicos da empresa</li>
-                <li>Cadastrar a unidade analisada</li>
+                <li>Cadastrar o local de trabalho analisado</li>
                 <li>Mapear setor e atividade</li>
                 <li>Responder perguntas guiadas sobre a rotina de trabalho</li>
               </ul>
@@ -3777,7 +3777,7 @@ useEffect(() => {
       {showWorkspaceShell ? (
         <Nr1WorkspaceV2Shell
           companyName={displayName(selectedCompany, "Empresa não selecionada")}
-          establishmentName={displayName(selectedEstablishment, "Unidade não selecionada")}
+          establishmentName={displayName(selectedEstablishment, "Local de trabalho não selecionado")}
           pgrStatus={isWorkspaceMode ? "Em construção" : "Base em preparação"}
           progressPercent={progressPercent}
           progressDescription={workspaceV2ProgressDescription}
@@ -4221,7 +4221,7 @@ useEffect(() => {
                       <input
                         value={establishmentForm.name}
                         onChange={(event) => setEstablishmentForm((prev) => ({ ...prev, name: event.target.value }))}
-                        placeholder="Nome da unidade"
+                        placeholder="Nome do local de trabalho"
                         className="w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
                       />
                     ) : null}
@@ -4591,7 +4591,7 @@ useEffect(() => {
                         ))}
                       </select>
                       <p className="mt-2 text-xs leading-5 text-[#6f665b]">
-                        A análise exige estabelecimento, setor e atividade reais.
+                        A análise exige local de trabalho, setor e atividade reais.
                       </p>
 
                       <button
