@@ -1364,7 +1364,7 @@ useEffect(() => {
               description:
                 "A empresa já tem uma base inicial. O próximo passo é transformar o mapeamento em análise do trabalho, riscos priorizados, plano de ação e evidências.",
               action: "Ação recomendada: mapear a rotina real da atividade.",
-              outcome: "Resultado esperado: sinais e evidências revisados antes do risco preliminar.",
+              outcome: "Resultado esperado: sinais e evidências revisados antes do risco sugerido.",
             };
 
     return (
@@ -2694,7 +2694,7 @@ useEffect(() => {
       await refreshAuditEvents();
 
               setPsychosocialDiagnosisSaved(true);
-        setDiagnosisSuccess("Sinais observados salvos. Agora revise se há evidência suficiente para gerar risco preliminar.");
+        setDiagnosisSuccess("Sinais observados salvos. Agora revise se há evidência suficiente para gerar risco sugerido.");
         setDiagnosisStatus("saved");
     } catch (error) {
       setDiagnosisStatus("error");
@@ -2988,7 +2988,7 @@ useEffect(() => {
 
     if (!hasContextSignal) {
       setDiagnosisStatus("error");
-      setDiagnosisError("Preencha pelo menos um sinal do diagnostico ou descreva o contexto antes de gerar risco preliminar.");
+      setDiagnosisError("Preencha pelo menos um sinal do diagnostico ou descreva o contexto antes de gerar risco sugerido.");
       return;
     }
 
@@ -3040,7 +3040,7 @@ useEffect(() => {
             generated_risk_category: "psychosocial",
             generated_risk_source_circumstance: "Revisao dos pontos do diagnostico guiado NR-1",
             generated_risk_recommended_measure:
-              "Validar o risco preliminar com responsavel tecnico e definir plano de acao inicial.",
+              "Validar o risco sugerido com responsavel tecnico e definir plano de acao inicial.",
           }),
         },
         currentContext
@@ -3052,7 +3052,7 @@ useEffect(() => {
         firstString(response, ["riskId", "risk_id", "id"]);
 
       if (!riskId) {
-        throw new Error("A revisao foi salva, mas a rota nao retornou o id do risco preliminar.");
+        throw new Error("A revisao foi salva, mas a rota nao retornou o id do risco sugerido.");
       }
 
       setDiagnosisRiskId(riskId);
@@ -3063,7 +3063,7 @@ useEffect(() => {
         title: prev.title || "Plano de ação inicial para risco sugerido",
         description:
           prev.description ||
-          "Validar o risco preliminar gerado pelo diagnostico guiado e definir medidas de controle.",
+          "Validar o risco sugerido gerado pelo diagnostico guiado e definir medidas de controle.",
         priority: prev.priority || reviewForm.preliminary_priority || "medium",
         due_date: prev.due_date || isoDatePlusDays(30),
         responsible_name: prev.responsible_name || "Gestao da empresa",
@@ -3089,7 +3089,7 @@ useEffect(() => {
       setDiagnosisStatus("saved");
     } catch (error) {
       setDiagnosisStatus("error");
-      setDiagnosisError(error instanceof Error ? error.message : "Erro ao gerar risco preliminar a partir do diagnostico.");
+      setDiagnosisError(error instanceof Error ? error.message : "Erro ao gerar risco sugerido a partir do diagnostico.");
     }
   }
   const loadRisks = useCallback(async (nextContext: BackendContext): Promise<SimpleEntity[]> => {
@@ -4213,7 +4213,7 @@ useEffect(() => {
               {(!showGuidedSetup || onboardingCurrentStep.key === "estabelecimento") ? (
               <form onSubmit={handleCreateEstablishment} className={showGuidedSetup ? "mt-6" : "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"}>
                 <h2 className={showGuidedSetup ? "sr-only" : "text-xl font-semibold"}>2. Local de trabalho</h2>
-                <p className="mt-1 text-sm text-slate-500">Organize a unidade onde as atividades acontecem e onde a documentacao sera estruturada.</p>
+                <p className="mt-1 text-sm text-slate-500">Organize o local de trabalho onde as atividades acontecem e onde a documentacao sera estruturada.</p>
 
                 {showGuidedSetup ? (
                   <div className="mt-5">
@@ -4717,7 +4717,7 @@ useEffect(() => {
                         onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, has_external_work: event.target.checked }))}
                         className="h-4 w-4 rounded border-[#d9c9b8] accent-[#10243e]"
                       />
-                      <span>Parte do trabalho ocorre fora da empresa ou unidade</span>
+                      <span>Parte do trabalho ocorre fora da empresa ou local de trabalho</span>
                     </label>
                     <label className="flex items-center gap-3 rounded-2xl border border-[#eadfce] bg-[#fffaf6] px-4 py-3">
                       <input
@@ -4890,7 +4890,7 @@ useEffect(() => {
                           Etapa 03
                         </p>
                         <h3 className="mt-2 text-2xl font-semibold text-[#10243e]">
-                          Revisar sinais e gerar risco preliminar
+                          Revisar sinais e gerar risco sugerido
                         </h3>
                         <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
                           Esta etapa será liberada depois que os sinais observados forem salvos.
@@ -4909,9 +4909,9 @@ useEffect(() => {
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-800">
                       Etapa 03
                     </p>
-                    <h3 className="mt-2 text-2xl font-semibold text-emerald-950">Revisar sinais e gerar risco preliminar</h3>
+                    <h3 className="mt-2 text-2xl font-semibold text-emerald-950">Revisar sinais e gerar risco sugerido</h3>
                     <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-900">
-                      Consolida a revisão dos sinais e prepara um risco preliminar vinculado à atividade, setor e estabelecimento.
+                      Consolida a revisão dos sinais e prepara um risco sugerido vinculado à atividade, setor e local de trabalho.
                     </p>
                   </div>
                   <button
@@ -4925,7 +4925,7 @@ useEffect(() => {
                 </div>
 
                 <div className="mt-5 rounded-2xl border border-emerald-200 bg-white/70 p-4 text-sm text-emerald-950">
-                  Depois da revisão, o sistema gera um risco preliminar para conferência antes do plano de ação.
+                  Depois da revisão, o sistema gera um risco sugerido para conferência antes de adicionar ao inventário e revisar o plano de ação.
                 </div>
 
                 {diagnosisRiskId ? (
