@@ -112,6 +112,70 @@ function getExceptionMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
+function workspaceSelectionStorageKey(tenantId: string): string {
+  return "nr1_workspace_selection:" + tenantId;
+}
+
+function getStoredWorkspaceEstablishmentId(tenantId: string): string {
+  if (!tenantId || typeof window === "undefined") {
+    return "";
+  }
+
+  try {
+    const raw = window.localStorage.getItem(workspaceSelectionStorageKey(tenantId));
+    if (!raw) {
+      return "";
+    }
+
+    const parsed = JSON.parse(raw) as unknown;
+    const record = asApiRecord(parsed);
+    return String(record.establishmentId || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function setStoredWorkspaceEstablishmentId(tenantId: string, establishmentId: string): void {
+  if (!tenantId || !establishmentId || typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(workspaceSelectionStorageKey(tenantId));
+    const parsed = raw ? (JSON.parse(raw) as unknown) : {};
+    const current = asApiRecord(parsed);
+
+    window.localStorage.setItem(
+      workspaceSelectionStorageKey(tenantId),
+      JSON.stringify({
+        ...current,
+        establishmentId,
+      })
+    );
+  } catch {
+    window.localStorage.setItem(
+      workspaceSelectionStorageKey(tenantId),
+      JSON.stringify({ establishmentId })
+    );
+  }
+}
+
+function findValidEstablishmentId(establishments: EstablishmentItem[], establishmentId: string): string {
+  const normalized = establishmentId.trim();
+  return establishments.some((item) => item.id === normalized) ? normalized : "";
+}
+
+function updateUrlEstablishmentId(establishmentId: string): void {
+  if (!establishmentId || typeof window === "undefined") {
+    return;
+  }
+
+  const url = new URL(window.location.href);
+  url.searchParams.set("establishmentId", establishmentId);
+  url.searchParams.delete("establishment_id");
+  window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+}
+
 function parseTenants(payload: unknown): TenantOption[] {
   const raw = getPayloadItems(payload);
 
@@ -466,8 +530,12 @@ const pendingValidationCount = useMemo(() => {
           return;
         }
 
-        const urlEstablishment = parsedEstablishments.find((item) => item.id === urlEstablishmentId);
-        setSelectedEstablishmentId(urlEstablishment?.id || parsedEstablishments[0].id);
+        const nextSelectedEstablishmentId =
+          findValidEstablishmentId(parsedEstablishments, urlEstablishmentId) ||
+          findValidEstablishmentId(parsedEstablishments, getStoredWorkspaceEstablishmentId(tenantId)) ||
+          parsedEstablishments[0].id;
+
+        setSelectedEstablishmentId(nextSelectedEstablishmentId);
       } catch (e: unknown) {
         setError(getExceptionMessage(e, "Falha ao carregar estabelecimentos."));
       } finally {
@@ -745,6 +813,12 @@ const pendingValidationCount = useMemo(() => {
     }
   }
 
+  function handleSelectedEstablishmentChange(establishmentId: string) {
+    setSelectedEstablishmentId(establishmentId);
+    setStoredWorkspaceEstablishmentId(tenantId, establishmentId);
+    updateUrlEstablishmentId(establishmentId);
+  }
+
   return (
     <Nr1WorkspaceV2Shell
       companyName={selectedTenant?.name || "Empresa não selecionada"}
@@ -847,7 +921,7 @@ const pendingValidationCount = useMemo(() => {
               <label className="text-sm font-semibold text-[#22313F]">Estabelecimento selecionado</label>
               <select
                 value={selectedEstablishmentId}
-                onChange={(e) => setSelectedEstablishmentId(e.target.value)}
+                onChange={(e) => handleSelectedEstablishmentChange(e.target.value)}
                 className={inputClassName}
                 disabled={loadingEstablishments || establishments.length === 0}
               >
