@@ -49,6 +49,17 @@ type FollowupItem = {
   created_at?: string | null;
   updated_at?: string | null;
 };
+type AuditEventItem = {
+  id: string;
+  event_type?: string | null;
+  title?: string | null;
+  entity_type?: string | null;
+  entity_id?: string | null;
+  persistence_type?: string | null;
+  reason?: string | null;
+  created_at?: string | null;
+  source?: string | null;
+};
 
 const supabaseSectionClass =
   "rounded-3xl border border-[#D9E0E7] bg-white p-6 shadow-[0_18px_50px_rgba(34,49,63,0.08)]";
@@ -209,6 +220,24 @@ function getStatusBadgeClass(value: string | null | undefined) {
   }
 }
 
+
+function parseAuditEvents(payload: unknown): AuditEventItem[] {
+  const raw = asArray(asRecord(payload).items);
+
+  return raw
+    .map((item) => ({
+      id: String(item?.id ?? "").trim(),
+      event_type: item?.event_type ? String(item.event_type) : null,
+      title: item?.title ? String(item.title) : null,
+      entity_type: item?.entity_type ? String(item.entity_type) : null,
+      entity_id: item?.entity_id ? String(item.entity_id) : null,
+      persistence_type: item?.persistence_type ? String(item.persistence_type) : null,
+      reason: item?.reason ? String(item.reason) : null,
+      created_at: item?.created_at ? String(item.created_at) : null,
+      source: item?.source ? String(item.source) : null,
+    }))
+    .filter((item: AuditEventItem) => item.id);
+}
 export default function Nr1TrilhaAcompanhamentoPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -221,10 +250,12 @@ export default function Nr1TrilhaAcompanhamentoPage() {
   const [actionPlans, setActionPlans] = useState<ActionPlanItem[]>([]);
   const [selectedActionPlanId, setSelectedActionPlanId] = useState("");
   const [followups, setFollowups] = useState<FollowupItem[]>([]);
+  const [auditEvents, setAuditEvents] = useState<AuditEventItem[]>([]);
   const [loadingSession, setLoadingSession] = useState(true);
   const [loadingEstablishments, setLoadingEstablishments] = useState(false);
   const [loadingActionPlans, setLoadingActionPlans] = useState(false);
   const [loadingFollowups, setLoadingFollowups] = useState(false);
+  const [loadingAuditEvents, setLoadingAuditEvents] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [saving, setSaving] = useState(false);
@@ -425,6 +456,53 @@ export default function Nr1TrilhaAcompanhamentoPage() {
     })();
   }, [jwt, tenantId, selectedEstablishmentId]);
 
+  useEffect(() => {
+    if (!jwt || !tenantId || !selectedEstablishmentId) {
+      setAuditEvents([]);
+      return;
+    }
+
+    (async () => {
+      setLoadingAuditEvents(true);
+      setError("");
+
+      try {
+        const response = await fetch(
+          "/api/nr1/audit-events?tenantId=" +
+            encodeURIComponent(tenantId) +
+            "&establishmentId=" +
+            encodeURIComponent(selectedEstablishmentId) +
+            "&limit=50",
+          {
+            method: "GET",
+            headers: {
+              Authorization: "Bearer " + jwt,
+              "x-tenant-id": tenantId,
+              "x-establishment-id": selectedEstablishmentId,
+            },
+            cache: "no-store",
+          }
+        );
+
+        const payload = await readJsonSafe(response);
+
+        if (!response.ok) {
+          const message =
+            payload?.message ||
+            payload?.error ||
+            "Falha ao carregar eventos formais da trilha.";
+          throw new Error(String(message));
+        }
+
+        setAuditEvents(parseAuditEvents(payload));
+      } catch (error: unknown) {
+        setAuditEvents([]);
+        setError(getErrorMessage(error, "Falha ao carregar eventos formais da trilha."));
+      } finally {
+        setLoadingAuditEvents(false);
+      }
+    })();
+  }, [jwt, tenantId, selectedEstablishmentId]);
   useEffect(() => {
     if (!jwt || !tenantId || !selectedEstablishmentId || !selectedActionPlanId) {
       setFollowups([]);
@@ -964,6 +1042,90 @@ export default function Nr1TrilhaAcompanhamentoPage() {
         </section>
 
         <section className={supabaseSectionClass}>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+            trilha formal
+          </div>
+          <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
+            Eventos formais do processo.
+          </h3>
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-[#5B6B79]">
+            Esta lista le a rota formal /api/nr1/audit-events, filtrada por tenant e estabelecimento.
+            Ela mostra eventos gravados na tabela nr1_audit_events, incluindo criacao e arquivamento de evidencias.
+          </p>
+
+          <div className="mt-5 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
+              eventos formais
+            </div>
+            <div className="mt-2 text-2xl font-semibold text-[#22313F]">{auditEvents.length}</div>
+          </div>
+
+          {loadingAuditEvents ? (
+            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
+              Buscando registros em /api/nr1/audit-events...
+            </p>
+          ) : auditEvents.length === 0 ? (
+            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
+              Nenhum evento formal encontrado para o estabelecimento selecionado.
+            </p>
+          ) : (
+            <div className="mt-4 space-y-4">
+              {auditEvents.map((item, index) => (
+                <article
+                  key={item.id}
+                  className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-5"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#5E7A96]">
+                        evento formal {index + 1}
+                      </div>
+                      <h3 className="mt-2 text-lg font-semibold text-[#22313F]">
+                        {item.title || item.event_type || "Evento formal"}
+                      </h3>
+                      <p className="mt-2 text-sm leading-7 text-[#5B6B79]">
+                        {item.created_at
+                          ? new Date(item.created_at).toLocaleString("pt-BR")
+                          : "Data nao informada"}
+                      </p>
+                    </div>
+
+                    <span className="rounded-full border border-[#D9E0E7] bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#5E7A96]">
+                      {item.persistence_type || "registro"}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="rounded-2xl border border-[#D9E0E7] bg-white p-4 text-sm leading-7 text-[#5B6B79]">
+                      <span className="font-semibold text-[#22313F]">Tipo do evento:</span>{" "}
+                      {item.event_type || "Nao informado"}
+                    </div>
+
+                    <div className="rounded-2xl border border-[#D9E0E7] bg-white p-4 text-sm leading-7 text-[#5B6B79]">
+                      <span className="font-semibold text-[#22313F]">Entidade:</span>{" "}
+                      {item.entity_type || "Nao informada"}
+                    </div>
+
+                    <div className="rounded-2xl border border-[#D9E0E7] bg-white p-4 text-sm leading-7 text-[#5B6B79]">
+                      <span className="font-semibold text-[#22313F]">Motivo:</span>{" "}
+                      {item.reason || "Nao informado"}
+                    </div>
+
+                    <div className="rounded-2xl border border-[#D9E0E7] bg-white p-4 text-sm leading-7 text-[#5B6B79]">
+                      <span className="font-semibold text-[#22313F]">Origem:</span>{" "}
+                      {item.source || "nr1_audit_events"}
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-6 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
+            Followups continuam sendo registros operacionais por action-plan. A trilha formal agora vem de nr1_audit_events.
+          </div>
+        </section>
+        <section className={supabaseSectionClass}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
@@ -988,5 +1150,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
     </AppShell>
   );
 }
+
+
 
 
