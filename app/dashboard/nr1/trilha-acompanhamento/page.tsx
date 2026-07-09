@@ -238,6 +238,161 @@ function parseAuditEvents(payload: unknown): AuditEventItem[] {
     }))
     .filter((item: AuditEventItem) => item.id);
 }
+
+function auditEventHumanTitle(item: AuditEventItem): string {
+  const eventType = item.event_type || "";
+
+  if (eventType.includes("evidence_item_archived")) {
+    return "Evidência arquivada";
+  }
+
+  if (eventType.includes("evidence_item_created")) {
+    return "Evidência adicionada";
+  }
+
+  if (eventType.includes("action_plan_created")) {
+    return "Plano de ação criado";
+  }
+
+  if (eventType.includes("risk_generated") || eventType.includes("risk_updated")) {
+    return "Risco revisado no diagnóstico";
+  }
+
+  if (eventType.includes("diagnosis_session_started")) {
+    return "Diagnóstico iniciado";
+  }
+
+  if (eventType.includes("diagnosis_context_saved")) {
+    return "Contexto do diagnóstico salvo";
+  }
+
+  if (eventType.includes("diagnosis_psychosocial_saved")) {
+    return "Etapa psicossocial registrada";
+  }
+
+  if (eventType.includes("activity_created")) {
+    return "Atividade cadastrada";
+  }
+
+  if (eventType.includes("department_created")) {
+    return "Setor cadastrado";
+  }
+
+  if (eventType.includes("establishment_created")) {
+    return "Local de trabalho cadastrado";
+  }
+
+  if (eventType.includes("workspace_opened")) {
+    return "Jornada aberta";
+  }
+
+  if (eventType.includes("workspace_draft_saved")) {
+    return "Rascunho salvo";
+  }
+
+  return item.title || "Movimentação registrada";
+}
+
+function auditEventHumanDescription(item: AuditEventItem): string {
+  const eventType = item.event_type || "";
+  const persistenceType = item.persistence_type || "";
+
+  if (eventType.includes("evidence_item_archived")) {
+    return "Uma evidência foi retirada da lista principal, mantendo rastreabilidade para consulta.";
+  }
+
+  if (eventType.includes("evidence_item_created")) {
+    return "Uma evidência foi vinculada ao processo de adequação.";
+  }
+
+  if (eventType.includes("action_plan_created")) {
+    return "Um plano de ação foi criado para tratar um risco identificado.";
+  }
+
+  if (eventType.includes("risk_generated") || eventType.includes("risk_updated")) {
+    return "O diagnóstico gerou ou atualizou um risco para revisão no GRO/PGR.";
+  }
+
+  if (eventType.includes("diagnosis")) {
+    return "Uma etapa do diagnóstico guiado foi registrada.";
+  }
+
+  if (eventType.includes("activity_created")) {
+    return "Uma atividade foi cadastrada na estrutura do local de trabalho.";
+  }
+
+  if (eventType.includes("department_created")) {
+    return "Um setor foi cadastrado na estrutura da empresa.";
+  }
+
+  if (eventType.includes("establishment_created")) {
+    return "Um local de trabalho foi cadastrado na jornada.";
+  }
+
+  if (eventType.includes("workspace")) {
+    return "A jornada foi acessada ou salva como rascunho.";
+  }
+
+  if (persistenceType === "draft") {
+    return "Registro de rascunho da jornada.";
+  }
+
+  return "Movimentação formal registrada na trilha do processo.";
+}
+
+function auditEventHumanArea(item: AuditEventItem): string {
+  const eventType = item.event_type || "";
+  const entityType = item.entity_type || "";
+
+  if (eventType.includes("evidence") || entityType.includes("evidence")) {
+    return "Evidências";
+  }
+
+  if (eventType.includes("action_plan") || entityType.includes("action_plan")) {
+    return "Plano de ação";
+  }
+
+  if (eventType.includes("risk") || entityType.includes("risk")) {
+    return "Riscos e diagnóstico";
+  }
+
+  if (eventType.includes("diagnosis")) {
+    return "Diagnóstico guiado";
+  }
+
+  if (eventType.includes("department")) {
+    return "Setores";
+  }
+
+  if (eventType.includes("activity")) {
+    return "Atividades";
+  }
+
+  if (eventType.includes("establishment")) {
+    return "Locais de trabalho";
+  }
+
+  return "Jornada GRO/PGR";
+}
+
+function auditEventHumanBadge(item: AuditEventItem): string {
+  if (item.persistence_type === "draft") {
+    return "Rascunho";
+  }
+
+  return "Registro formal";
+}
+
+function auditEventTechnicalSummary(item: AuditEventItem): string {
+  return [
+    item.event_type ? "evento=" + item.event_type : null,
+    item.entity_type ? "entidade=" + item.entity_type : null,
+    item.reason ? "motivo=" + item.reason : null,
+    item.source ? "fonte=" + item.source : null,
+  ]
+    .filter(Boolean)
+    .join(" | ");
+}
 export default function Nr1TrilhaAcompanhamentoPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -472,7 +627,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             encodeURIComponent(tenantId) +
             "&establishmentId=" +
             encodeURIComponent(selectedEstablishmentId) +
-            "&limit=50",
+            "&limit=12",
           {
             method: "GET",
             headers: {
@@ -1043,10 +1198,10 @@ export default function Nr1TrilhaAcompanhamentoPage() {
 
         <section className={supabaseSectionClass}>
           <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
-            trilha formal
+            trilha do processo
           </div>
           <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
-            Eventos formais do processo.
+            Últimas movimentações registradas.
           </h3>
           <p className="mt-4 max-w-3xl text-sm leading-7 text-[#5B6B79]">
             Esta lista le a rota formal /api/nr1/audit-events, filtrada por tenant e estabelecimento.
@@ -1055,7 +1210,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
 
           <div className="mt-5 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
             <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
-              eventos formais
+              movimentações recentes
             </div>
             <div className="mt-2 text-2xl font-semibold text-[#22313F]">{auditEvents.length}</div>
           </div>
@@ -1070,7 +1225,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             </p>
           ) : (
             <div className="mt-4 space-y-4">
-              {auditEvents.map((item, index) => (
+              {auditEvents.slice(0, 8).map((item, index) => (
                 <article
                   key={item.id}
                   className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-5"
@@ -1078,10 +1233,10 @@ export default function Nr1TrilhaAcompanhamentoPage() {
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#5E7A96]">
-                        evento formal {index + 1}
+                        movimentação {index + 1}
                       </div>
                       <h3 className="mt-2 text-lg font-semibold text-[#22313F]">
-                        {item.title || item.event_type || "Evento formal"}
+                        {auditEventHumanTitle(item)}
                       </h3>
                       <p className="mt-2 text-sm leading-7 text-[#5B6B79]">
                         {item.created_at
@@ -1091,30 +1246,29 @@ export default function Nr1TrilhaAcompanhamentoPage() {
                     </div>
 
                     <span className="rounded-full border border-[#D9E0E7] bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#5E7A96]">
-                      {item.persistence_type || "registro"}
+                      {auditEventHumanBadge(item)}
                     </span>
                   </div>
 
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <div className="rounded-2xl border border-[#D9E0E7] bg-white p-4 text-sm leading-7 text-[#5B6B79]">
-                      <span className="font-semibold text-[#22313F]">Tipo do evento:</span>{" "}
-                      {item.event_type || "Nao informado"}
+                    <div className="rounded-2xl border border-[#D9E0E7] bg-white p-4 text-sm leading-7 text-[#5B6B79] md:col-span-2">
+                      <span className="font-semibold text-[#22313F]">O que aconteceu:</span>{" "}
+                      {auditEventHumanDescription(item)}
                     </div>
 
                     <div className="rounded-2xl border border-[#D9E0E7] bg-white p-4 text-sm leading-7 text-[#5B6B79]">
-                      <span className="font-semibold text-[#22313F]">Entidade:</span>{" "}
-                      {item.entity_type || "Nao informada"}
+                      <span className="font-semibold text-[#22313F]">Área da jornada:</span>{" "}
+                      {auditEventHumanArea(item)}
                     </div>
 
-                    <div className="rounded-2xl border border-[#D9E0E7] bg-white p-4 text-sm leading-7 text-[#5B6B79]">
-                      <span className="font-semibold text-[#22313F]">Motivo:</span>{" "}
-                      {item.reason || "Nao informado"}
-                    </div>
-
-                    <div className="rounded-2xl border border-[#D9E0E7] bg-white p-4 text-sm leading-7 text-[#5B6B79]">
-                      <span className="font-semibold text-[#22313F]">Origem:</span>{" "}
-                      {item.source || "nr1_audit_events"}
-                    </div>
+                    <details className="rounded-2xl border border-[#D9E0E7] bg-white p-4 text-sm leading-7 text-[#5B6B79]">
+                      <summary className="cursor-pointer font-semibold text-[#22313F]">
+                        Ver detalhe técnico
+                      </summary>
+                      <div className="mt-3 break-words text-xs leading-6 text-[#5B6B79]">
+                        {auditEventTechnicalSummary(item) || "Detalhe técnico não informado."}
+                      </div>
+                    </details>
                   </div>
                 </article>
               ))}
@@ -1122,7 +1276,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
           )}
 
           <div className="mt-6 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
-            Followups continuam sendo registros operacionais por action-plan. A trilha formal agora vem de nr1_audit_events.
+            A tela mostra primeiro o que o RH precisa entender. Os registros técnicos permanecem disponíveis em detalhes, sem poluir a leitura principal.
           </div>
         </section>
         <section className={supabaseSectionClass}>
@@ -1150,6 +1304,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
     </AppShell>
   );
 }
+
 
 
 
