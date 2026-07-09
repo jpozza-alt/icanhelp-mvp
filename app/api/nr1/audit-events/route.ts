@@ -1,370 +1,228 @@
-import { NextRequest, NextResponse } from "next/server"
-import {
-  Nr1AuditEventInsert,
-  Nr1AuditEventRow,
-} from "@/lib/nr1-db-types"
-import {
-  createNr1AdminClient,
-  resolveNr1Scope,
-  Nr1ScopeError,
-} from "@/lib/server/nr1-scope"
+import { NextResponse, type NextRequest } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "../../../../src/lib/database.types";
 
-type AuditEventsBody = {
-  establishment_id?: string | null
-  module_name?: string | null
-  screen_key?: string | null
-  entity_type?: string | null
-  entity_id?: string | null
-  event_type?: string | null
-  old_value_json?: unknown
-  new_value_json?: unknown
-  persistence_type?: string | null
-  reason?: string | null
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+type AuditEventRow = Record<string, unknown>;
+
+const tenantHeaderNames = [
+  "x-tenant-id",
+  "x-icanhelp-tenant-id",
+  "icanhelp-tenant-id",
+];
+
+const establishmentHeaderNames = [
+  "x-establishment-id",
+  "x-icanhelp-establishment-id",
+  "icanhelp-establishment-id",
+];
+
+function json(status: number, body: Record<string, unknown>) {
+  return NextResponse.json(body, { status });
 }
 
-type AuditValueJson = Nr1AuditEventInsert["new_value_json"]
+function firstHeader(request: NextRequest, names: string[]) {
+  for (const name of names) {
+    const value = request.headers.get(name);
 
-function jsonResponse(payload: unknown, status = 200) {
-  return NextResponse.json(payload, { status })
+    if (value && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return null;
 }
 
-function cleanText(value: unknown): string {
-  if (typeof value !== "string") return ""
-  return value.trim()
+function firstSearchParam(request: NextRequest, names: string[]) {
+  for (const name of names) {
+    const value = request.nextUrl.searchParams.get(name);
+
+    if (value && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return null;
 }
 
-function normalizeAuditJson(value: unknown): AuditValueJson {
-  return (value ?? null) as AuditValueJson
+function requiredSearchOrHeader(
+  request: NextRequest,
+  searchNames: string[],
+  headerNames: string[],
+) {
+  return (
+    firstSearchParam(request, searchNames) ??
+    firstHeader(request, headerNames)
+  );
 }
 
-function getTenantId(req: NextRequest): string {
-  const queryValue = cleanText(req.nextUrl.searchParams.get("tenantId"))
-  const headerValue = cleanText(req.headers.get("x-icanhelp-tenant"))
-
-  return queryValue || headerValue
+function optionalSearchParam(request: NextRequest, names: string[]) {
+  return firstSearchParam(request, names);
 }
 
-function getEstablishmentId(req: NextRequest): string {
-  return cleanText(req.nextUrl.searchParams.get("establishmentId"))
+function parseLimit(request: NextRequest) {
+  const raw = request.nextUrl.searchParams.get("limit");
+
+  if (!raw) {
+    return 100;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return 100;
+  }
+
+  return Math.min(parsed, 300);
 }
 
-function getScreenKey(req: NextRequest): string {
-  return cleanText(req.nextUrl.searchParams.get("screenKey"))
+function humanizeAuditEvent(row: AuditEventRow) {
+  const eventType = String(row.event_type ?? "");
+  const entityType = String(row.entity_type ?? "");
+
+  if (eventType === "nr1_evidence_item_archived") {
+    return "Evidencia arquivada";
+  }
+
+  if (eventType.length > 0 && entityType.length > 0) {
+    return `${eventType} em ${entityType}`;
+  }
+
+  if (eventType.length > 0) {
+    return eventType;
+  }
+
+  return "Evento de auditoria";
 }
 
-function getEntityType(req: NextRequest): string {
-  return cleanText(req.nextUrl.searchParams.get("entityType"))
+function normalizeAuditEvent(row: AuditEventRow) {
+  return {
+    id: row.id ?? null,
+    tenant_id: row.tenant_id ?? null,
+    establishment_id: row.establishment_id ?? null,
+    module_name: row.module_name ?? null,
+    screen_key: row.screen_key ?? null,
+    entity_type: row.entity_type ?? null,
+    entity_id: row.entity_id ?? null,
+    event_type: row.event_type ?? null,
+    old_value_json: row.old_value_json ?? null,
+    new_value_json: row.new_value_json ?? null,
+    persistence_type: row.persistence_type ?? null,
+    user_id: row.user_id ?? null,
+    reason: row.reason ?? null,
+    created_at: row.created_at ?? null,
+    title: humanizeAuditEvent(row),
+    source: "nr1_audit_events",
+  };
 }
 
-function getEntityId(req: NextRequest): string {
-  return cleanText(req.nextUrl.searchParams.get("entityId"))
-}
+export async function GET(request: NextRequest) {
+  const authorization = request.headers.get("authorization") ?? "";
+  const authorizationLower = authorization.toLowerCase();
 
-function getEventType(req: NextRequest): string {
-  return cleanText(req.nextUrl.searchParams.get("eventType"))
-}
+  if (!authorizationLower.startsWith("bearer ")) {
+    return json(401, {
+      ok: false,
+      error: "missing_bearer_token",
+    });
+  }
 
-function getPersistenceType(req: NextRequest): string {
-  return cleanText(req.nextUrl.searchParams.get("persistenceType"))
-}
-
-function getLimit(req: NextRequest): number {
-  const raw = cleanText(req.nextUrl.searchParams.get("limit"))
-  const parsed = Number(raw)
-  if (!Number.isFinite(parsed) || parsed <= 0) return 50
-  return Math.min(parsed, 200)
-}
-
-function normalizePersistenceType(value: string): string {
-  if (value === "formal") return "formal_version"
-  return value
-}
-
-function isAllowedPersistenceType(value: string): boolean {
-  const normalized = normalizePersistenceType(value)
-  return normalized === "draft" || normalized === "formal_version"
-}
-
-export async function GET(req: NextRequest) {
-  const tenantId = getTenantId(req)
-  const establishmentId = getEstablishmentId(req)
-  const screenKey = getScreenKey(req)
-  const entityType = getEntityType(req)
-  const entityId = getEntityId(req)
-  const eventType = getEventType(req)
-  const persistenceType = normalizePersistenceType(getPersistenceType(req))
-  const limit = getLimit(req)
+  const tenantId = requiredSearchOrHeader(
+    request,
+    ["tenantId", "tenant_id"],
+    tenantHeaderNames,
+  );
 
   if (!tenantId) {
-    return jsonResponse(
-      {
-        error: "missing_tenant_id",
-        message: "Provide tenantId in querystring or x-icanhelp-tenant header",
-      },
-      400,
-    )
+    return json(400, {
+      ok: false,
+      error: "missing_tenant_id",
+    });
   }
+
+  const establishmentId = requiredSearchOrHeader(
+    request,
+    ["establishmentId", "establishment_id"],
+    establishmentHeaderNames,
+  );
 
   if (!establishmentId) {
-    return jsonResponse(
-      {
-        error: "missing_establishment_id",
-        message: "Provide establishmentId in querystring",
-      },
-      400,
-    )
+    return json(400, {
+      ok: false,
+      error: "missing_establishment_id",
+    });
   }
 
-  if (persistenceType && !isAllowedPersistenceType(persistenceType)) {
-    return jsonResponse(
-      {
-        error: "invalid_persistence_type",
-        message: "persistenceType must be draft, formal, or formal_version",
-      },
-      400,
-    )
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+
+  const supabaseAnonKey =
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return json(500, {
+      ok: false,
+      error: "missing_supabase_public_env",
+    });
   }
 
-  try {
-    const scope = await resolveNr1Scope({
-      req,
-      tenantId,
-      establishmentId,
-    })
-
-    const adminClient = createNr1AdminClient()
-
-    let query = adminClient
-      .from("nr1_audit_events")
-      .select("*")
-      .eq("tenant_id", scope.tenantId)
-      .eq("establishment_id", establishmentId)
-
-    if (screenKey) {
-      query = query.eq("screen_key", screenKey)
-    }
-
-    if (entityType) {
-      query = query.eq("entity_type", entityType)
-    }
-
-    if (entityId) {
-      query = query.eq("entity_id", entityId)
-    }
-
-    if (eventType) {
-      query = query.eq("event_type", eventType)
-    }
-
-    if (persistenceType) {
-      query = query.eq("persistence_type", persistenceType)
-    }
-
-    const result = await query
-      .order("created_at", { ascending: false })
-      .limit(limit)
-
-    if (result.error) {
-      return jsonResponse(
-        {
-          error: "nr1_audit_events_list_failed",
-          message: result.error.message,
-        },
-        500,
-      )
-    }
-
-    const rows = (result.data || []) as Nr1AuditEventRow[]
-
-    return jsonResponse({
-      data: rows,
-      meta: {
-        tenantId: scope.tenantId,
-        establishmentId,
-        membershipRole: scope.role,
-        count: rows.length,
+  const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+    global: {
+      headers: {
+        Authorization: authorization,
       },
-    })
-  } catch (error) {
-    if (error instanceof Nr1ScopeError) {
-      return jsonResponse(
-        {
-          error: error.code,
-          message: error.message,
-        },
-        error.status,
-      )
-    }
+    },
+  });
 
-    const message = error instanceof Error ? error.message : "Unexpected nr1 audit-events GET error"
-    return jsonResponse(
-      {
-        error: "nr1_audit_events_get_unexpected",
-        message,
-      },
-      500,
-    )
+  const limit = parseLimit(request);
+  const entityType = optionalSearchParam(request, ["entityType", "entity_type"]);
+  const entityId = optionalSearchParam(request, ["entityId", "entity_id"]);
+  const eventType = optionalSearchParam(request, ["eventType", "event_type"]);
+
+  let query = supabase
+    .from("nr1_audit_events")
+    .select("*")
+    .eq("tenant_id", tenantId)
+    .eq("establishment_id", establishmentId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (entityType) {
+    query = query.eq("entity_type", entityType);
   }
+
+  if (entityId) {
+    query = query.eq("entity_id", entityId);
+  }
+
+  if (eventType) {
+    query = query.eq("event_type", eventType);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    return json(500, {
+      ok: false,
+      error: "audit_events_query_failed",
+      details: error.message,
+    });
+  }
+
+  const rows = (data ?? []) as AuditEventRow[];
+
+  return json(200, {
+    ok: true,
+    source: "nr1_audit_events",
+    tenantId,
+    establishmentId,
+    count: rows.length,
+    items: rows.map(normalizeAuditEvent),
+  });
 }
-
-export async function POST(req: NextRequest) {
-  const tenantId = getTenantId(req)
-
-  if (!tenantId) {
-    return jsonResponse(
-      {
-        error: "missing_tenant_id",
-        message: "Provide tenantId in querystring or x-icanhelp-tenant header",
-      },
-      400,
-    )
-  }
-
-  let body: AuditEventsBody
-  try {
-    body = (await req.json()) as AuditEventsBody
-  } catch {
-    return jsonResponse(
-      {
-        error: "invalid_json",
-        message: "Request body must be valid JSON",
-      },
-      400,
-    )
-  }
-
-  const establishmentId = cleanText(body.establishment_id)
-  const entityType = cleanText(body.entity_type)
-  const entityId = cleanText(body.entity_id)
-  const eventType = cleanText(body.event_type)
-  const persistenceType = normalizePersistenceType(cleanText(body.persistence_type))
-  const moduleName = cleanText(body.module_name) || "nr1"
-  const screenKey = cleanText(body.screen_key)
-  const reason = cleanText(body.reason)
-
-  if (!establishmentId) {
-    return jsonResponse(
-      {
-        error: "missing_establishment_id",
-        message: "establishment_id is required",
-      },
-      400,
-    )
-  }
-
-  if (!entityType) {
-    return jsonResponse(
-      {
-        error: "missing_entity_type",
-        message: "entity_type is required",
-      },
-      400,
-    )
-  }
-
-  if (!entityId) {
-    return jsonResponse(
-      {
-        error: "missing_entity_id",
-        message: "entity_id is required",
-      },
-      400,
-    )
-  }
-
-  if (!eventType) {
-    return jsonResponse(
-      {
-        error: "missing_event_type",
-        message: "event_type is required",
-      },
-      400,
-    )
-  }
-
-  if (!isAllowedPersistenceType(persistenceType)) {
-    return jsonResponse(
-      {
-        error: "invalid_persistence_type",
-        message: "persistence_type must be draft, formal, or formal_version",
-      },
-      400,
-    )
-  }
-
-  try {
-    const scope = await resolveNr1Scope({
-      req,
-      tenantId,
-      establishmentId,
-    })
-
-    const adminClient = createNr1AdminClient()
-
-    const insertPayload: Nr1AuditEventInsert = {
-      tenant_id: scope.tenantId,
-      establishment_id: establishmentId,
-      module_name: moduleName,
-      screen_key: screenKey || null,
-      entity_type: entityType,
-      entity_id: entityId,
-      event_type: eventType,
-      old_value_json: normalizeAuditJson(body.old_value_json),
-      new_value_json: normalizeAuditJson(body.new_value_json),
-      persistence_type: persistenceType,
-      reason: reason || null,
-      user_id: scope.membership.user_id,
-    }
-
-    const insertResult = await adminClient
-      .from("nr1_audit_events")
-      .insert(insertPayload)
-      .select("*")
-
-    if (insertResult.error) {
-      return jsonResponse(
-        {
-          error: "nr1_audit_events_insert_failed",
-          message: insertResult.error.message,
-        },
-        500,
-      )
-    }
-
-    const rows = (insertResult.data || []) as Nr1AuditEventRow[]
-
-    return jsonResponse(
-      {
-        data: rows[0] ?? null,
-        meta: {
-          tenantId: scope.tenantId,
-          establishmentId,
-          membershipRole: scope.role,
-          action: "inserted",
-        },
-      },
-      201,
-    )
-  } catch (error) {
-    if (error instanceof Nr1ScopeError) {
-      return jsonResponse(
-        {
-          error: error.code,
-          message: error.message,
-        },
-        error.status,
-      )
-    }
-
-    const message = error instanceof Error ? error.message : "Unexpected nr1 audit-events POST error"
-    return jsonResponse(
-      {
-        error: "nr1_audit_events_post_unexpected",
-        message,
-      },
-      500,
-    )
-  }
-}
-
-
