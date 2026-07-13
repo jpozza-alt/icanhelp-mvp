@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
-import AppShell from "@/components/AppShell";
+import Nr1WorkspaceV2Shell from "@/components/nr1/Nr1WorkspaceV2Shell";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -800,11 +800,45 @@ export default function Nr1TrilhaAcompanhamentoPage() {
   }
 
   return (
-    <AppShell
-      active="nr1"
-      title="Trilha de acompanhamento"
-      description="Sexta etapa da jornada. Acompanhe o que foi feito, o que precisa de retorno e o que fica registrado no processo."
+    <Nr1WorkspaceV2Shell
+      companyName={tenantId ? "Empresa ativa" : "Empresa não selecionada"}
+      establishmentName={selectedEstablishment?.name || "Local de trabalho não selecionado"}
+      pgrStatus="Em construção"
+      progressPercent={86}
+      progressDescription="Plano de ação e trilha documental em acompanhamento."
+      activeModule="Trilha"
+      modules={[
+        "Base",
+        "Mapeamento",
+        "Riscos",
+        "Plano",
+        "Evidências",
+        "Trilha",
+        "PGR",
+      ]}
+      pendingItems={[
+        actionPlans.length === 0
+          ? "Cadastrar um plano de ação para este local de trabalho"
+          : "Registrar e acompanhar a execução do plano de ação",
+        "Conferir a efetividade das medidas adotadas",
+        "Manter a trilha documental atualizada",
+      ]}
+      nextBestActionLabel="Etapa da jornada"
+      nextBestActionTitle="Acompanhar a execução do plano de ação"
+      nextBestActionDescription="Registre verificações, inspeções, participação dos trabalhadores e sinais de efetividade. A trilha mantém o histórico organizado para o GRO/PGR."
+      nextBestActionPrimaryHref="#nr1-trail-operational-content"
+      nextBestActionPrimaryLabel="Registrar acompanhamento"
+      nextBestActionSecondaryHref="/dashboard/nr1/evidencias-acompanhamento"
+      nextBestActionSecondaryLabel="Voltar para evidências"
+      nextBestActionReasons={[
+        "O plano de ação precisa de acompanhamento periódico.",
+        "As verificações demonstram continuidade e efetividade.",
+        "A trilha preserva o histórico documental do GRO/PGR.",
+      ]}
+      pgrHref="/dashboard/nr1/relatorio-pgr"
+      moduleHref="#nr1-trail-operational-content"
     >
+      <div id="nr1-trail-operational-content">
       <div className="space-y-6">
         <section className={supabaseSectionClass}>
           <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
@@ -1299,7 +1333,8 @@ export default function Nr1TrilhaAcompanhamentoPage() {
           </div>
         </section>
       </div>
-    </AppShell>
+          </div>
+    </Nr1WorkspaceV2Shell>
   );
 }
 
