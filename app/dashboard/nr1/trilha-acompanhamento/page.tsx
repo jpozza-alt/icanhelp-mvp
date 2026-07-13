@@ -37,7 +37,7 @@ type ActionPlanItem = {
 type FollowupItem = {
   id: string;
   action_plan_id?: string | null;
-  followup_date?: string | null;
+  acompanhamento_date?: string | null;
   corrective_adjustment_needed?: boolean | null;
   execution_check?: string | null;
   inspection_result?: string | null;
@@ -123,7 +123,7 @@ function parseEstablishments(payload: unknown): EstablishmentItem[] {
   return raw
     .map((item) => ({
       id: String(item?.id ?? "").trim(),
-      name: String(item?.name ?? "Estabelecimento").trim(),
+      name: String(item?.name ?? "Local de trabalho").trim(),
       city: item?.city ? String(item.city) : null,
       state: item?.state ? String(item.state) : null,
       status: item?.status ? String(item.status) : null,
@@ -153,7 +153,7 @@ function parseFollowups(payload: unknown): FollowupItem[] {
     .map((item) => ({
       id: String(item?.id ?? "").trim(),
       action_plan_id: item?.action_plan_id ? String(item.action_plan_id) : null,
-      followup_date: item?.followup_date ? String(item.followup_date) : null,
+      acompanhamento_date: item?.acompanhamento_date ? String(item.acompanhamento_date) : null,
       corrective_adjustment_needed:
         typeof item?.corrective_adjustment_needed === "boolean"
           ? item.corrective_adjustment_needed
@@ -404,7 +404,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
   const [selectedEstablishmentId, setSelectedEstablishmentId] = useState("");
   const [actionPlans, setActionPlans] = useState<ActionPlanItem[]>([]);
   const [selectedActionPlanId, setSelectedActionPlanId] = useState("");
-  const [followups, setFollowups] = useState<FollowupItem[]>([]);
+  const [acompanhamentos, setFollowups] = useState<FollowupItem[]>([]);
   const [auditEvents, setAuditEvents] = useState<AuditEventItem[]>([]);
   const [loadingSession, setLoadingSession] = useState(true);
   const [loadingEstablishments, setLoadingEstablishments] = useState(false);
@@ -415,7 +415,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
   const [info, setInfo] = useState("");
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    followup_date: "",
+    acompanhamento_date: "",
     corrective_adjustment_needed: false,
     execution_check: "",
     inspection_result: "",
@@ -435,8 +435,8 @@ export default function Nr1TrilhaAcompanhamentoPage() {
   }, [actionPlans, selectedActionPlanId]);
 
   const adjustmentCount = useMemo(() => {
-    return followups.filter((item) => item.corrective_adjustment_needed === true).length;
-  }, [followups]);
+    return acompanhamentos.filter((item) => item.corrective_adjustment_needed === true).length;
+  }, [acompanhamentos]);
 
   useEffect(() => {
     (async () => {
@@ -566,7 +566,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
 
       try {
         const response = await fetch(
-          "/api/nr1/action-plans?establishmentId=" + encodeURIComponent(selectedEstablishmentId),
+          "/api/nr1/planos de ação?establishmentId=" + encodeURIComponent(selectedEstablishmentId),
           {
             method: "GET",
             headers: {
@@ -583,7 +583,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
           const message =
             payload?.message ||
             payload?.error ||
-            "Falha ao carregar action-plans.";
+            "Falha ao carregar planos de ação.";
           throw new Error(String(message));
         }
 
@@ -593,17 +593,17 @@ export default function Nr1TrilhaAcompanhamentoPage() {
 
         if (parsedItems.length === 0) {
           setSelectedActionPlanId("");
-          setInfo("Nenhum action-plan encontrado para este estabelecimento.");
+          setInfo("Nenhum plano de ação encontrado para este local de trabalho.");
           return;
         }
 
         setSelectedActionPlanId(parsedItems[0].id);
-        setInfo("Tela ligada ao backend real de action-followups por action-plan.");
+        setInfo("Tela ligada ao backend real de action-acompanhamentos por action-plan.");
       } catch (error: unknown) {
         setActionPlans([]);
         setSelectedActionPlanId("");
         setFollowups([]);
-        setError(getErrorMessage(error, "Falha ao carregar action-plans."));
+        setError(getErrorMessage(error, "Falha ao carregar planos de ação."));
       } finally {
         setLoadingActionPlans(false);
         setLoadingFollowups(false);
@@ -690,7 +690,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
           const message =
             payload?.message ||
             payload?.error ||
-            "Falha ao carregar followups.";
+            "Falha ao carregar acompanhamentos.";
           throw new Error(String(message));
         }
 
@@ -698,7 +698,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
         setFollowups(parsedItems);
       } catch (error: unknown) {
         setFollowups([]);
-        setError(getErrorMessage(error, "Falha ao carregar followups."));
+        setError(getErrorMessage(error, "Falha ao carregar acompanhamentos."));
       } finally {
         setLoadingFollowups(false);
       }
@@ -714,7 +714,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
       return;
     }
 
-    if (!form.followup_date.trim()) {
+    if (!form.acompanhamento_date.trim()) {
       setError("Informe a data do acompanhamento.");
       return;
     }
@@ -732,7 +732,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
         body: JSON.stringify({
           establishment_id: selectedEstablishmentId,
           action_plan_id: selectedActionPlanId,
-          followup_date: form.followup_date.trim(),
+          acompanhamento_date: form.acompanhamento_date.trim(),
           corrective_adjustment_needed: form.corrective_adjustment_needed,
           execution_check: form.execution_check.trim() || null,
           inspection_result: form.inspection_result.trim() || null,
@@ -750,7 +750,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
         const message =
           createPayload?.message ||
           createPayload?.error ||
-          "Falha ao gravar followup no backend real.";
+          "Falha ao gravar acompanhamento no backend real.";
         throw new Error(String(message));
       }
 
@@ -775,13 +775,13 @@ export default function Nr1TrilhaAcompanhamentoPage() {
         const message =
           refreshPayload?.message ||
           refreshPayload?.error ||
-          "O followup foi criado, mas a releitura da lista falhou.";
+          "O acompanhamento foi criado, mas a releitura da lista falhou.";
         throw new Error(String(message));
       }
 
       setFollowups(parseFollowups(refreshPayload));
       setForm({
-        followup_date: "",
+        acompanhamento_date: "",
         corrective_adjustment_needed: false,
         execution_check: "",
         inspection_result: "",
@@ -793,7 +793,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
       });
       setInfo("Followup gravado com sucesso no backend real.");
     } catch (error: unknown) {
-      setError(getErrorMessage(error, "Falha ao gravar followup."));
+      setError(getErrorMessage(error, "Falha ao gravar acompanhamento."));
     } finally {
       setSaving(false);
     }
@@ -803,39 +803,38 @@ export default function Nr1TrilhaAcompanhamentoPage() {
     <AppShell
       active="nr1"
       title="Trilha de acompanhamento"
-      description="Sexta etapa da jornada. Agora a tela le e grava action-followups reais por action-plan."
+      description="Sexta etapa da jornada. Acompanhe o que foi feito, o que precisa de retorno e o que fica registrado no processo."
     >
       <div className="space-y-6">
         <section className={supabaseSectionClass}>
           <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
-            o que esta tela faz
+            próxima etapa da jornada
           </div>
           <h2 className="mt-3 text-2xl font-semibold text-[#22313F]">
-            Mostra o historico de acompanhamento de cada action-plan.
+            Mostra se o plano de ação está sendo acompanhado.
           </h2>
           <p className="mt-4 max-w-3xl text-sm leading-7 text-[#5B6B79]">
-            Esta etapa consome o backend real de action-followups. Ela organiza o acompanhamento por
-            estabelecimento e por action-plan, com leitura e gravacao nesta fase.
+            Aqui o RH registra verificações, inspeções e sinais de continuidade do plano de ação, sem precisar lidar com nomes técnicos.
           </p>
 
           <div className="mt-5 grid gap-4 md:grid-cols-3">
             <div className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
-                action-plans
+                planos de ação
               </div>
               <div className="mt-2 text-2xl font-semibold text-[#22313F]">{actionPlans.length}</div>
             </div>
 
             <div className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
-                followups
+                acompanhamentos
               </div>
-              <div className="mt-2 text-2xl font-semibold text-[#22313F]">{followups.length}</div>
+              <div className="mt-2 text-2xl font-semibold text-[#22313F]">{acompanhamentos.length}</div>
             </div>
 
             <div className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
-                ajustes necessarios
+                ajustes necessários
               </div>
               <div className="mt-2 text-2xl font-semibold text-[#22313F]">{adjustmentCount}</div>
             </div>
@@ -861,7 +860,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
         <section className={supabaseSectionClass}>
           <div className="grid gap-4 md:grid-cols-3">
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Tenant ativo</label>
+              <label className="text-sm font-semibold text-[#22313F]">Empresa ativa</label>
               <div className="mt-2 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] px-4 py-3 text-sm text-[#5B6B79]">
                 {tenantId
                   ? (tenants.find((item) => item.id === tenantId)?.name || tenantId) + " (" + tenantId + ")"
@@ -870,7 +869,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Estabelecimento</label>
+              <label className="text-sm font-semibold text-[#22313F]">Local de trabalho</label>
               <select
                 value={selectedEstablishmentId}
                 onChange={(e) => setSelectedEstablishmentId(e.target.value)}
@@ -913,7 +912,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
           {selectedEstablishment ? (
             <div className="mt-4 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
               <div>
-                <span className="font-semibold text-[#22313F]">Estabelecimento:</span> {selectedEstablishment.name}
+                <span className="font-semibold text-[#22313F]">Local de trabalho:</span> {selectedEstablishment.name}
               </div>
               <div>
                 <span className="font-semibold text-[#22313F]">Cidade/UF:</span>{" "}
@@ -945,10 +944,10 @@ export default function Nr1TrilhaAcompanhamentoPage() {
 
         <section className={supabaseSectionClass}>
           <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
-            registrar followup
+            registrar acompanhamento
           </div>
           <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
-            Criacao manual ligada ao backend real de action-followups.
+            Criacao manual ligada ao backend real de action-acompanhamentos.
           </h3>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -956,8 +955,8 @@ export default function Nr1TrilhaAcompanhamentoPage() {
               <label className="text-sm font-semibold text-[#22313F]">Data do acompanhamento</label>
               <input
                 type="date"
-                value={form.followup_date}
-                onChange={(e) => setForm((current) => ({ ...current, followup_date: e.target.value }))}
+                value={form.acompanhamento_date}
+                onChange={(e) => setForm((current) => ({ ...current, acompanhamento_date: e.target.value }))}
                 className={selectClassName}
               />
             </div>
@@ -1058,17 +1057,17 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             <button
               type="button"
               onClick={() => void handleCreateFollowup()}
-              disabled={saving || !jwt || !tenantId || !selectedEstablishmentId || !selectedActionPlanId || !form.followup_date.trim()}
+              disabled={saving || !jwt || !tenantId || !selectedEstablishmentId || !selectedActionPlanId || !form.acompanhamento_date.trim()}
               className="rounded-xl bg-[#5E7A96] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#516C86] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving ? "Salvando..." : "Salvar followup"}
+              {saving ? "Salvando..." : "Salvar acompanhamento"}
             </button>
 
             <button
               type="button"
               onClick={() =>
                 setForm({
-                  followup_date: "",
+                  acompanhamento_date: "",
                   corrective_adjustment_needed: false,
                   execution_check: "",
                   inspection_result: "",
@@ -1088,23 +1087,23 @@ export default function Nr1TrilhaAcompanhamentoPage() {
 
         <section className={supabaseSectionClass}>
           <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
-            followups reais
+            acompanhamentos reais
           </div>
           <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
-            Lista carregada do backend de action-followups por action-plan.
+            Lista carregada do backend de action-acompanhamentos por action-plan.
           </h3>
 
           {loadingActionPlans || loadingFollowups ? (
             <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
               Buscando registros em /api/nr1/action-followups...
             </p>
-          ) : followups.length === 0 ? (
+          ) : acompanhamentos.length === 0 ? (
             <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
-              Nenhum followup encontrado para o action-plan selecionado.
+              Nenhum acompanhamento registrado para o plano de ação selecionado.
             </p>
           ) : (
             <div className="mt-4 space-y-4">
-              {followups.map((item, index) => (
+              {acompanhamentos.map((item, index) => (
                 <article
                   key={item.id}
                   className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-5"
@@ -1112,10 +1111,10 @@ export default function Nr1TrilhaAcompanhamentoPage() {
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#5E7A96]">
-                        followup {index + 1}
+                        acompanhamento {index + 1}
                       </div>
                       <h3 className="mt-2 text-lg font-semibold text-[#22313F]">
-                        Data de acompanhamento: {item.followup_date || "Nao informada"}
+                        Data de acompanhamento: {item.acompanhamento_date || "Nao informada"}
                       </h3>
                       <p className="mt-2 text-sm leading-7 text-[#5B6B79]">
                         {item.notes || "Sem observacoes complementares."}
@@ -1192,7 +1191,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
           )}
 
           <div className="mt-6 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
-            Esta versao le e grava action-followups reais por action-plan.
+            Esta versao le e grava action-acompanhamentos reais por action-plan.
           </div>
         </section>
 
@@ -1204,15 +1203,14 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             Últimas movimentações registradas.
           </h3>
           <p className="mt-4 max-w-3xl text-sm leading-7 text-[#5B6B79]">
-            Esta lista le a rota formal /api/nr1/audit-events, filtrada por tenant e estabelecimento.
-            Ela mostra eventos gravados na tabela nr1_audit_events, incluindo criacao e arquivamento de evidencias.
+            Esta área resume os acontecimentos importantes do GRO/PGR em linguagem simples. Os detalhes técnicos continuam preservados, mas não ficam no caminho do usuário.
           </p>
 
           <div className="mt-5 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
             <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
-              movimentações recentes
+              últimas movimentações
             </div>
-            <div className="mt-2 text-2xl font-semibold text-[#22313F]">{auditEvents.length}</div>
+            <div className="mt-2 text-2xl font-semibold text-[#22313F]">{Math.min(auditEvents.length, 8)}</div>
           </div>
 
           {loadingAuditEvents ? (
@@ -1304,6 +1302,8 @@ export default function Nr1TrilhaAcompanhamentoPage() {
     </AppShell>
   );
 }
+
+
 
 
 
