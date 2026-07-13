@@ -566,7 +566,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
 
       try {
         const response = await fetch(
-          "/api/nr1/planos de ação?establishmentId=" + encodeURIComponent(selectedEstablishmentId),
+          "/api/nr1/action-plans?establishmentId=" + encodeURIComponent(selectedEstablishmentId),
           {
             method: "GET",
             headers: {
@@ -598,7 +598,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
         }
 
         setSelectedActionPlanId(parsedItems[0].id);
-        setInfo("Tela ligada ao backend real de action-acompanhamentos por action-plan.");
+        setInfo("Plano de ação carregado. Registre e acompanhe as verificações realizadas.");
       } catch (error: unknown) {
         setActionPlans([]);
         setSelectedActionPlanId("");
@@ -710,7 +710,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
     setInfo("");
 
     if (!jwt || !tenantId || !selectedEstablishmentId || !selectedActionPlanId) {
-      setError("Contexto incompleto. Confirme tenant, estabelecimento e action-plan.");
+      setError("Contexto incompleto. Confirme a empresa, o local de trabalho e o plano de ação.");
       return;
     }
 
@@ -750,7 +750,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
         const message =
           createPayload?.message ||
           createPayload?.error ||
-          "Falha ao gravar acompanhamento no backend real.";
+          "Falha ao salvar o acompanhamento.";
         throw new Error(String(message));
       }
 
@@ -791,7 +791,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
         worker_participation_note: "",
         notes: "",
       });
-      setInfo("Followup gravado com sucesso no backend real.");
+      setInfo("Acompanhamento salvo com sucesso.");
     } catch (error: unknown) {
       setError(getErrorMessage(error, "Falha ao gravar acompanhamento."));
     } finally {
@@ -889,7 +889,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Action-plan</label>
+              <label className="text-sm font-semibold text-[#22313F]">Plano de ação</label>
               <select
                 value={selectedActionPlanId}
                 onChange={(e) => setSelectedActionPlanId(e.target.value)}
@@ -897,11 +897,11 @@ export default function Nr1TrilhaAcompanhamentoPage() {
                 disabled={loadingActionPlans || actionPlans.length === 0}
               >
                 {actionPlans.length === 0 ? (
-                  <option value="">Nenhum action-plan</option>
+                  <option value="">Nenhum plano de ação</option>
                 ) : (
                   actionPlans.map((item) => (
                     <option key={item.id} value={item.id}>
-                      {(item.title || "Action-plan sem titulo") + " (" + item.id + ")"}
+                      {(item.title || "Plano de ação sem titulo") + " (" + item.id + ")"}
                     </option>
                   ))
                 )}
@@ -947,7 +947,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             registrar acompanhamento
           </div>
           <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
-            Criacao manual ligada ao backend real de action-acompanhamentos.
+            Registre como o plano de ação foi verificado.
           </h3>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -1087,15 +1087,15 @@ export default function Nr1TrilhaAcompanhamentoPage() {
 
         <section className={supabaseSectionClass}>
           <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
-            acompanhamentos reais
+            acompanhamentos registrados
           </div>
           <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
-            Lista carregada do backend de action-acompanhamentos por action-plan.
+            Acompanhamentos do plano de ação selecionado.
           </h3>
 
           {loadingActionPlans || loadingFollowups ? (
             <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
-              Buscando registros em /api/nr1/action-followups...
+              Carregando acompanhamentos...
             </p>
           ) : acompanhamentos.length === 0 ? (
             <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
@@ -1191,7 +1191,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
           )}
 
           <div className="mt-6 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
-            Esta versao le e grava action-acompanhamentos reais por action-plan.
+            Os registros desta etapa ajudam a demonstrar o acompanhamento e a efetividade das medidas adotadas.
           </div>
         </section>
 
@@ -1215,7 +1215,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
 
           {loadingAuditEvents ? (
             <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
-              Buscando registros em /api/nr1/audit-events...
+              Carregando movimentações...
             </p>
           ) : auditEvents.length === 0 ? (
             <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
