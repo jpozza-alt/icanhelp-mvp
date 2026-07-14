@@ -841,16 +841,6 @@ export default function Nr1TrilhaAcompanhamentoPage() {
       <div id="nr1-trail-operational-content">
       <div className="space-y-6">
         <section className={supabaseSectionClass}>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
-            próxima etapa da jornada
-          </div>
-          <h2 className="mt-3 text-2xl font-semibold text-[#22313F]">
-            Mostra se o plano de ação está sendo acompanhado.
-          </h2>
-          <p className="mt-4 max-w-3xl text-sm leading-7 text-[#5B6B79]">
-            Aqui o RH registra verificações, inspeções e sinais de continuidade do plano de ação, sem precisar lidar com nomes técnicos.
-          </p>
-
           <div className="mt-5 grid gap-4 md:grid-cols-3">
             <div className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
