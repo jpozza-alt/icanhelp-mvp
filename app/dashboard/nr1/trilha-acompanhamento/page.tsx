@@ -801,7 +801,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
 
   return (
     <Nr1WorkspaceV2Shell
-      companyName={tenantId ? "Empresa ativa" : "Empresa não selecionada"}
+      companyName={tenantId ? (tenants.find((item) => item.id === tenantId)?.name || "Empresa ativa") : "Empresa não selecionada"}
       establishmentName={selectedEstablishment?.name || "Local de trabalho não selecionado"}
       pgrStatus="Em construção"
       progressPercent={86}
@@ -865,7 +865,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
           </div>
 
           {loadingSession ? (
-            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">Carregando sessao...</p>
+            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">Carregando sessão...</p>
           ) : null}
 
           {error ? (
@@ -887,8 +887,8 @@ export default function Nr1TrilhaAcompanhamentoPage() {
               <label className="text-sm font-semibold text-[#22313F]">Empresa ativa</label>
               <div className="mt-2 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] px-4 py-3 text-sm text-[#5B6B79]">
                 {tenantId
-                  ? (tenants.find((item) => item.id === tenantId)?.name || tenantId) + " (" + tenantId + ")"
-                  : "Nao carregado"}
+                  ? tenants.find((item) => item.id === tenantId)?.name || "Empresa ativa"
+                  : "Não carregado"}
               </div>
             </div>
 
@@ -905,7 +905,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
                 ) : (
                   establishments.map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.name} ({item.id})
+                      {item.name}
                     </option>
                   ))
                 )}
@@ -925,7 +925,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
                 ) : (
                   actionPlans.map((item) => (
                     <option key={item.id} value={item.id}>
-                      {(item.title || "Plano de ação sem titulo") + " (" + item.id + ")"}
+                      {item.title || "Plano de ação sem título"}
                     </option>
                   ))
                 )}
@@ -940,10 +940,10 @@ export default function Nr1TrilhaAcompanhamentoPage() {
               </div>
               <div>
                 <span className="font-semibold text-[#22313F]">Cidade/UF:</span>{" "}
-                {[selectedEstablishment.city, selectedEstablishment.state].filter(Boolean).join(" / ") || "Nao informado"}
+                {[selectedEstablishment.city, selectedEstablishment.state].filter(Boolean).join(" / ") || "Não informado"}
               </div>
               <div>
-                <span className="font-semibold text-[#22313F]">Status:</span> {selectedEstablishment.status || "Nao informado"}
+                <span className="font-semibold text-[#22313F]">Status:</span> {selectedEstablishment.status ? formatStatusLabel(selectedEstablishment.status) : "Não informado"}
               </div>
             </div>
           ) : null}
@@ -951,7 +951,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
           {selectedActionPlan ? (
             <div className="mt-4 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
               <div>
-                <span className="font-semibold text-[#22313F]">Titulo:</span> {selectedActionPlan.title || "Nao informado"}
+                <span className="font-semibold text-[#22313F]">Título:</span> {selectedActionPlan.title || "Não informado"}
               </div>
               <div>
                 <span className="font-semibold text-[#22313F]">Status:</span> {formatStatusLabel(selectedActionPlan.status)}
@@ -960,7 +960,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
                 <span className="font-semibold text-[#22313F]">Prioridade:</span> {formatPriorityLabel(selectedActionPlan.priority)}
               </div>
               <div>
-                <span className="font-semibold text-[#22313F]">Prazo:</span> {selectedActionPlan.due_date || "Nao informado"}
+                <span className="font-semibold text-[#22313F]">Prazo:</span> {selectedActionPlan.due_date || "Não informado"}
               </div>
             </div>
           ) : null}
@@ -986,7 +986,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Ajuste corretivo necessario</label>
+              <label className="text-sm font-semibold text-[#22313F]">Ajuste corretivo necessário</label>
               <select
                 value={form.corrective_adjustment_needed ? "sim" : "nao"}
                 onChange={(e) =>
@@ -997,28 +997,28 @@ export default function Nr1TrilhaAcompanhamentoPage() {
                 }
                 className={selectClassName}
               >
-                <option value="nao">nao</option>
+                <option value="nao">Não</option>
                 <option value="sim">sim</option>
               </select>
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Execucao</label>
+              <label className="text-sm font-semibold text-[#22313F]">Execução</label>
               <textarea
                 value={form.execution_check}
                 onChange={(e) => setForm((current) => ({ ...current, execution_check: e.target.value }))}
                 className={selectClassName + " min-h-[110px]"}
-                placeholder="Como a execucao foi verificada"
+                placeholder="Como a execução foi verificada"
               />
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Inspecao</label>
+              <label className="text-sm font-semibold text-[#22313F]">Inspeção</label>
               <textarea
                 value={form.inspection_result}
                 onChange={(e) => setForm((current) => ({ ...current, inspection_result: e.target.value }))}
                 className={selectClassName + " min-h-[110px]"}
-                placeholder="Resultado da inspecao"
+                placeholder="Resultado da inspeção"
               />
             </div>
 
@@ -1067,12 +1067,12 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="text-sm font-semibold text-[#22313F]">Observacoes</label>
+              <label className="text-sm font-semibold text-[#22313F]">Observações</label>
               <textarea
                 value={form.notes}
                 onChange={(e) => setForm((current) => ({ ...current, notes: e.target.value }))}
                 className={selectClassName + " min-h-[120px]"}
-                placeholder="Observacoes complementares do acompanhamento"
+                placeholder="Observações complementares do acompanhamento"
               />
             </div>
           </div>
@@ -1156,7 +1156,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
                         execucao
                       </div>
                       <div className="mt-2 text-sm leading-7 text-[#22313F]">
-                        {item.execution_check || "Nao informado"}
+                        {item.execution_check || "Não informado"}
                       </div>
                     </div>
 
@@ -1165,7 +1165,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
                         inspecao
                       </div>
                       <div className="mt-2 text-sm leading-7 text-[#22313F]">
-                        {item.inspection_result || "Nao informado"}
+                        {item.inspection_result || "Não informado"}
                       </div>
                     </div>
                   </div>
@@ -1176,7 +1176,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
                         efetividade
                       </div>
                       <div className="mt-2 text-sm leading-7 text-[#22313F]">
-                        {item.effectiveness_result || "Nao informado"}
+                        {item.effectiveness_result || "Não informado"}
                       </div>
                     </div>
 
@@ -1185,7 +1185,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
                         continuidade
                       </div>
                       <div className="mt-2 text-sm leading-7 text-[#22313F]">
-                        {item.continuity_check || "Nao informado"}
+                        {item.continuity_check || "Não informado"}
                       </div>
                     </div>
                   </div>
@@ -1196,7 +1196,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
                         monitoramento ambiental
                       </div>
                       <div className="mt-2 text-sm leading-7 text-[#22313F]">
-                        {item.environmental_monitoring_result || "Nao informado"}
+                        {item.environmental_monitoring_result || "Não informado"}
                       </div>
                     </div>
 
@@ -1205,7 +1205,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
                         participacao dos trabalhadores
                       </div>
                       <div className="mt-2 text-sm leading-7 text-[#22313F]">
-                        {item.worker_participation_note || "Nao informado"}
+                        {item.worker_participation_note || "Não informado"}
                       </div>
                     </div>
                   </div>
