@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
@@ -80,6 +79,12 @@ async function readJsonSafe(response: Response) {
   }
 }
 
+type CompanyItem = {
+  id: string;
+  tenant_id: string;
+  legal_name: string;
+  trade_name: string | null;
+};
 type JsonRecord = Record<string, unknown>;
 
 function asRecord(value: unknown): JsonRecord {
@@ -153,7 +158,7 @@ function parseFollowups(payload: unknown): FollowupItem[] {
     .map((item) => ({
       id: String(item?.id ?? "").trim(),
       action_plan_id: item?.action_plan_id ? String(item.action_plan_id) : null,
-      acompanhamento_date: item?.acompanhamento_date ? String(item.acompanhamento_date) : null,
+      acompanhamento_date: item?.followup_date ? String(item.followup_date) : null,
       corrective_adjustment_needed:
         typeof item?.corrective_adjustment_needed === "boolean"
           ? item.corrective_adjustment_needed
@@ -175,8 +180,32 @@ function parseFollowups(payload: unknown): FollowupItem[] {
     .filter((item: FollowupItem) => item.id);
 }
 
+function formatDateForDisplay(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+
+  if (!match) {
+    return value;
+  }
+
+  const [, year, month, day] = match;
+  return `${day}/${month}/${year}`;
+}
+
+function isTechnicalTenantName(value: string) {
+  const normalized = value.trim().toLowerCase();
+
+  return (
+    normalized.startsWith("tenant-") ||
+    normalized.startsWith("tenant_") ||
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+      normalized,
+    )
+  );
+}
 function formatStatusLabel(value: string | null | undefined) {
   switch (String(value || "").trim().toLowerCase()) {
+    case "active":
+      return "Ativo";
     case "open":
       return "em aberto";
     case "in_progress":
@@ -400,6 +429,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
   const [jwt, setJwt] = useState("");
   const [tenantId, setTenantId] = useState("");
   const [tenants, setTenants] = useState<TenantOption[]>([]);
+  const [companies, setCompanies] = useState<CompanyItem[]>([]);
   const [establishments, setEstablishments] = useState<EstablishmentItem[]>([]);
   const [selectedEstablishmentId, setSelectedEstablishmentId] = useState("");
   const [actionPlans, setActionPlans] = useState<ActionPlanItem[]>([]);
@@ -732,7 +762,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
         body: JSON.stringify({
           establishment_id: selectedEstablishmentId,
           action_plan_id: selectedActionPlanId,
-          acompanhamento_date: form.acompanhamento_date.trim(),
+          followup_date: form.acompanhamento_date.trim(),
           corrective_adjustment_needed: form.corrective_adjustment_needed,
           execution_check: form.execution_check.trim() || null,
           inspection_result: form.inspection_result.trim() || null,
@@ -799,9 +829,102 @@ export default function Nr1TrilhaAcompanhamentoPage() {
     }
   }
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCompanies() {
+      if (!jwt || !tenantId) {
+        setCompanies([]);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/nr1/companies?tenantId=${encodeURIComponent(tenantId)}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: "Bearer " + jwt,
+              "x-icanhelp-tenant": tenantId,
+            },
+            cache: "no-store",
+          },
+        );
+
+        const payload = await readJsonSafe(response);
+
+        if (!response.ok) {
+          if (!cancelled) {
+            setCompanies([]);
+          }
+          return;
+        }
+
+        const payloadRecord = asRecord(payload);
+        const rows = Array.isArray(payload)
+          ? asArray(payload)
+          : asArray(
+              payloadRecord.companies ??
+                payloadRecord.data ??
+                payloadRecord.items,
+            );
+
+        const normalizedCompanies: CompanyItem[] = [];
+
+        for (const row of rows) {
+          const id = String(row.id || "").trim();
+          const companyTenantId = String(row.tenant_id || "").trim();
+          const legalName = String(row.legal_name || "").trim();
+          const tradeName = String(row.trade_name || "").trim();
+
+          if (!id || !companyTenantId || !legalName) {
+            continue;
+          }
+
+          normalizedCompanies.push({
+            id,
+            tenant_id: companyTenantId,
+            legal_name: legalName,
+            trade_name: tradeName || null,
+          });
+        }
+
+        if (!cancelled) {
+          setCompanies(normalizedCompanies);
+        }
+      } catch {
+        if (!cancelled) {
+          setCompanies([]);
+        }
+      }
+    }
+
+    void loadCompanies();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [jwt, tenantId]);
+
+  const selectedCompany =
+    companies.find((item) => item.tenant_id === tenantId) ||
+    companies[0] ||
+    null;
+
+  const tenantDisplayName =
+    tenants.find((item) => item.id === tenantId)?.name?.trim() || "";
+
+  const activeCompanyName = tenantId
+    ? selectedCompany?.trade_name?.trim() ||
+      selectedCompany?.legal_name?.trim() ||
+      (!isTechnicalTenantName(tenantDisplayName) ? tenantDisplayName : "") ||
+      "Empresa ativa"
+    : "Empresa não selecionada";
+
+
   return (
     <Nr1WorkspaceV2Shell
-      companyName={tenantId ? (tenants.find((item) => item.id === tenantId)?.name || "Empresa ativa") : "Empresa não selecionada"}
+      companyName={activeCompanyName}
       establishmentName={selectedEstablishment?.name || "Local de trabalho não selecionado"}
       pgrStatus="Em construção"
       progressPercent={86}
@@ -886,9 +1009,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             <div>
               <label className="text-sm font-semibold text-[#22313F]">Empresa ativa</label>
               <div className="mt-2 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] px-4 py-3 text-sm text-[#5B6B79]">
-                {tenantId
-                  ? tenants.find((item) => item.id === tenantId)?.name || "Empresa ativa"
-                  : "Não carregado"}
+                {tenantId ? activeCompanyName : "Não carregado"}
               </div>
             </div>
 
@@ -1055,14 +1176,14 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Participacao dos trabalhadores</label>
+              <label className="text-sm font-semibold text-[#22313F]">Participação dos trabalhadores</label>
               <textarea
                 value={form.worker_participation_note}
                 onChange={(e) =>
                   setForm((current) => ({ ...current, worker_participation_note: e.target.value }))
                 }
                 className={selectClassName + " min-h-[110px]"}
-                placeholder="Registro da participacao dos trabalhadores"
+                placeholder="Registro da participação dos trabalhadores"
               />
             </div>
 
@@ -1138,7 +1259,10 @@ export default function Nr1TrilhaAcompanhamentoPage() {
                         acompanhamento {index + 1}
                       </div>
                       <h3 className="mt-2 text-lg font-semibold text-[#22313F]">
-                        Data de acompanhamento: {item.acompanhamento_date || "Nao informada"}
+                        Data de acompanhamento:{" "}
+                        {item.acompanhamento_date
+                          ? formatDateForDisplay(item.acompanhamento_date)
+                          : "Nao informada"}
                       </h3>
                       <p className="mt-2 text-sm leading-7 text-[#5B6B79]">
                         {item.notes || "Sem observacoes complementares."}
@@ -1146,14 +1270,14 @@ export default function Nr1TrilhaAcompanhamentoPage() {
                     </div>
 
                     <div className="rounded-full border px-3 py-2 text-xs font-semibold border-[#D9E0E7] bg-white text-[#5B6B79]">
-                      Ajuste necessario: {item.corrective_adjustment_needed ? "sim" : "nao"}
+                      Ajuste necessário: {item.corrective_adjustment_needed ? "sim" : "não"}
                     </div>
                   </div>
 
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
-                        execucao
+                        execução
                       </div>
                       <div className="mt-2 text-sm leading-7 text-[#22313F]">
                         {item.execution_check || "Não informado"}
@@ -1162,7 +1286,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
 
                     <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
-                        inspecao
+                        inspeção
                       </div>
                       <div className="mt-2 text-sm leading-7 text-[#22313F]">
                         {item.inspection_result || "Não informado"}
@@ -1202,7 +1326,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
 
                     <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
-                        participacao dos trabalhadores
+                        participação dos trabalhadores
                       </div>
                       <div className="mt-2 text-sm leading-7 text-[#22313F]">
                         {item.worker_participation_note || "Não informado"}
@@ -1301,27 +1425,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             A tela mostra primeiro o que o RH precisa entender. Os registros técnicos permanecem disponíveis em detalhes, sem poluir a leitura principal.
           </div>
         </section>
-        <section className={supabaseSectionClass}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
-                navegacao da jornada
-              </div>
-              <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
-                O acompanhamento agora tem tela propria.
-              </h3>
-            </div>
 
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/dashboard/nr1/evidencias-acompanhamento"
-                className="rounded-xl border border-[#D9E0E7] bg-[#FAFBFC] px-5 py-3 text-sm font-semibold text-[#22313F]"
-              >
-                Voltar para evidencias
-              </Link>
-            </div>
-          </div>
-        </section>
       </div>
           </div>
     </Nr1WorkspaceV2Shell>
