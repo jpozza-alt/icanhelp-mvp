@@ -10,7 +10,7 @@ import {
 
 const migrationSql = readFileSync(
   new URL(
-    "../supabase/migrations/20260720_001_add_nr1_admin_correct_diagnosis_risk_texts_rpc.sql",
+    "../supabase/migrations/20260720000001_add_nr1_admin_correct_diagnosis_risk_texts_rpc.sql",
     import.meta.url,
   ),
   "utf8",

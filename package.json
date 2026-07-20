@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:nr1-admin-correction": "node --experimental-strip-types --test tests/nr1-admin-risk-text-correction.test.ts"
+    "test:nr1-admin-correction": "node --experimental-strip-types --test tests/nr1-admin-risk-text-correction.test.ts",
+    "test:migration-versions": "node --test tests/migration-versions.test.mjs",
+    "validate:migrations": "node scripts/validate-migration-versions.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

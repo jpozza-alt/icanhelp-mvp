@@ -18,7 +18,7 @@ alter table public.pasini_recruitment_requests
   add column if not exists final_confirmation boolean not null default false,
   add column if not exists acceptance_email text,
   add column if not exists acceptance_date date,
-  add column if not exists govbr_signature_status text not null default 'pending_pdf_generation',
+  add column if not exists govbr_signature_status text not null default 'not_applicable',
   add column if not exists signed_proposal_file text;
 
 do $$
