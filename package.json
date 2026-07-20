@@ -6,7 +6,8 @@
     "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:nr1-admin-correction": "node --experimental-strip-types --test tests/nr1-admin-risk-text-correction.test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

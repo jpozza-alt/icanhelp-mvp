@@ -3816,6 +3816,28 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      nr1_admin_correct_diagnosis_risk_texts: {
+        Args: {
+          p_actor_user_id: string
+          p_diagnosis_review_id: string
+          p_diagnosis_session_id: string
+          p_establishment_id: string
+          p_expected_review_exposed_group_json: Json
+          p_expected_review_updated_at: string
+          p_expected_risk_exposed_group: string
+          p_expected_risk_source_circumstance: string
+          p_expected_risk_title: string
+          p_expected_risk_updated_at: string
+          p_new_review_label: string
+          p_new_risk_exposed_group: string
+          p_new_risk_source_circumstance: string
+          p_new_risk_title: string
+          p_reason: string
+          p_risk_id: string
+          p_tenant_id: string
+        }
+        Returns: Json
+      }
       current_municipality_id: { Args: never; Returns: string }
       debug_get_tenant_memberships_role_constraint: {
         Args: never
