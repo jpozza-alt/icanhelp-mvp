@@ -3010,6 +3010,7 @@ useEffect(() => {
             diagnosis_session_id: sessionId,
             confirmed_exposed_group_json: [
               {
+                label: `Trabalhadores do setor ${departmentName}, na atividade ${activityName}.`,
                 title: departmentName,
                 activity: activityName,
                 exposed_people_count: numberOrNull(diagnosisContextForm.exposed_people_count),

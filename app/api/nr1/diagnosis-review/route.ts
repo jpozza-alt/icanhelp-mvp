@@ -11,6 +11,7 @@ import {
   isTenantAdminRole,
   nr1ErrorToResponsePayload,
   resolveNr1Scope,
+  type Nr1Scope,
 } from "@/lib/server/nr1-scope"
 
 export const dynamic = "force-dynamic"
@@ -143,6 +144,32 @@ function textFromJsonValue(value: unknown): string | null {
   return null
 }
 
+const EXPOSED_GROUP_FALLBACK = "Trabalhadores vinculados à atividade analisada no diagnóstico guiado."
+
+function exposedGroupLabelFromJson(value: unknown): string | null {
+  const entries = Array.isArray(value) ? value : [value]
+  const labels: string[] = []
+
+  for (const entry of entries) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      return null
+    }
+
+    const label = cleanText((entry as Record<string, unknown>).label)
+    if (
+      !label ||
+      /\btenant[-_]/i.test(label) ||
+      /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i.test(label)
+    ) {
+      return null
+    }
+
+    labels.push(label)
+  }
+
+  return labels.length > 0 ? labels.join("; ") : null
+}
+
 function limitText(value: string, maxLength: number): string {
   if (value.length <= maxLength) return value
   return value.slice(0, maxLength)
@@ -150,7 +177,7 @@ function limitText(value: string, maxLength: number): string {
 
 async function maybeGenerateRiskFromReview(params: {
   body: UpsertDiagnosisReviewBody
-  scope: any
+  scope: Nr1Scope
   userClient: ReturnType<typeof createNr1UserClientFromBearer>
   reviewRow: Nr1DiagnosisReviewRow
   sessionRow: Record<string, unknown>
@@ -303,8 +330,7 @@ async function maybeGenerateRiskFromReview(params: {
     "Fatores da organizacao do trabalho com potencial de gerar risco psicossocial: " + factorText
 
   const exposedGroup =
-    textFromJsonValue(params.reviewRow.confirmed_exposed_group_json) ||
-    "Trabalhadores vinculados a atividade analisada no diagnostico guiado."
+    exposedGroupLabelFromJson(params.reviewRow.confirmed_exposed_group_json) || EXPOSED_GROUP_FALLBACK
 
   const title =
     cleanText(params.body.generated_risk_title) ||
