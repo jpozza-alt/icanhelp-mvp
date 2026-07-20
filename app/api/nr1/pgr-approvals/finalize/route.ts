@@ -3,6 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
+const PGR_FORMALIZATION_ENABLED = false;
+
 type FinalizeBody = {
   tenant_id?: unknown;
   establishment_id?: unknown;
@@ -123,6 +125,13 @@ function createScopedSupabase(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!PGR_FORMALIZATION_ENABLED) {
+    return jsonError("pgr_formalization_temporarily_disabled", 503, {
+      code: "pgr_formalization_temporarily_disabled",
+      message: "A formalização do PGR está temporariamente indisponível. Use apenas a prévia não formal.",
+    });
+  }
+
   try {
     const { token, supabase } = createScopedSupabase(req);
 

@@ -4,6 +4,9 @@ import {
   resolveNr1Scope,
   Nr1ScopeError,
 } from "@/lib/server/nr1-scope";
+
+const PGR_FORMALIZATION_ENABLED = false;
+
 type JsonPayload = Record<string, unknown>;
 
 function jsonResponse(payload: JsonPayload, status = 200) {
@@ -72,6 +75,17 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  if (!PGR_FORMALIZATION_ENABLED) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "pgr_formalization_temporarily_disabled",
+        message: "A formalização do PGR está temporariamente indisponível. Use apenas a prévia não formal.",
+      },
+      503,
+    );
+  }
+
   try {
     const tenantId = getTenantId(req);
     const establishmentId = getEstablishmentId(req);
@@ -119,7 +133,7 @@ export async function POST(req: NextRequest) {
       establishmentId,
     });
 
-    const adminClient = createNr1AdminClient() as any;
+    const adminClient = createNr1AdminClient();
     const generatedAt = new Date().toISOString();
 
     const latestResult = await adminClient

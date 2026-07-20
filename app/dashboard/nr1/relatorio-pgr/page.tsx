@@ -1,15 +1,15 @@
 "use client";
 
-import { PgrSectionCard } from "@/components/nr1/relatorio-pgr/PgrSectionCard";
-
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import Nr1WorkspaceV2Shell from "@/components/nr1/Nr1WorkspaceV2Shell";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+const FORMAL_PGR_OPERATIONS_ENABLED = false;
 
 type TenantOption = {
   id: string;
@@ -19,10 +19,18 @@ type TenantOption = {
 
 type EstablishmentOption = {
   id: string;
+  company_id?: string | null;
   name: string;
   city?: string | null;
   state?: string | null;
   status?: string | null;
+};
+
+type CompanyOption = {
+  id: string;
+  tenant_id: string;
+  legal_name: string;
+  trade_name?: string | null;
 };
 
 type PgrSnapshotVersion = {
@@ -36,6 +44,88 @@ type PgrSnapshotVersion = {
 };
 type LoadStatus = "idle" | "loading" | "loaded" | "error";
 type AnyRecord = Record<string, unknown>;
+
+const RISK_CATEGORY_LABELS: Readonly<Record<string, string>> = {
+  physical: "Físico",
+  chemical: "Químico",
+  biological: "Biológico",
+  accident: "Acidente",
+  ergonomics: "Ergonômico",
+  psychosocial: "Psicossocial",
+  mixed: "Misto",
+};
+
+const RISK_LEVEL_LABELS: Readonly<Record<string, string>> = {
+  low: "Baixo",
+  medium: "Médio",
+  high: "Alto",
+  critical: "Crítico",
+};
+
+const PRIORITY_LABELS: Readonly<Record<string, string>> = {
+  low: "Baixa",
+  medium: "Média",
+  high: "Alta",
+  critical: "Crítica",
+};
+
+const ACTION_PLAN_STATUS_LABELS: Readonly<Record<string, string>> = {
+  open: "Aberto",
+  in_progress: "Em andamento",
+  completed: "Concluído",
+  overdue: "Atrasado",
+  awaiting_evidence: "Aguardando evidência",
+  reopened: "Reaberto",
+};
+
+const EVIDENCE_TYPE_LABELS: Readonly<Record<string, string>> = {
+  document: "Documento",
+  photo: "Fotografia",
+  report: "Relatório",
+  certificate: "Certificado",
+  attendance_list: "Lista de presença",
+  inspection_record: "Registro de inspeção",
+};
+
+const EVIDENCE_STATUS_LABELS: Readonly<Record<string, string>> = {
+  pending_validation: "Pendente de validação",
+  validated: "Validada",
+  rejected: "Rejeitada",
+  archived: "Arquivada",
+};
+
+const AUDIT_EVENT_LABELS: Readonly<Record<string, string>> = {
+  nr1_action_followup_created: "Acompanhamento do plano registrado",
+  nr1_action_plan_created: "Plano de ação criado",
+  preliminary_risk_generated_from_diagnosis_review: "Risco preliminar gerado após revisão do diagnóstico",
+  diagnosis_psychosocial_saved_from_workspace: "Fatores psicossociais salvos",
+  diagnosis_context_saved_from_workspace: "Contexto do diagnóstico salvo",
+  workspace_draft_saved: "Rascunho salvo",
+  diagnosis_session_started_from_workspace: "Diagnóstico iniciado",
+  diagnosis_review_risk_generated: "Risco gerado após revisão do diagnóstico",
+  diagnosis_review_risk_updated: "Risco atualizado após revisão do diagnóstico",
+  pgr_report_generated: "Prévia do PGR gerada",
+  establishment_selected: "Local de trabalho selecionado",
+  activity_created_from_workspace: "Atividade criada",
+  department_created_from_workspace: "Setor criado",
+  establishment_created_from_workspace: "Local de trabalho criado",
+  nr1_evidence_item_created: "Evidência registrada",
+  nr1_evidence_item_archived: "Evidência arquivada",
+  nr1_risk_created: "Risco registrado",
+};
+
+const AUDIT_ENTITY_LABELS: Readonly<Record<string, string>> = {
+  workspace_shell: "Espaço de trabalho NR-1",
+  nr1_action_followup: "Acompanhamento",
+  nr1_action_plan: "Plano de ação",
+  nr1_risk: "Risco",
+  nr1_evidence_item: "Evidência",
+  nr1_establishment: "Local de trabalho",
+  nr1_department: "Setor",
+  nr1_activity: "Atividade",
+  diagnosis_session: "Diagnóstico",
+  pgr_report: "Prévia do PGR",
+};
 
 function asRecord(value: unknown): AnyRecord {
   return value && typeof value === "object" ? (value as AnyRecord) : {};
@@ -52,7 +142,7 @@ function parseTenants(payload: unknown): TenantOption[] {
     .map((item) => {
       const record = item as AnyRecord;
       const id = String(record.id ?? record.tenant_id ?? "").trim();
-      const name = String(record.name ?? record.slug ?? "Tenant").trim();
+      const name = String(record.name ?? record.slug ?? "Empresa").trim();
       const role = record.role ? String(record.role) : null;
       return { id, name, role };
     })
@@ -72,13 +162,53 @@ function parseEstablishments(payload: unknown): EstablishmentOption[] {
     .map((item) => {
       const record = item as AnyRecord;
       const id = String(record.id ?? "").trim();
+      const companyId = record.company_id ? String(record.company_id) : null;
       const name = String(record.name ?? "Estabelecimento").trim();
       const city = record.city ? String(record.city) : null;
       const state = record.state ? String(record.state) : null;
       const status = record.status ? String(record.status) : null;
-      return { id, name, city, state, status };
+      return { id, company_id: companyId, name, city, state, status };
     })
     .filter((item) => item.id.length > 0);
+}
+
+function parseCompanies(payload: unknown): CompanyOption[] {
+  const wrapper = asRecord(payload);
+  const raw = Array.isArray(wrapper.items)
+    ? wrapper.items
+    : Array.isArray(wrapper.data)
+      ? wrapper.data
+      : Array.isArray(payload)
+        ? payload
+        : [];
+
+  return raw
+    .map((item) => {
+      const record = asRecord(item);
+      const id = String(record.id ?? "").trim();
+      const tenantId = String(record.tenant_id ?? "").trim();
+      const legalName = String(record.legal_name ?? "").trim();
+      const tradeName = record.trade_name ? String(record.trade_name).trim() : null;
+
+      return {
+        id,
+        tenant_id: tenantId,
+        legal_name: legalName,
+        trade_name: tradeName || null,
+      };
+    })
+    .filter((item) => item.id.length > 0 && item.tenant_id.length > 0 && item.legal_name.length > 0);
+}
+
+function isTechnicalTenantName(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+
+  return (
+    !normalized ||
+    normalized.startsWith("tenant-") ||
+    normalized.startsWith("tenant_") ||
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(normalized)
+  );
 }
 
 function parseSnapshotVersions(payload: unknown): PgrSnapshotVersion[] {
@@ -143,13 +273,38 @@ function text(value: unknown, fallback = "-"): string {
   }
 
   if (typeof value === "boolean") {
-    return value ? "Sim" : "Nao";
+    return value ? "Sim" : "Não";
   }
 
   return fallback;
 }
 
-function dateText(value: unknown): string {
+function dateOnlyText(value: unknown): string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return "-";
+  }
+
+  const raw = value.trim();
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+
+  if (!match) {
+    return raw;
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+  if (month < 1 || month > 12 || day < 1 || day > daysInMonth[month - 1]) {
+    return raw;
+  }
+
+  return `${match[3]}/${match[2]}/${match[1]}`;
+}
+
+function dateTimeText(value: unknown): string {
   if (typeof value !== "string" || value.trim().length === 0) {
     return "-";
   }
@@ -159,7 +314,66 @@ function dateText(value: unknown): string {
     return value;
   }
 
-  return date.toLocaleDateString("pt-BR");
+  return date.toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
+
+function humanLabel(value: unknown, labels: Readonly<Record<string, string>>): string {
+  const raw = text(value, "");
+
+  if (!raw) {
+    return "Não informado";
+  }
+
+  const knownLabel = labels[raw];
+  if (knownLabel) {
+    return knownLabel;
+  }
+
+  const readable = raw.replace(/[_-]+/g, " ").trim();
+  return readable ? readable.charAt(0).toLocaleUpperCase("pt-BR") + readable.slice(1) : "Não informado";
+}
+
+function hasDisplayValue(value: unknown): boolean {
+  return typeof value === "boolean" ||
+    (typeof value === "string" && value.trim().length > 0) ||
+    (typeof value === "number" && Number.isFinite(value));
+}
+
+function formatCnpj(value: unknown): string {
+  const raw = text(value, "");
+  const digits = raw.replace(/\D/g, "");
+
+  return digits.length === 14
+    ? digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5")
+    : raw || "Não informado";
+}
+
+function formatCnae(value: unknown): string {
+  const raw = text(value, "");
+  const digits = raw.replace(/\D/g, "");
+
+  return digits.length === 7
+    ? digits.replace(/^(\d{4})(\d)(\d{2})$/, "$1-$2/$3")
+    : raw || "Não informado";
+}
+
+function formatCityState(cityValue: unknown, stateValue: unknown): string {
+  const city = text(cityValue, "");
+  const state = text(stateValue, "");
+  return [city, state].filter(Boolean).join(" / ") || "Não informado";
+}
+
+function auditCategory(eventTypeValue: unknown): string {
+  const eventType = text(eventTypeValue, "");
+
+  if (eventType.includes("diagnosis")) return "Diagnóstico";
+  if (eventType.includes("risk") || eventType.includes("action_plan")) return "Riscos e planos";
+  if (eventType.includes("evidence") || eventType.includes("followup")) return "Evidências e acompanhamentos";
+  if (eventType.includes("pgr_report")) return "PGR";
+  return "Contexto e estrutura";
 }
 
 async function resolvePgrApprovalAccessToken() {
@@ -207,7 +421,9 @@ function SectionTitle(props: { children: React.ReactNode }) {
 function InfoGrid(props: { items: Array<[string, unknown]>; selectedTenantId?: string; selectedEstablishmentId?: string; selectedDocumentVersionId?: string }) {
   return (
     <div className="mt-4 grid gap-3 md:grid-cols-2">
+      {FORMAL_PGR_OPERATIONS_ENABLED ? (
         <PgrProfessionalApprovalPanel selectedTenantId={props.selectedTenantId} selectedEstablishmentId={props.selectedEstablishmentId} selectedDocumentVersionId={props.selectedDocumentVersionId} />
+      ) : null}
 
       {props.items.map(([label, value]) => (
         <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -226,8 +442,8 @@ function EmptyState(props: { text: string }) {
 function PrintFooter() {
   return (
     <footer id="nr1PrintLayoutVersion" className="mt-10 border-t border-slate-300 pt-4 text-[11px] leading-5 text-slate-500">
-      <p>Documento gerado pelo icanHelp para apoio ao Gerenciamento de Riscos Ocupacionais.</p>
-      <p>Revise os dados tecnicos, responsaveis e evidencias antes da assinatura e arquivamento formal.</p>
+      <p>Prévia não formal gerada pelo icanHelp para apoio ao Gerenciamento de Riscos Ocupacionais.</p>
+      <p>Esta visualização não constitui versão formal, aprovação profissional ou documento para assinatura.</p>
     </footer>
   );
 }
@@ -237,17 +453,34 @@ export default function Nr1PgrReportPage() {
   const [message, setMessage] = useState("");
   const [token, setToken] = useState("");
   const [tenants, setTenants] = useState<TenantOption[]>([]);
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [establishments, setEstablishments] = useState<EstablishmentOption[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState("");
   const [selectedEstablishmentId, setSelectedEstablishmentId] = useState("");
   const [reportPayload, setReportPayload] = useState<unknown>(null);
   const [snapshotVersions, setSnapshotVersions] = useState<PgrSnapshotVersion[]>([]);
+  const companyRequestSequence = useRef(0);
 
   const report = getReport(reportPayload);
   const latestFormalDocumentVersionId = snapshotVersions[0]?.id ?? "";
   const selectedTenant = tenants.find((tenantItem) => tenantItem.id === selectedTenantId);
   const selectedEstablishment = establishments.find((item) => item.id === selectedEstablishmentId);
+  const selectedCompany = companies.find((item) => item.id === selectedEstablishment?.company_id);
   const topSelectorScopeReady = Boolean(selectedTenantId && selectedEstablishmentId);
+  const safeTenantName = selectedTenant?.name?.trim() || "";
+  const activeCompanyName =
+    selectedCompany?.trade_name?.trim() ||
+    selectedCompany?.legal_name?.trim() ||
+    (!isTechnicalTenantName(safeTenantName) ? safeTenantName : "") ||
+    "Empresa ativa";
+  const activeEstablishmentName = selectedEstablishment?.name || "Local de trabalho não selecionado";
+  const previewProgress = report ? 100 : topSelectorScopeReady ? 50 : 0;
+  const previewProgressDescription = report
+    ? "Preparação da prévia concluída. Isso não representa formalização do PGR."
+    : topSelectorScopeReady
+      ? "Contexto selecionado. Gere a prévia para conferir a consolidação."
+      : "Selecione a empresa e o local de trabalho para preparar a prévia.";
+  const previewStatus = report ? "Prévia gerada" : topSelectorScopeReady ? "Pronta para gerar" : "Contexto pendente";
 
   const summary = useMemo(() => {
     if (!report) {
@@ -267,6 +500,20 @@ export default function Nr1PgrReportPage() {
     };
   }, [report]);
 
+  const summaryItems = summary
+    ? [
+        ["Setores", summary.departments],
+        ["Atividades", summary.activities],
+        ["Riscos", summary.risks],
+        ["Planos de ação", summary.actionPlans],
+        ["Acompanhamentos", summary.actionFollowups],
+        ["Evidências", summary.evidenceItems],
+        ["Eventos de auditoria", summary.auditEvents],
+        ["Referências de saúde", summary.occupationalHealthRefs],
+        ["Treinamentos", summary.trainingRecords],
+      ] as const
+    : [];
+
   const company = asRecord(report?.company);
   const establishment = asRecord(report?.establishment);
   const scope = asRecord(report?.scope);
@@ -276,13 +523,43 @@ export default function Nr1PgrReportPage() {
   const evidenceItems = readArray(report, "evidenceItems");
   const auditEvents = readArray(report, "auditEvents");
   const generatedAt = text(report?.generatedAt, "");
+  const reportCompanyName = text(company.trade_name ?? company.legal_name, activeCompanyName);
+  const reportEstablishmentName = text(establishment.name, activeEstablishmentName);
+  const legalName = text(company.legal_name, "");
+  const tradeName = text(company.trade_name, "");
+  const showTradeName = Boolean(
+    tradeName &&
+    legalName.localeCompare(tradeName, "pt-BR", { sensitivity: "base" }) !== 0
+  );
+  const identificationItems: Array<[string, unknown]> = [
+    ["Razão social", legalName || tradeName || "Não informado"],
+  ];
+
+  if (showTradeName) {
+    identificationItems.push(["Nome fantasia", tradeName]);
+  }
+
+  identificationItems.push(
+    ["CNPJ", formatCnpj(company.cnpj)],
+    ["CNAE principal", formatCnae(company.cnae_main)],
+    ["Grau de risco", text(company.risk_grade, "Não informado")],
+    ["Estabelecimento", establishment.name],
+    ["Cidade/UF", formatCityState(establishment.city, establishment.state)],
+    ["Trabalhadores", text(establishment.employee_count, "Não informado")],
+  );
+
+  const relevantAuditEvents = auditEvents
+    .filter((item) => text(item.event_type, "") !== "workspace_draft_saved")
+    .slice(0, 5);
+  const auditCategories = Array.from(new Set(auditEvents.map((item) => auditCategory(item.event_type))));
+  const latestAuditEvent = auditEvents[0] ?? null;
 
   async function getAccessToken() {
     const sessionResult = await supabase.auth.getSession();
     const accessToken = sessionResult.data.session?.access_token ?? "";
 
     if (!accessToken) {
-      throw new Error("Sessao nao encontrada. Faca login novamente.");
+      throw new Error("Sessão não encontrada. Faça login novamente.");
     }
 
     setToken(accessToken);
@@ -307,7 +584,7 @@ export default function Nr1PgrReportPage() {
       const tenantItems = parseTenants(tenantsPayload);
 
       if (!tenantsResponse.ok || tenantItems.length === 0) {
-        throw new Error("Nenhum tenant disponivel para o usuario.");
+        throw new Error("Nenhuma empresa disponível para o usuário.");
       }
 
       setTenants(tenantItems);
@@ -315,12 +592,42 @@ export default function Nr1PgrReportPage() {
       const firstTenantId = selectedTenantId || tenantItems[0].id;
       setSelectedTenantId(firstTenantId);
 
-      await loadEstablishments(accessToken, firstTenantId);
+      await Promise.all([
+        loadCompanies(accessToken, firstTenantId),
+        loadEstablishments(accessToken, firstTenantId),
+      ]);
       setStatus("idle");
-      setMessage("Selecione o estabelecimento e gere o relatorio.");
+      setMessage("Selecione o local de trabalho e gere a prévia.");
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Falha ao carregar contexto NR1.");
+    }
+  }
+
+  async function loadCompanies(accessToken: string, tenantId: string) {
+    const requestSequence = ++companyRequestSequence.current;
+
+    try {
+      const response = await fetch(`/api/nr1/companies?tenantId=${encodeURIComponent(tenantId)}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "x-icanhelp-tenant": tenantId,
+          Accept: "application/json",
+        },
+        cache: "no-store",
+      });
+      const payload = await response.json();
+
+      if (requestSequence !== companyRequestSequence.current) {
+        return;
+      }
+
+      setCompanies(response.ok ? parseCompanies(payload) : []);
+    } catch {
+      if (requestSequence === companyRequestSequence.current) {
+        setCompanies([]);
+      }
     }
   }
 
@@ -356,83 +663,42 @@ export default function Nr1PgrReportPage() {
 
   async function handleTenantChange(nextTenantId: string) {
     setSelectedTenantId(nextTenantId);
+    setSelectedEstablishmentId("");
+    setCompanies([]);
+    setEstablishments([]);
     setReportPayload(null);
     setSnapshotVersions([]);
 
     try {
       setStatus("loading");
-      setMessage("Carregando estabelecimentos...");
+      setMessage("Carregando empresas e locais de trabalho...");
       const accessToken = token || (await getAccessToken());
-      await loadEstablishments(accessToken, nextTenantId);
+      await Promise.all([
+        loadCompanies(accessToken, nextTenantId),
+        loadEstablishments(accessToken, nextTenantId),
+      ]);
       setStatus("idle");
-      setMessage("Estabelecimentos carregados.");
+      setMessage("Contexto carregado.");
     } catch (error) {
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Falha ao trocar tenant.");
+      setMessage(error instanceof Error ? error.message : "Falha ao trocar empresa.");
     }
   }
-
-
-  async function recordPgrDocumentAuditEvent(action: "generated" | "print_requested") {
-    if (!selectedTenantId || !selectedEstablishmentId) {
-      return;
-    }
-
-    try {
-      const accessToken = token || (await getAccessToken());
-      const eventType = action === "generated" ? "pgr_report_generated" : "pgr_report_print_requested";
-      const reason =
-        action === "generated"
-          ? "Relatorio PGR gerado na tela."
-          : "Solicitacao de impressao ou salvamento em PDF do PGR.";
-
-      await fetch("/api/nr1/audit-events", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "x-icanhelp-tenant": selectedTenantId,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          establishment_id: selectedEstablishmentId,
-          module_name: "nr1",
-          screen_key: "dashboard/nr1/relatorio-pgr",
-          entity_type: "pgr_report",
-          entity_id: selectedEstablishmentId,
-          event_type: eventType,
-          persistence_type: "formal_version",
-          reason,
-          old_value_json: null,
-          new_value_json: {
-            tenantId: selectedTenantId,
-            establishmentId: selectedEstablishmentId,
-            source: "dashboard/nr1/relatorio-pgr",
-            action,
-            reportType: "nr1_pgr_json",
-          },
-        }),
-      });
-    } catch {
-      // Audit failure must not block report generation or browser print.
-    }
-  }
-
   async function loadReport() {
     if (!selectedTenantId) {
       setStatus("error");
-      setMessage("Selecione um tenant.");
+      setMessage("Selecione uma empresa.");
       return;
     }
 
     if (!selectedEstablishmentId) {
       setStatus("error");
-      setMessage("Selecione um estabelecimento.");
+      setMessage("Selecione um local de trabalho.");
       return;
     }
 
     setStatus("loading");
-    setMessage("Gerando relatorio PGR...");
+    setMessage("Gerando prévia do PGR...");
 
     try {
       const accessToken = token || (await getAccessToken());
@@ -452,16 +718,15 @@ export default function Nr1PgrReportPage() {
       setReportPayload(payload);
 
       if (!response.ok) {
-        throw new Error(payload?.message || payload?.error || "Falha ao gerar relatorio PGR.");
+        throw new Error(payload?.message || payload?.error || "Falha ao gerar relatório PGR.");
       }
 
       await loadFormalPgrSnapshots(accessToken);
-      await recordPgrDocumentAuditEvent("generated");
       setStatus("loaded");
-      setMessage("Relatorio PGR carregado. Use o botao de impressao para salvar em PDF.");
+      setMessage("Prévia do PGR carregada. Use o botão de impressão para salvar uma cópia não formal.");
     } catch (error) {
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Falha ao gerar relatorio PGR.");
+      setMessage(error instanceof Error ? error.message : "Falha ao gerar relatório PGR.");
     }
   }
 
@@ -546,11 +811,10 @@ export default function Nr1PgrReportPage() {
 
   function handlePrintPdf() {
     if (!report) {
-      setMessage("Gere o relatorio antes de imprimir ou salvar em PDF.");
+      setMessage("Gere a prévia antes de imprimir ou salvar em PDF.");
       return;
     }
 
-    void recordPgrDocumentAuditEvent("print_requested");
     window.print();
   }
 
@@ -558,50 +822,277 @@ export default function Nr1PgrReportPage() {
     loadInitialContext();
   }, []);
 
+  const pgrTopContextSlot = (
+    <section
+      id="nr1-pgr-generation"
+      className="nr1-screen-only min-w-0 rounded-[1.75rem] border border-[#d8c7ae] bg-white p-5 shadow-sm"
+    >
+      <div className="max-w-3xl">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
+          Contexto da prévia
+        </p>
+        <h2 className="mt-2 text-xl font-semibold text-[#10243e]">
+          Empresa e local de trabalho
+        </h2>
+        <p className="mt-1 text-sm leading-6 text-[#6f665b]">
+          Confira o escopo antes de gerar a consolidação. Os identificadores técnicos permanecem somente nas chamadas internas.
+        </p>
+      </div>
+
+      <div className="mt-5 grid min-w-0 gap-4 md:grid-cols-2">
+        <label className="min-w-0 text-sm font-semibold text-[#10243e]">
+          Empresa
+          <select
+            value={selectedTenantId}
+            onChange={(event) => void handleTenantChange(event.target.value)}
+            className="mt-2 w-full min-w-0 rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-sm font-semibold text-[#10243e] outline-none transition focus:border-[#9d7b37]"
+          >
+            {tenants.map((tenantItem, index) => {
+              const tenantName = tenantItem.name.trim();
+              const optionLabel =
+                tenantItem.id === selectedTenantId && selectedCompany
+                  ? activeCompanyName
+                  : !isTechnicalTenantName(tenantName)
+                    ? tenantName
+                    : `Empresa ${index + 1}`;
+
+              return (
+                <option key={tenantItem.id} value={tenantItem.id}>
+                  {optionLabel}
+                </option>
+              );
+            })}
+          </select>
+        </label>
+
+        <label className="min-w-0 text-sm font-semibold text-[#10243e]">
+          Local de trabalho
+          <select
+            value={selectedEstablishmentId}
+            onChange={(event) => {
+              setSelectedEstablishmentId(event.target.value);
+              setReportPayload(null);
+              setSnapshotVersions([]);
+            }}
+            className="mt-2 w-full min-w-0 rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-sm font-semibold text-[#10243e] outline-none transition focus:border-[#9d7b37]"
+          >
+            {establishments.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name} {item.city ? `- ${item.city}/${item.state ?? ""}` : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <dl className="mt-5 grid min-w-0 gap-3 md:grid-cols-2">
+        <div className="min-w-0 rounded-2xl bg-[#f7efe6] px-4 py-3">
+          <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-[#9d7b37]">Empresa ativa</dt>
+          <dd className="mt-1 break-words text-sm font-semibold text-[#10243e]">{activeCompanyName}</dd>
+        </div>
+        <div className="min-w-0 rounded-2xl bg-[#f7efe6] px-4 py-3">
+          <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-[#9d7b37]">Local de trabalho</dt>
+          <dd className="mt-1 break-words text-sm font-semibold text-[#10243e]">{activeEstablishmentName}</dd>
+          {selectedEstablishment?.city ? (
+            <dd className="mt-1 text-xs text-[#6f665b]">
+              {selectedEstablishment.city}/{selectedEstablishment.state ?? ""}
+            </dd>
+          ) : null}
+        </div>
+      </dl>
+
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <div className="rounded-2xl border border-[#e2d4bf] bg-[#fffdf9] p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9d7b37]">Contexto selecionado</p>
+          <p className="mt-2 text-sm font-semibold text-[#10243e]">{topSelectorScopeReady ? "Pronto" : "Pendente"}</p>
+        </div>
+        <div className="rounded-2xl border border-[#e2d4bf] bg-[#fffdf9] p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9d7b37]">Dados prontos</p>
+          <p className="mt-2 text-sm font-semibold text-[#10243e]">
+            {status === "loading" ? "Carregando" : topSelectorScopeReady ? "Prontos para consolidar" : "Aguardando contexto"}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-[#e2d4bf] bg-[#fffdf9] p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9d7b37]">Prévia gerada</p>
+          <p className="mt-2 text-sm font-semibold text-[#10243e]">{report ? "Sim" : "Ainda não"}</p>
+        </div>
+      </div>
+
+      <div className="mt-5 flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <p className="min-w-0 break-words text-sm text-[#6f665b]">{message || "Pronto para gerar."}</p>
+        <div className="flex shrink-0 flex-col gap-3 sm:flex-row">
+          <button
+            id="nr1GeneratePgrReportButton"
+            type="button"
+            onClick={loadReport}
+            disabled={status === "loading" || !topSelectorScopeReady}
+            className="rounded-2xl bg-[#10243e] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1d344f] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {status === "loading" ? "Gerando..." : "Gerar prévia"}
+          </button>
+
+          <button
+            id="nr1PrintPgrReportButton"
+            type="button"
+            onClick={handlePrintPdf}
+            disabled={!report || status === "loading"}
+            className="rounded-2xl border border-[#10243e] bg-white px-5 py-3 text-sm font-semibold text-[#10243e] transition hover:bg-[#f7f1e8] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Imprimir prévia — não formal
+          </button>
+
+          {FORMAL_PGR_OPERATIONS_ENABLED ? (
+            <button
+              id="nr1CreatePgrSnapshotButton"
+              type="button"
+              onClick={createFormalPgrSnapshot}
+              disabled={!reportPayload || status === "loading"}
+              className="rounded-2xl border border-[#178A8F] bg-[#E8F5F6] px-5 py-3 text-sm font-semibold text-[#116B70] transition hover:bg-[#D6F0F2] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Criar snapshot formal
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mt-5 rounded-2xl border border-[#e2d4bf] bg-[#f7efe6] p-4 text-sm text-[#10243e]">
+        <strong>Versão formal em preparação</strong>
+        <p className="mt-1 leading-6 text-[#6f665b]">
+          Você já pode conferir e imprimir a prévia. A criação da versão formal permanece indisponível enquanto esse fluxo está em validação.
+        </p>
+      </div>
+    </section>
+  );
+
   return (
-    <main className="min-h-screen bg-[#F4F7FB] px-6 py-8 text-[#132238]">
+    <>
       <style>{`
         @media print {
+          html,
           body {
             background: #ffffff !important;
+          }
+
+          .nr1-pgr-shell > div {
+            min-height: 0 !important;
+            background: #ffffff !important;
+          }
+
+          .nr1-pgr-shell > div > div {
+            display: block !important;
+            min-height: 0 !important;
+            max-width: none !important;
+          }
+
+          .nr1-pgr-shell aside,
+          .nr1-pgr-shell > div > div > section > section:first-child,
+          .nr1-pgr-shell > div > div > section > div {
+            display: none !important;
+          }
+
+          .nr1-pgr-shell > div > div > section {
+            padding: 0 !important;
+          }
+
+          .nr1-pgr-shell > div > div > section > section:last-child {
+            margin: 0 !important;
           }
 
           .nr1-screen-only {
             display: none !important;
           }
 
+          .nr1-pgr-content > * {
+            display: none !important;
+          }
+
           #nr1-pgr-print-area {
             display: block !important;
+            width: 100% !important;
+            max-width: none !important;
+            overflow: visible !important;
             border: 0 !important;
             box-shadow: none !important;
             margin: 0 !important;
             padding: 0 !important;
-            font-size: 11.5pt;
-            line-height: 1.45;
+            font-size: 10.5pt;
+            line-height: 1.35;
           }
 
           #nr1-pgr-print-area * {
             color-adjust: exact;
             print-color-adjust: exact;
+            overflow-wrap: anywhere;
+            min-height: 0 !important;
+          }
+
+          #nr1-pgr-print-area > .nr1-print-section-title:nth-of-type(1) + div {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 7pt !important;
+          }
+
+          #nr1-pgr-print-area > .nr1-print-section-title:nth-of-type(2) + div {
+            display: grid !important;
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+            gap: 7pt !important;
+          }
+
+          #nr1-pgr-print-area .nr1-print-avoid,
+          #nr1-pgr-print-area > .nr1-print-section-title + .grid > div {
+            padding: 7pt !important;
+          }
+
+          #nr1-pgr-print-area .mt-4 {
+            margin-top: 7pt !important;
+          }
+
+          #nr1-pgr-print-area .mt-3 {
+            margin-top: 5pt !important;
+          }
+
+          #nr1-pgr-print-area .mt-2 {
+            margin-top: 3pt !important;
+          }
+
+          #nr1-pgr-print-area .mt-1 {
+            margin-top: 2pt !important;
+          }
+
+          #nr1-pgr-print-area .space-y-4 > :not([hidden]) ~ :not([hidden]) {
+            margin-top: 7pt !important;
+          }
+
+          #nr1-pgr-print-area .space-y-3 > :not([hidden]) ~ :not([hidden]) {
+            margin-top: 5pt !important;
           }
 
           .nr1-print-avoid,
-          #nr1-pgr-print-area article,
-          #nr1-pgr-print-area .rounded-2xl {
+          #nr1-pgr-print-area article {
             break-inside: avoid;
             page-break-inside: avoid;
+            orphans: 3;
+            widows: 3;
           }
 
           .nr1-print-section-title {
             break-after: avoid;
             page-break-after: avoid;
-            margin-top: 18pt !important;
+            margin-top: 12pt !important;
+            padding-bottom: 4pt !important;
+            font-size: 14pt !important;
+            line-height: 1.25 !important;
           }
 
           .nr1-print-cover {
             border-bottom: 2px solid #0f766e !important;
-            padding-bottom: 18pt !important;
-            margin-bottom: 18pt !important;
+            padding-bottom: 10pt !important;
+            margin-bottom: 10pt !important;
+          }
+
+          .nr1-print-cover h1 {
+            font-size: 20pt !important;
+            line-height: 1.2 !important;
           }
 
           .nr1-print-badge {
@@ -612,250 +1103,91 @@ export default function Nr1PgrReportPage() {
 
           @page {
             size: A4;
-            margin: 13mm;
+            margin: 12mm;
           }
         }
       `}</style>
 
-      <div className="mx-auto max-w-[1200px]">
-        <div className="nr1-screen-only mb-6">
-          <Link href="/dashboard/nr1/workspace" className="text-sm font-semibold text-[#178A8F]">
-            Voltar ao workspace NR1
-          </Link>
-        </div>
+      <div className="nr1-pgr-shell">
+        <Nr1WorkspaceV2Shell
+          companyName={activeCompanyName}
+          establishmentName={activeEstablishmentName}
+          pgrStatus={previewStatus}
+          progressPercent={previewProgress}
+          progressDescription={previewProgressDescription}
+          activeModule="PGR"
+          modules={["Base", "Mapeamento", "Riscos", "Plano", "Evidências", "Trilha", "PGR"]}
+          pendingItems={[
+            topSelectorScopeReady ? "Contexto da prévia conferido" : "Selecionar empresa e local de trabalho",
+            report ? "Conferir a consolidação gerada" : "Gerar a prévia do PGR",
+            report ? "Imprimir a prévia não formal" : "A impressão será liberada após a geração",
+          ]}
+          nextBestActionLabel="Etapa da jornada"
+          nextBestActionTitle="Conferir a prévia do PGR"
+          nextBestActionDescription="Revise a consolidação da empresa e do local de trabalho antes da formalização. Esta prévia não é uma versão formal."
+          nextBestActionPrimaryHref="#nr1-pgr-generation"
+          nextBestActionPrimaryLabel="Gerar prévia"
+          nextBestActionSecondaryHref="/dashboard/nr1/trilha-acompanhamento"
+          nextBestActionSecondaryLabel="Revisar trilha"
+          nextBestActionReasons={[
+            "A prévia reúne riscos, plano de ação, evidências e acompanhamentos.",
+            "Confira se a empresa e o local de trabalho estão corretos.",
+            "A impressão continua identificada como prévia não formal.",
+          ]}
+          pgrHref="/dashboard/nr1/relatorio-pgr"
+          moduleHref="#nr1-pgr-generation"
+          topContextSlot={pgrTopContextSlot}
+        >
+          <section className="nr1-pgr-content min-w-0 break-words">
 
-        <PgrSectionCard className="nr1-screen-only rounded-[28px] bg-[linear-gradient(135deg,#0F2337_0%,#13495C_60%,#178A8F_100%)] p-7 text-white shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
-          <p className="text-[12px] uppercase tracking-[0.08em] text-white/70">documento PGR</p>
-          <h1 className="mt-4 text-[38px] font-semibold leading-tight">Relatorio estruturado do PGR</h1>
-          <p className="mt-3 max-w-3xl text-base leading-7 text-white/85">
-            Gere a visao consolidada por estabelecimento com inventario, plano de acao,
-            acompanhamentos, evidencias, saude, treinamentos e auditoria.
-          </p>
-        </PgrSectionCard>
-
-        <section className="nr1-screen-only mt-6 rounded-[24px] border border-[#D9E0E7] bg-white p-6 shadow-[0_18px_50px_rgba(34,49,63,0.08)]">
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="block">
-              <span className="text-sm font-semibold text-[#22313F]">Tenant</span>
-              <select
-                value={selectedTenantId}
-                onChange={(event) => handleTenantChange(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] px-4 py-3 text-sm outline-none"
-              >
-                {tenants.map((tenantItem) => (
-                  <option key={tenantItem.id} value={tenantItem.id}>
-                    {tenantItem.name} {tenantItem.role ? `- ${tenantItem.role}` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block">
-              <span className="text-sm font-semibold text-[#22313F]">Estabelecimento</span>
-              <select
-                value={selectedEstablishmentId}
-                onChange={(event) => {
-                  setSelectedEstablishmentId(event.target.value);
-                  setReportPayload(null);
-                  setSnapshotVersions([]);
-                }}
-                className="mt-2 w-full rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] px-4 py-3 text-sm outline-none"
-              >
-                {establishments.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name} {item.city ? `- ${item.city}/${item.state ?? ""}` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-            <div className="flex flex-col gap-1">
-              <strong>Escopo ativo do relatorio PGR</strong>
-              <span>Confira o tenant e o estabelecimento antes de gerar relatorio, snapshot ou aprovacao final.</span>
-            </div>
-
-            <dl className="mt-3 grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl bg-white/75 p-3">
-                <dt className="text-xs font-semibold uppercase tracking-wide text-amber-700">Tenant selecionado</dt>
-                <dd className="mt-1 font-semibold text-slate-900">{selectedTenant?.name || "Nenhum tenant selecionado"}</dd>
-                <dd className="mt-1 break-all font-mono text-xs text-slate-600">{selectedTenantId || "tenant_id ausente"}</dd>
-              </div>
-              <div className="rounded-xl bg-white/75 p-3">
-                <dt className="text-xs font-semibold uppercase tracking-wide text-amber-700">Estabelecimento selecionado</dt>
-                <dd className="mt-1 font-semibold text-slate-900">{selectedEstablishment?.name || "Nenhum estabelecimento selecionado"}</dd>
-                <dd className="mt-1 text-xs text-slate-600">
-                  {selectedEstablishment?.city ? `${selectedEstablishment.city}/${selectedEstablishment.state ?? ""}` : "Cidade/UF nao informada"}
-                </dd>
-                <dd className="mt-1 break-all font-mono text-xs text-slate-600">{selectedEstablishmentId || "establishment_id ausente"}</dd>
-              </div>
-            </dl>
-
-            {!topSelectorScopeReady ? (
-              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800">
-                Selecione tenant e estabelecimento antes de gerar o relatorio PGR.
-              </p>
-            ) : (
-              <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
-                Escopo pronto. O relatorio PGR sera gerado para o tenant e estabelecimento acima.
-              </p>
-            )}
-          </div>
-
-          <div className="mt-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <p className="text-sm text-[#5B6776]">{message || "Pronto para gerar."}</p>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <button
-                id="nr1GeneratePgrReportButton"
-                type="button"
-                onClick={loadReport}
-                disabled={status === "loading" || !topSelectorScopeReady}
-                className="rounded-2xl bg-[#132238] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1D344F] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {status === "loading" ? "Gerando..." : "Gerar relatorio"}
-              </button>
-
-              <button
-                id="nr1PrintPgrReportButton"
-                type="button"
-                onClick={handlePrintPdf}
-                disabled={!report || status === "loading"}
-                className="rounded-2xl border border-[#132238] bg-white px-5 py-3 text-sm font-semibold text-[#132238] transition hover:bg-[#F4F7FB] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Imprimir / salvar PDF
-              </button>
-              <button
-                id="nr1CreatePgrSnapshotButton"
-                type="button"
-                onClick={createFormalPgrSnapshot}
-                disabled={!reportPayload || status === "loading"}
-                className="rounded-2xl border border-[#178A8F] bg-[#E8F5F6] px-5 py-3 text-sm font-semibold text-[#116B70] transition hover:bg-[#D6F0F2] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Criar snapshot formal
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {summary && (
-          <section className="nr1-screen-only mt-6 grid gap-4 md:grid-cols-3">
-            {Object.entries(summary).map(([key, value]) => (
-              <div key={key} className="rounded-[22px] border border-[#D9E0E7] bg-white p-5">
-                <p className="text-xs uppercase tracking-[0.08em] text-[#5B6776]">{key}</p>
-                <p className="mt-2 text-3xl font-semibold text-[#132238]">{value}</p>
-              </div>
-            ))}
-          </section>
-        )}
-
-        <section id="nr1SnapshotVersionsPanel" className="nr1-screen-only mt-6 rounded-[24px] border border-[#D9E0E7] bg-white p-6 shadow-[0_18px_50px_rgba(34,49,63,0.08)]">
-          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#178A8F]">versionamento formal</p>
-              <h2 className="mt-1 text-xl font-semibold text-[#132238]">Versoes formais do PGR</h2>
-              <p className="mt-1 text-sm text-[#5B6776]">Snapshots congelados em nr1_document_versions para rastreabilidade documental.</p>
-            </div>
-            <button
-              id="nr1RefreshPgrSnapshotsButton"
-              type="button"
-              onClick={() => void loadFormalPgrSnapshots()}
-              disabled={!selectedTenantId || !selectedEstablishmentId || status === "loading"}
-              className="rounded-2xl border border-[#D9E0E7] bg-white px-4 py-2 text-sm font-semibold text-[#132238] transition hover:bg-[#F4F7FB] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Atualizar versoes
-            </button>
-          </div>
-
-          {snapshotVersions.length === 0 ? (
-            <p className="mt-4 rounded-2xl border border-dashed border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm text-[#5B6776]">
-              Nenhum snapshot formal listado para o estabelecimento selecionado.
-            </p>
-          ) : (
-            <div className="mt-4 overflow-hidden rounded-2xl border border-[#D9E0E7]">
-              <table className="w-full border-collapse text-left text-sm">
-                <thead className="bg-[#F4F7FB] text-xs uppercase tracking-[0.08em] text-[#5B6776]">
-                  <tr>
-                    <th className="px-4 py-3">Versao</th>
-                    <th className="px-4 py-3">Tipo</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3">Gerado em</th>
-                    <th className="px-4 py-3">Substitui</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {snapshotVersions.map((snapshot) => (
-                    <tr key={snapshot.id} className="border-t border-[#D9E0E7]">
-                      <td className="px-4 py-3 font-semibold text-[#132238]">v{snapshot.version}</td>
-                      <td className="px-4 py-3 text-[#22313F]">{snapshot.document_type}</td>
-                      <td className="px-4 py-3 text-[#22313F]">{snapshot.status}</td>
-                      <td className="px-4 py-3 text-[#22313F]">{dateText(snapshot.generated_at)}</td>
-                      <td className="px-4 py-3 text-[#5B6776]">{snapshot.supersedes_document_id ? "Sim" : "Nao"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
         {report ? (
-          <section id="nr1-pgr-print-area" className="mt-6 rounded-[24px] border border-[#D9E0E7] bg-white p-8 shadow-[0_18px_50px_rgba(34,49,63,0.08)]">
+          <section id="nr1-pgr-print-area" className="nr1-pgr-print-area min-w-0 rounded-[24px] border border-[#D9E0E7] bg-white p-5 shadow-[0_18px_50px_rgba(34,49,63,0.08)] sm:p-8">
             <header className="nr1-print-cover border-b border-slate-300 pb-6">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
                   <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#178A8F]">Programa de Gerenciamento de Riscos</p>
-                  <h1 className="mt-3 text-3xl font-bold text-slate-950">Relatorio estruturado do PGR</h1>
-                  <p className="mt-2 text-sm text-slate-600">Documento gerado a partir da base NR1 do icanHelp.</p>
+                  <h1 className="mt-3 text-3xl font-bold text-slate-950">Prévia estruturada do PGR — não formal</h1>
+                  <p className="mt-2 text-sm text-slate-600">Visualização dinâmica gerada a partir da base NR1 do icanHelp; não constitui versão formal.</p>
                 </div>
                 <div className="nr1-print-badge rounded-2xl px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-[#115e59]">
-                  PGR / GRO
+                  Prévia não formal
                 </div>
               </div>
               <div className="mt-4 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
-                <p><strong>Gerado em:</strong> {generatedAt ? dateText(generatedAt) : "-"}</p>
-                <p><strong>Tenant:</strong> {text(scope.tenantId)}</p>
-                <p><strong>Estabelecimento:</strong> {text(scope.establishmentId)}</p>
-                <p><strong>Perfil:</strong> {text(scope.membershipRole)}</p>
+                <p><strong>Gerado em:</strong> {generatedAt ? dateTimeText(generatedAt) : "-"}</p>
+                <p><strong>Empresa:</strong> {reportCompanyName}</p>
+                <p><strong>Local de trabalho:</strong> {reportEstablishmentName}</p>
               </div>
             </header>
 
-            <SectionTitle>1. Identificacao</SectionTitle>
+            <SectionTitle>1. Identificação</SectionTitle>
             <InfoGrid selectedTenantId={String(scope.tenantId ?? scope.tenant_id ?? selectedTenantId ?? "")} selectedEstablishmentId={String(scope.establishmentId ?? scope.establishment_id ?? selectedEstablishmentId ?? "")}
               selectedDocumentVersionId={latestFormalDocumentVersionId}
-              items={[
-                ["Empresa", company.legal_name ?? company.trade_name],
-                ["Nome fantasia", company.trade_name],
-                ["CNPJ", company.cnpj],
-                ["CNAE principal", company.cnae_main],
-                ["Grau de risco", company.risk_grade],
-                ["Estabelecimento", establishment.name],
-                ["Cidade/UF", `${text(establishment.city)} / ${text(establishment.state)}`],
-                ["Trabalhadores", establishment.employee_count],
-              ]}
+              items={identificationItems}
             />
 
             <SectionTitle>2. Resumo quantitativo</SectionTitle>
             {summary ? (
               <div className="mt-4 grid gap-3 md:grid-cols-3">
-                {Object.entries(summary).map(([key, value]) => (
-                  <div key={key} className="rounded-2xl border border-slate-200 p-4">
-                    <p className="text-[11px] uppercase tracking-[0.08em] text-slate-500">{key}</p>
+                {summaryItems.map(([label, value]) => (
+                  <div key={label} className="min-w-0 rounded-2xl border border-slate-200 p-4">
+                    <p className="break-words text-[11px] uppercase tracking-[0.08em] text-slate-500">{label}</p>
                     <p className="mt-1 text-2xl font-semibold text-slate-950">{value}</p>
                   </div>
                 ))}
               </div>
             ) : null}
 
-            <SectionTitle>3. Inventario de riscos</SectionTitle>
+            <SectionTitle>3. Inventário de riscos</SectionTitle>
             {risks.length > 0 ? (
               <div className="mt-4 space-y-4">
                 {risks.map((item, index) => (
                   <article key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4">
-                    <h3 className="text-base font-semibold text-slate-950">{index + 1}. {text(item.title, "Risco sem titulo")}</h3>
+                    <h3 className="text-base font-semibold text-slate-950">{index + 1}. {text(item.title, "Risco sem título")}</h3>
                     <div className="mt-3 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
-                      <p><strong>Categoria:</strong> {text(item.risk_category)}</p>
-                      <p><strong>Nivel:</strong> {text(item.risk_level)}</p>
-                      <p><strong>Classificacao:</strong> {text(item.classification)}</p>
+                      <p><strong>Categoria:</strong> {humanLabel(item.risk_category, RISK_CATEGORY_LABELS)}</p>
+                      <p><strong>Nível:</strong> {humanLabel(item.risk_level, RISK_LEVEL_LABELS)}</p>
+                      <p><strong>Classificação:</strong> {humanLabel(item.classification, RISK_LEVEL_LABELS)}</p>
                       <p><strong>Grupo exposto:</strong> {text(item.exposed_group)}</p>
                       <p className="md:col-span-2"><strong>Perigo/Fonte:</strong> {text(item.hazard_description ?? item.source_circumstance)}</p>
                       <p className="md:col-span-2"><strong>Medida recomendada:</strong> {text(item.recommended_measure)}</p>
@@ -867,25 +1199,25 @@ export default function Nr1PgrReportPage() {
               <EmptyState text="Nenhum risco registrado para este estabelecimento." />
             )}
 
-            <SectionTitle>4. Plano de acao</SectionTitle>
+            <SectionTitle>4. Plano de ação</SectionTitle>
             {actionPlans.length > 0 ? (
               <div className="mt-4 space-y-4">
                 {actionPlans.map((item, index) => (
                   <article key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4">
-                    <h3 className="text-base font-semibold text-slate-950">{index + 1}. {text(item.title, "Acao sem titulo")}</h3>
+                    <h3 className="text-base font-semibold text-slate-950">{index + 1}. {text(item.title, "Ação sem título")}</h3>
                     <div className="mt-3 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
-                      <p><strong>Prioridade:</strong> {text(item.priority)}</p>
-                      <p><strong>Status:</strong> {text(item.status)}</p>
-                      <p><strong>Responsavel:</strong> {text(item.responsible_name)}</p>
-                      <p><strong>Prazo:</strong> {dateText(item.due_date)}</p>
-                      <p className="md:col-span-2"><strong>Descricao:</strong> {text(item.description)}</p>
+                      <p><strong>Prioridade:</strong> {humanLabel(item.priority, PRIORITY_LABELS)}</p>
+                      <p><strong>Status:</strong> {humanLabel(item.status, ACTION_PLAN_STATUS_LABELS)}</p>
+                      <p><strong>Responsável:</strong> {text(item.responsible_name)}</p>
+                      <p><strong>Prazo:</strong> {dateOnlyText(item.due_date)}</p>
+                      <p className="md:col-span-2"><strong>Descrição:</strong> {text(item.description)}</p>
                       <p className="md:col-span-2"><strong>Indicador:</strong> {text(item.completion_indicator)}</p>
                     </div>
                   </article>
                 ))}
               </div>
             ) : (
-              <EmptyState text="Nenhum plano de acao registrado para este estabelecimento." />
+              <EmptyState text="Nenhum plano de ação registrado para este estabelecimento." />
             )}
 
             <SectionTitle>5. Acompanhamentos</SectionTitle>
@@ -893,9 +1225,16 @@ export default function Nr1PgrReportPage() {
               <div className="mt-4 space-y-3">
                 {actionFollowups.map((item, index) => (
                   <div key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">
-                    <p><strong>{index + 1}. Status:</strong> {text(item.status)}</p>
-                    <p><strong>Data:</strong> {dateText(item.followup_date ?? item.created_at)}</p>
-                    <p><strong>Descricao:</strong> {text(item.description ?? item.notes)}</p>
+                    <p className="font-semibold text-slate-950">{index + 1}. Acompanhamento</p>
+                    <p><strong>Data:</strong> {dateOnlyText(item.followup_date)}</p>
+                    {hasDisplayValue(item.execution_check) ? <p><strong>Verificação da execução:</strong> {text(item.execution_check)}</p> : null}
+                    {hasDisplayValue(item.inspection_result) ? <p><strong>Resultado da inspeção:</strong> {text(item.inspection_result)}</p> : null}
+                    {hasDisplayValue(item.effectiveness_result) ? <p><strong>Efetividade:</strong> {text(item.effectiveness_result)}</p> : null}
+                    {hasDisplayValue(item.continuity_check) ? <p><strong>Continuidade:</strong> {text(item.continuity_check)}</p> : null}
+                    {hasDisplayValue(item.environmental_monitoring_result) ? <p><strong>Monitoramento ambiental:</strong> {text(item.environmental_monitoring_result)}</p> : null}
+                    {hasDisplayValue(item.worker_participation_note) ? <p><strong>Participação dos trabalhadores:</strong> {text(item.worker_participation_note)}</p> : null}
+                    {typeof item.corrective_adjustment_needed === "boolean" ? <p><strong>Ajuste corretivo necessário:</strong> {item.corrective_adjustment_needed ? "Sim" : "Não"}</p> : null}
+                    {hasDisplayValue(item.notes) ? <p><strong>Observações:</strong> {text(item.notes)}</p> : null}
                   </div>
                 ))}
               </div>
@@ -903,33 +1242,57 @@ export default function Nr1PgrReportPage() {
               <EmptyState text="Nenhum acompanhamento registrado para os planos deste estabelecimento." />
             )}
 
-            <SectionTitle>6. Evidencias</SectionTitle>
+            <SectionTitle>6. Evidências</SectionTitle>
             {evidenceItems.length > 0 ? (
               <div className="mt-4 space-y-3">
                 {evidenceItems.map((item, index) => (
                   <div key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">
-                    <p><strong>{index + 1}. Titulo:</strong> {text(item.title)}</p>
-                    <p><strong>Tipo:</strong> {text(item.evidence_type)}</p>
-                    <p><strong>Status:</strong> {text(item.validation_status)}</p>
-                    <p><strong>Referencia:</strong> {dateText(item.reference_date)}</p>
+                    <p><strong>{index + 1}. Título:</strong> {text(item.title)}</p>
+                    <p><strong>Tipo:</strong> {humanLabel(item.evidence_type, EVIDENCE_TYPE_LABELS)}</p>
+                    <p><strong>Status:</strong> {humanLabel(item.validation_status, EVIDENCE_STATUS_LABELS)}</p>
+                    <p><strong>Referência:</strong> {dateOnlyText(item.reference_date)}</p>
                   </div>
                 ))}
               </div>
             ) : (
-              <EmptyState text="Nenhuma evidencia registrada para este estabelecimento." />
+              <EmptyState text="Nenhuma evidência registrada para este estabelecimento." />
             )}
 
             <SectionTitle>7. Trilha de auditoria</SectionTitle>
             {auditEvents.length > 0 ? (
-              <div className="mt-4 space-y-3">
-                {auditEvents.slice(0, 25).map((item, index) => (
-                  <div key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">
-                    <p><strong>{index + 1}. Evento:</strong> {text(item.event_type)}</p>
-                    <p><strong>Entidade:</strong> {text(item.entity_type)}</p>
-                    <p><strong>Data:</strong> {dateText(item.created_at)}</p>
-                    <p><strong>Motivo:</strong> {text(item.reason)}</p>
+              <div className="mt-4 space-y-4">
+                <div className="nr1-print-avoid rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                  <p><strong>Movimentações registradas:</strong> {auditEvents.length}</p>
+                  <p><strong>Última movimentação:</strong> {latestAuditEvent ? dateTimeText(latestAuditEvent.created_at) : "Não informada"}</p>
+                  <p><strong>Categorias:</strong> {auditCategories.join(", ")}</p>
+                </div>
+
+                {relevantAuditEvents.length > 0 ? (
+                  <div className="space-y-3">
+                    {relevantAuditEvents.map((item, index) => (
+                      <div key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">
+                        <p className="font-semibold text-slate-950">{index + 1}. {humanLabel(item.event_type, AUDIT_EVENT_LABELS)}</p>
+                        <p>{humanLabel(item.entity_type, AUDIT_ENTITY_LABELS)}</p>
+                        <p>{dateTimeText(item.created_at)}</p>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                ) : (
+                  <p className="text-sm text-slate-600">Nenhuma movimentação relevante além dos salvamentos automáticos.</p>
+                )}
+
+                <details className="nr1-screen-only rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                  <summary className="cursor-pointer font-semibold text-slate-950">Consultar histórico completo ({auditEvents.length})</summary>
+                  <div className="mt-4 space-y-3">
+                    {auditEvents.map((item, index) => (
+                      <div key={String(item.id ?? index)} className="rounded-xl border border-slate-200 p-3">
+                        <p className="font-semibold text-slate-950">{index + 1}. {humanLabel(item.event_type, AUDIT_EVENT_LABELS)}</p>
+                        <p>{humanLabel(item.entity_type, AUDIT_ENTITY_LABELS)}</p>
+                        <p>{dateTimeText(item.created_at)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </details>
               </div>
             ) : (
               <EmptyState text="Nenhum evento de auditoria registrado para este estabelecimento." />
@@ -937,27 +1300,57 @@ export default function Nr1PgrReportPage() {
 
             <PrintFooter />
           </section>
-        ) : (
-          <section id="nr1-pgr-print-area" className="mt-6 rounded-[24px] border border-dashed border-[#D9E0E7] bg-white p-8 text-center text-sm text-[#5B6776]">
-            Gere o relatorio para visualizar a versao imprimivel do PGR.
-          </section>
-        )}
-
-        {reportPayload ? (
-          <PgrSectionCard className="nr1-screen-only mt-6 rounded-[24px] border border-[#D9E0E7] bg-white p-6 shadow-[0_18px_50px_rgba(34,49,63,0.08)]">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-[#132238]">Payload do relatorio</h2>
-              <span className="rounded-full bg-[#E8F5F6] px-3 py-1 text-xs font-semibold text-[#178A8F]">
-                {status}
-              </span>
-            </div>
-            <pre className="max-h-[520px] overflow-auto rounded-2xl bg-[#0F172A] p-4 text-xs leading-5 text-white">
-              {JSON.stringify(reportPayload, null, 2)}
-            </pre>
-          </PgrSectionCard>
         ) : null}
+
+        {snapshotVersions.length > 0 ? (
+          <section id="nr1SnapshotVersionsPanel" className="nr1-screen-only mt-6 min-w-0 rounded-[24px] border border-[#e2d4bf] bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[#9d7b37]">versões existentes — somente leitura</p>
+                <h2 className="mt-1 text-xl font-semibold text-[#10243e]">Histórico legado do PGR</h2>
+                <p className="mt-1 text-sm text-[#6f665b]">Versões existentes preservadas para consulta. Nenhuma nova versão ou aprovação pode ser criada nesta etapa.</p>
+              </div>
+              <button
+                id="nr1RefreshPgrSnapshotsButton"
+                type="button"
+                onClick={() => void loadFormalPgrSnapshots()}
+                disabled={!selectedTenantId || !selectedEstablishmentId || status === "loading"}
+                className="rounded-2xl border border-[#d9c9b8] bg-white px-4 py-2 text-sm font-semibold text-[#10243e] transition hover:bg-[#f7f1e8] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Atualizar versões
+              </button>
+            </div>
+
+            <div className="mt-4 max-w-full overflow-x-auto rounded-2xl border border-[#D9E0E7]">
+              <table className="min-w-[640px] border-collapse text-left text-sm">
+                <thead className="bg-[#f7efe6] text-xs uppercase tracking-[0.08em] text-[#6f665b]">
+                  <tr>
+                    <th className="px-4 py-3">Versão</th>
+                    <th className="px-4 py-3">Tipo</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Gerado em</th>
+                    <th className="px-4 py-3">Substitui</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {snapshotVersions.map((snapshot) => (
+                    <tr key={snapshot.id} className="border-t border-[#D9E0E7]">
+                      <td className="px-4 py-3 font-semibold text-[#10243e]">v{snapshot.version}</td>
+                      <td className="px-4 py-3 text-[#22313F]">{snapshot.document_type}</td>
+                      <td className="px-4 py-3 text-[#22313F]">{snapshot.status}</td>
+                      <td className="px-4 py-3 text-[#22313F]">{dateTimeText(snapshot.generated_at)}</td>
+                      <td className="px-4 py-3 text-[#6f665b]">{snapshot.supersedes_document_id ? "Sim" : "Não"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ) : null}
+          </section>
+        </Nr1WorkspaceV2Shell>
       </div>
-    </main>
+    </>
   );
 }
 

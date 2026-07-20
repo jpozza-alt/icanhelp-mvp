@@ -4,18 +4,21 @@ import {
   resolveNr1Scope,
   Nr1ScopeError,
 } from "@/lib/server/nr1-scope"
+import type { Json } from "@/lib/database.types"
 
 export const dynamic = "force-dynamic"
 
+const PGR_FORMALIZATION_ENABLED = false
+
 type SnapshotBody = {
   establishment_id?: string | null
-  source_snapshot_json?: unknown
-  report_payload?: unknown
+  source_snapshot_json?: Json
+  report_payload?: Json
   status?: string | null
   file_url?: string | null
 }
 
-type AnyRecord = Record<string, unknown>
+type JsonObject = { [key: string]: Json | undefined }
 
 function jsonResponse(payload: unknown, status = 200) {
   return NextResponse.json(payload, { status })
@@ -36,15 +39,19 @@ function getEstablishmentId(req: NextRequest): string {
   return cleanText(req.nextUrl.searchParams.get("establishmentId"))
 }
 
-function asRecord(value: unknown): AnyRecord {
+function isJsonObject(value: Json): value is JsonObject {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value)
+}
+
+function asRecord(value: Json): JsonObject {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {}
   }
 
-  return value as AnyRecord
+  return value
 }
 
-function normalizeSnapshot(value: unknown): unknown {
+function normalizeSnapshot(value: Json): Json {
   if (value && typeof value === "object") {
     return value
   }
@@ -54,18 +61,18 @@ function normalizeSnapshot(value: unknown): unknown {
   }
 }
 
-function readReportGeneratedAt(snapshot: unknown): string | null {
+function readReportGeneratedAt(snapshot: Json): string | null {
   const root = asRecord(snapshot)
-  const report = asRecord(root.report ?? root)
+  const report = isJsonObject(root.report) ? root.report : root
   const generatedAt = cleanText(report.generatedAt)
 
   return generatedAt || null
 }
 
-function readCounts(snapshot: unknown): AnyRecord {
+function readCounts(snapshot: Json): JsonObject {
   const root = asRecord(snapshot)
-  const report = asRecord(root.report ?? root)
-  return asRecord(report.counts)
+  const report = isJsonObject(root.report) ? root.report : root
+  return isJsonObject(report.counts) ? report.counts : {}
 }
 
 function normalizeStatus(value: unknown): string {
@@ -116,7 +123,7 @@ export async function GET(req: NextRequest) {
       establishmentId,
     })
 
-    const adminClient = createNr1AdminClient() as any
+    const adminClient = createNr1AdminClient()
 
     const result = await adminClient
       .from("nr1_document_versions")
@@ -187,6 +194,17 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!PGR_FORMALIZATION_ENABLED) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "pgr_formalization_temporarily_disabled",
+        message: "A formalização do PGR está temporariamente indisponível. Use apenas a prévia não formal.",
+      },
+      503,
+    )
+  }
+
   let body: SnapshotBody
 
   try {
@@ -247,7 +265,7 @@ export async function POST(req: NextRequest) {
       establishmentId,
     })
 
-    const adminClient = createNr1AdminClient() as any
+    const adminClient = createNr1AdminClient()
     const generatedAt = new Date().toISOString()
     const normalizedSnapshot = normalizeSnapshot(rawSnapshot)
     const reportGeneratedAt = readReportGeneratedAt(normalizedSnapshot)
