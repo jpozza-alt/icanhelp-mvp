@@ -10,9 +10,17 @@ import {
 
 const migrationSql = readFileSync(
   new URL(
-    "../supabase/migrations/20260720000001_add_nr1_admin_correct_diagnosis_risk_texts_rpc.sql",
+    "../supabase/migrations/20260721093000_add_nr1_admin_correct_diagnosis_risk_texts_v2.sql",
     import.meta.url,
   ),
+  "utf8",
+)
+const routeSource = readFileSync(
+  new URL("../app/api/nr1/admin/diagnosis-risk-text-correction/route.ts", import.meta.url),
+  "utf8",
+)
+const databaseTypesSource = readFileSync(
+  new URL("../src/lib/database.types.ts", import.meta.url),
   "utf8",
 )
 
@@ -24,12 +32,16 @@ const validBody = {
   expected_risk_title: "Old title",
   expected_risk_exposed_group: "Old exposed group",
   expected_risk_source_circumstance: "Old source",
+  expected_risk_hazard_description: "Old hazard description",
+  expected_risk_exposure_characterization: "Old exposure characterization",
   expected_risk_updated_at: "2026-07-20T12:00:00.000Z",
   expected_review_exposed_group_json: [{ title: "FAROFA", activity: "COMIDA INDUSTRIAL" }],
   expected_review_updated_at: "2026-07-20T12:00:01.000Z",
   new_risk_title: "New title",
   new_risk_exposed_group: "New exposed group",
   new_risk_source_circumstance: "New source",
+  new_risk_hazard_description: "New hazard description",
+  new_risk_exposure_characterization: "New exposure characterization",
   new_review_label: "Human review label",
   reason: "Remove artificial test residue from formal PGR text.",
 }
@@ -110,6 +122,72 @@ test("rejects fields outside the narrow contract", () => {
   })
 })
 
+test("requires every v2 field", () => {
+  const body: Record<string, unknown> = { ...validBody }
+  delete body.new_risk_hazard_description
+  const result = parseNr1AdminRiskTextCorrectionBody(body)
+
+  assert.equal(result.ok, false)
+  if (!result.ok) {
+    assert.equal(result.error, "missing_fields")
+    assert.match(result.message, /new_risk_hazard_description/)
+  }
+})
+
+test("accepts null only for the expected nullable exposure characterization", () => {
+  const result = parseNr1AdminRiskTextCorrectionBody({
+    ...validBody,
+    expected_risk_exposure_characterization: null,
+  })
+
+  assert.equal(result.ok, true)
+  if (result.ok) assert.equal(result.value.expected_risk_exposure_characterization, null)
+})
+
+test("trims the four v2 text fields", () => {
+  const result = parseNr1AdminRiskTextCorrectionBody({
+    ...validBody,
+    expected_risk_hazard_description: "  Old hazard  ",
+    expected_risk_exposure_characterization: "  Old exposure  ",
+    new_risk_hazard_description: "  New hazard  ",
+    new_risk_exposure_characterization: "  New exposure  ",
+  })
+
+  assert.equal(result.ok, true)
+  if (result.ok) {
+    assert.equal(result.value.expected_risk_hazard_description, "Old hazard")
+    assert.equal(result.value.expected_risk_exposure_characterization, "Old exposure")
+    assert.equal(result.value.new_risk_hazard_description, "New hazard")
+    assert.equal(result.value.new_risk_exposure_characterization, "New exposure")
+  }
+})
+
+test("enforces the 4000 character v2 text limit", () => {
+  const accepted = parseNr1AdminRiskTextCorrectionBody({
+    ...validBody,
+    new_risk_hazard_description: "a".repeat(4000),
+  })
+  const rejected = parseNr1AdminRiskTextCorrectionBody({
+    ...validBody,
+    new_risk_hazard_description: "a".repeat(4001),
+  })
+
+  assert.equal(accepted.ok, true)
+  assert.equal(rejected.ok, false)
+  if (!rejected.ok) assert.equal(rejected.error, "invalid_text_fields")
+})
+
+test("rejects blank or invalid nullable expected exposure text", () => {
+  for (const value of ["   ", 42]) {
+    const result = parseNr1AdminRiskTextCorrectionBody({
+      ...validBody,
+      expected_risk_exposure_characterization: value,
+    })
+    assert.equal(result.ok, false)
+    if (!result.ok) assert.equal(result.error, "invalid_text_fields")
+  }
+})
+
 test("requires all linked record IDs to be UUIDs", () => {
   const result = parseNr1AdminRiskTextCorrectionBody({ ...validBody, risk_id: "not-a-uuid" })
   assert.equal(result.ok, false)
@@ -153,14 +231,99 @@ test("RPC locks both rows and checks both updated_at preconditions", () => {
   )
 })
 
+test("RPC v2 checks both additional risk fields with IS DISTINCT FROM", () => {
+  assert.match(
+    migrationSql,
+    /v_risk\.hazard_description is distinct from p_expected_risk_hazard_description/i,
+  )
+  assert.match(
+    migrationSql,
+    /v_risk\.exposure_characterization is distinct from p_expected_risk_exposure_characterization/i,
+  )
+})
+
+test("RPC v2 updates and audits both additional risk fields", () => {
+  assert.match(
+    migrationSql,
+    /hazard_description = btrim\(p_new_risk_hazard_description\)/i,
+  )
+  assert.match(
+    migrationSql,
+    /exposure_characterization = btrim\(p_new_risk_exposure_characterization\)/i,
+  )
+  assert.match(
+    migrationSql,
+    /'hazard_description', v_risk\.hazard_description/i,
+  )
+  assert.match(
+    migrationSql,
+    /'exposure_characterization', v_risk\.exposure_characterization/i,
+  )
+  assert.match(
+    migrationSql,
+    /'hazard_description', btrim\(p_new_risk_hazard_description\)/i,
+  )
+  assert.match(
+    migrationSql,
+    /'exposure_characterization', btrim\(p_new_risk_exposure_characterization\)/i,
+  )
+})
+
 test("RPC writes two atomic audit rows and is executable only by service_role", () => {
   assert.match(migrationSql, /insert into public\.nr1_audit_events/i)
   assert.match(migrationSql, /'audit_events_created', 2/i)
+  assert.equal(migrationSql.match(/'administrative_text_correction'/g)?.length, 2)
   assert.match(
     migrationSql,
-    /revoke all on function[\s\S]+from public, anon, authenticated;/i,
+    /revoke all on function public\.nr1_admin_correct_diagnosis_risk_texts_v2[\s\S]+from public, anon, authenticated;/i,
   )
-  assert.match(migrationSql, /grant execute on function[\s\S]+to service_role;/i)
+  assert.match(
+    migrationSql,
+    /grant execute on function public\.nr1_admin_correct_diagnosis_risk_texts_v2[\s\S]+to service_role;/i,
+  )
+})
+
+test("migration and local database types expose the same v2 argument names", () => {
+  const expectedArgs = [
+    "p_tenant_id",
+    "p_establishment_id",
+    "p_risk_id",
+    "p_diagnosis_session_id",
+    "p_diagnosis_review_id",
+    "p_expected_risk_title",
+    "p_expected_risk_exposed_group",
+    "p_expected_risk_source_circumstance",
+    "p_expected_risk_hazard_description",
+    "p_expected_risk_exposure_characterization",
+    "p_expected_risk_updated_at",
+    "p_expected_review_exposed_group_json",
+    "p_expected_review_updated_at",
+    "p_new_risk_title",
+    "p_new_risk_exposed_group",
+    "p_new_risk_source_circumstance",
+    "p_new_risk_hazard_description",
+    "p_new_risk_exposure_characterization",
+    "p_new_review_label",
+    "p_actor_user_id",
+    "p_reason",
+  ]
+
+  for (const arg of expectedArgs) {
+    assert.match(migrationSql, new RegExp(`\\b${arg}\\b`))
+    assert.match(databaseTypesSource, new RegExp(`\\b${arg}\\b`))
+  }
+  assert.match(
+    databaseTypesSource,
+    /p_expected_risk_exposure_characterization: string \| null/,
+  )
+})
+
+test("route calls only the v2 RPC", () => {
+  assert.match(routeSource, /"nr1_admin_correct_diagnosis_risk_texts_v2"/)
+  assert.doesNotMatch(
+    routeSource,
+    /"nr1_admin_correct_diagnosis_risk_texts"\s*,/,
+  )
 })
 
 test("SECURITY DEFINER uses only pg_catalog in search_path", () => {
@@ -231,12 +394,17 @@ test("RPC arguments preserve tenant, establishment, session, record and actor is
     p_expected_risk_title: validBody.expected_risk_title,
     p_expected_risk_exposed_group: validBody.expected_risk_exposed_group,
     p_expected_risk_source_circumstance: validBody.expected_risk_source_circumstance,
+    p_expected_risk_hazard_description: validBody.expected_risk_hazard_description,
+    p_expected_risk_exposure_characterization:
+      validBody.expected_risk_exposure_characterization,
     p_expected_risk_updated_at: validBody.expected_risk_updated_at,
     p_expected_review_exposed_group_json: validBody.expected_review_exposed_group_json,
     p_expected_review_updated_at: validBody.expected_review_updated_at,
     p_new_risk_title: validBody.new_risk_title,
     p_new_risk_exposed_group: validBody.new_risk_exposed_group,
     p_new_risk_source_circumstance: validBody.new_risk_source_circumstance,
+    p_new_risk_hazard_description: validBody.new_risk_hazard_description,
+    p_new_risk_exposure_characterization: validBody.new_risk_exposure_characterization,
     p_new_review_label: validBody.new_review_label,
     p_actor_user_id: actorUserId,
     p_reason: validBody.reason,

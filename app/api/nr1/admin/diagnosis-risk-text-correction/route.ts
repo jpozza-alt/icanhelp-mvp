@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
       isTenantAdminRole,
       callRpc: async (args) => {
         const rpcResult = await createNr1AdminClient().rpc(
-          "nr1_admin_correct_diagnosis_risk_texts",
+          "nr1_admin_correct_diagnosis_risk_texts_v2",
           args,
         )
         return { data: rpcResult.data, error: rpcResult.error }

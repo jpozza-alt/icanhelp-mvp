@@ -10,12 +10,16 @@ const REQUIRED_KEYS = [
   "expected_risk_title",
   "expected_risk_exposed_group",
   "expected_risk_source_circumstance",
+  "expected_risk_hazard_description",
+  "expected_risk_exposure_characterization",
   "expected_risk_updated_at",
   "expected_review_exposed_group_json",
   "expected_review_updated_at",
   "new_risk_title",
   "new_risk_exposed_group",
   "new_risk_source_circumstance",
+  "new_risk_hazard_description",
+  "new_risk_exposure_characterization",
   "new_review_label",
   "reason",
 ] as const
@@ -30,12 +34,16 @@ export type Nr1AdminRiskTextCorrectionInput = {
   expected_risk_title: string
   expected_risk_exposed_group: string
   expected_risk_source_circumstance: string
+  expected_risk_hazard_description: string
+  expected_risk_exposure_characterization: string | null
   expected_risk_updated_at: string
   expected_review_exposed_group_json: Json
   expected_review_updated_at: string
   new_risk_title: string
   new_risk_exposed_group: string
   new_risk_source_circumstance: string
+  new_risk_hazard_description: string
+  new_risk_exposure_characterization: string
   new_review_label: string
   reason: string
 }
@@ -45,7 +53,7 @@ export type ParseCorrectionResult =
   | { ok: false; error: string; message: string }
 
 type CorrectionRpcArgs =
-  Database["public"]["Functions"]["nr1_admin_correct_diagnosis_risk_texts"]["Args"]
+  Database["public"]["Functions"]["nr1_admin_correct_diagnosis_risk_texts_v2"]["Args"]
 
 type CorrectionRole = string
 
@@ -92,6 +100,18 @@ function requiredText(
   if (typeof value !== "string") return null
   const trimmed = value.trim()
   return trimmed.length > 0 && trimmed.length <= maxLength ? trimmed : null
+}
+
+function requiredNullableText(
+  body: Record<string, unknown>,
+  key: RequiredKey,
+  maxLength: number,
+): string | null | undefined {
+  const value = body[key]
+  if (value === null) return null
+  if (typeof value !== "string") return undefined
+  const trimmed = value.trim()
+  return trimmed.length > 0 && trimmed.length <= maxLength ? trimmed : undefined
 }
 
 function isTimestamp(value: string): boolean {
@@ -144,11 +164,27 @@ export function parseNr1AdminRiskTextCorrectionBody(body: unknown): ParseCorrect
     "expected_risk_source_circumstance",
     1000,
   )
+  const expectedRiskHazardDescription = requiredText(
+    body,
+    "expected_risk_hazard_description",
+    4000,
+  )
+  const expectedRiskExposureCharacterization = requiredNullableText(
+    body,
+    "expected_risk_exposure_characterization",
+    4000,
+  )
   const expectedRiskUpdatedAt = requiredText(body, "expected_risk_updated_at", 64)
   const expectedReviewUpdatedAt = requiredText(body, "expected_review_updated_at", 64)
   const newRiskTitle = requiredText(body, "new_risk_title", 1000)
   const newRiskExposedGroup = requiredText(body, "new_risk_exposed_group", 1000)
   const newRiskSourceCircumstance = requiredText(body, "new_risk_source_circumstance", 1000)
+  const newRiskHazardDescription = requiredText(body, "new_risk_hazard_description", 4000)
+  const newRiskExposureCharacterization = requiredText(
+    body,
+    "new_risk_exposure_characterization",
+    4000,
+  )
   const newReviewLabel = requiredText(body, "new_review_label", 1000)
   const reason = requiredText(body, "reason", 500)
 
@@ -156,9 +192,13 @@ export function parseNr1AdminRiskTextCorrectionBody(body: unknown): ParseCorrect
     !expectedRiskTitle ||
     !expectedRiskExposedGroup ||
     !expectedRiskSourceCircumstance ||
+    !expectedRiskHazardDescription ||
+    expectedRiskExposureCharacterization === undefined ||
     !newRiskTitle ||
     !newRiskExposedGroup ||
     !newRiskSourceCircumstance ||
+    !newRiskHazardDescription ||
+    !newRiskExposureCharacterization ||
     !newReviewLabel ||
     !reason
   ) {
@@ -205,12 +245,16 @@ export function parseNr1AdminRiskTextCorrectionBody(body: unknown): ParseCorrect
       expected_risk_title: expectedRiskTitle,
       expected_risk_exposed_group: expectedRiskExposedGroup,
       expected_risk_source_circumstance: expectedRiskSourceCircumstance,
+      expected_risk_hazard_description: expectedRiskHazardDescription,
+      expected_risk_exposure_characterization: expectedRiskExposureCharacterization,
       expected_risk_updated_at: expectedRiskUpdatedAt,
       expected_review_exposed_group_json: expectedReviewJson as Json,
       expected_review_updated_at: expectedReviewUpdatedAt,
       new_risk_title: newRiskTitle,
       new_risk_exposed_group: newRiskExposedGroup,
       new_risk_source_circumstance: newRiskSourceCircumstance,
+      new_risk_hazard_description: newRiskHazardDescription,
+      new_risk_exposure_characterization: newRiskExposureCharacterization,
       new_review_label: newReviewLabel,
       reason,
     },
@@ -320,12 +364,17 @@ export async function executeNr1AdminRiskTextCorrection(
       p_expected_risk_title: body.expected_risk_title,
       p_expected_risk_exposed_group: body.expected_risk_exposed_group,
       p_expected_risk_source_circumstance: body.expected_risk_source_circumstance,
+      p_expected_risk_hazard_description: body.expected_risk_hazard_description,
+      p_expected_risk_exposure_characterization:
+        body.expected_risk_exposure_characterization,
       p_expected_risk_updated_at: body.expected_risk_updated_at,
       p_expected_review_exposed_group_json: body.expected_review_exposed_group_json,
       p_expected_review_updated_at: body.expected_review_updated_at,
       p_new_risk_title: body.new_risk_title,
       p_new_risk_exposed_group: body.new_risk_exposed_group,
       p_new_risk_source_circumstance: body.new_risk_source_circumstance,
+      p_new_risk_hazard_description: body.new_risk_hazard_description,
+      p_new_risk_exposure_characterization: body.new_risk_exposure_characterization,
       p_new_review_label: body.new_review_label,
       p_actor_user_id: scope.user.id,
       p_reason: body.reason,
