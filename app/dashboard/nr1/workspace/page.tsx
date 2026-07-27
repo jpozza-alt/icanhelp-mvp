@@ -1095,20 +1095,6 @@ useEffect(() => {
     return companies.find((item) => item.id === activeCompanyId) || null;
   }, [activeCompanyId, companies]);
 
-  function handleActiveCompanySelectorChange(nextCompanyId: string): void {
-    setActiveCompanyId(nextCompanyId);
-    setFormError(null);
-    setSuccessMessage(null);
-    setDiagnosisActivityId("");
-    setDiagnosisSessionId("");
-    setDiagnosisRiskId("");
-    setDiagnosisContextSaved(false);
-    setPsychosocialDiagnosisSaved(false);
-    setSelectedRiskId("");
-
-    patchDraft({ activeSection: "cadastros" }, "company_active_selector");
-  }
-
   const selectedEstablishment = useMemo(() => {
     return establishments.find((item) => item.id === context.establishmentId) || null;
   }, [context.establishmentId, establishments]);
@@ -1924,6 +1910,7 @@ useEffect(() => {
         establishmentId,
       };
 
+      contextRef.current = nextContext;
       setContext(nextContext);
       setSaveStatus("loading");
 
@@ -3529,7 +3516,9 @@ useEffect(() => {
             Empresa ativa
             <select
               value={activeCompanyId}
-              onChange={(event) => handleActiveCompanySelectorChange(event.target.value)}
+              onChange={(event) => {
+                void handleActiveCompanyChange(event.target.value);
+              }}
               className="mt-2 w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-sm font-semibold text-[#10243e]"
             >
               <option value="">Selecione uma empresa</option>
@@ -3548,12 +3537,9 @@ useEffect(() => {
             Local de trabalho ativo
             <select
               value={context.establishmentId || ""}
-              onChange={(event) =>
-                setContext((previous) => ({
-                  ...previous,
-                  establishmentId: event.target.value,
-                }))
-              }
+              onChange={(event) => {
+                void selectEstablishment(event.target.value);
+              }}
               className="mt-2 w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-sm font-semibold text-[#10243e]"
             >
               <option value="">Selecione um local de trabalho</option>
