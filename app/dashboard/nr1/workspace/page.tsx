@@ -1326,6 +1326,28 @@ useEffect(() => {
       status,
     };
   });
+  const workspaceCurrentJourneyStepIndex = (() => {
+    const currentIndex = fullJourneyStepItems.findIndex((step) => step.status === "Agora");
+    if (currentIndex >= 0) return currentIndex;
+
+    const availableIndex = fullJourneyStepItems.findIndex(
+      (step) => step.status !== "Concluído" && step.status !== "Planejado"
+    );
+    if (availableIndex >= 0) return availableIndex;
+
+    return fullJourneyStepItems.reduce(
+      (lastCompletedIndex, step, index) => (step.status === "Concluído" ? index : lastCompletedIndex),
+      -1
+    );
+  })();
+  const workspaceCurrentJourneyStep =
+    workspaceCurrentJourneyStepIndex >= 0 ? fullJourneyStepItems[workspaceCurrentJourneyStepIndex] : null;
+  const workspaceNextJourneyStep =
+    workspaceCurrentJourneyStepIndex >= 0
+      ? fullJourneyStepItems.find(
+          (step, index) => index > workspaceCurrentJourneyStepIndex && step.status !== "Concluído"
+        ) ?? null
+      : null;
 
   const renderNextBestActionCard = (variant: "welcome" | "partial" | "workspace") => {
     const copy =
@@ -1380,7 +1402,7 @@ useEffect(() => {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
-            Jornada completa
+            {variant === "workspace" ? "Resumo da jornada" : "Jornada completa"}
           </p>
           <h2 className="mt-2 text-xl font-semibold text-[#10243e]">
             {variant === "welcome"
@@ -1397,34 +1419,54 @@ useEffect(() => {
                 : "A base inicial ainda pode ser revisada. A trilha abaixo mostra para onde a empresa avança depois da triagem."}
           </p>
         </div>
-        <span className="w-fit rounded-full bg-[#132238] px-3 py-1 text-xs font-semibold text-white">
-          {fullJourneyStepItems.length} etapas
+        <span
+          aria-label={variant === "workspace" ? `Progresso da jornada: ${progressPercent}%` : undefined}
+          className="w-fit rounded-full bg-[#132238] px-3 py-1 text-xs font-semibold text-white"
+        >
+          {variant === "workspace" ? `${progressPercent}%` : `${fullJourneyStepItems.length} etapas`}
         </span>
       </div>
 
-      <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        {fullJourneyStepItems.map((step) => (
-          <div
-            key={step.id}
-            className={`rounded-2xl border px-3 py-2 text-xs ${
-              step.status === "Agora"
-                ? "border-[#132238] bg-[#132238] text-white"
-                : step.status === "Concluído"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                  : step.status === "Planejado"
-                    ? "border-[#ead8c8] bg-[#fffaf3] text-[#8a6b30]"
-                    : "border-[#d9c9b8] bg-white text-[#6f665b]"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <p className="font-semibold">
-                {String(step.order).padStart(2, "0")}. {step.title}
-              </p>
-              <span className="text-[10px] opacity-70">{step.status}</span>
-            </div>
+      {variant === "workspace" ? (
+        <div className="mt-5 grid gap-3 sm:grid-cols-2" aria-label="Resumo do progresso da jornada">
+          <div className="rounded-2xl border border-[#132238] bg-[#132238] px-4 py-3 text-white">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">Etapa atual</p>
+            <p className="mt-1 text-sm font-semibold">
+              {workspaceCurrentJourneyStep?.title ?? "Nenhuma etapa disponível"}
+            </p>
           </div>
-        ))}
-      </div>
+          <div className="rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-[#6f665b]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#9d7b37]">Próxima etapa</p>
+            <p className="mt-1 text-sm font-semibold text-[#10243e]">
+              {workspaceNextJourneyStep?.title ?? "Não há próxima etapa disponível no momento."}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {fullJourneyStepItems.map((step) => (
+            <div
+              key={step.id}
+              className={`rounded-2xl border px-3 py-2 text-xs ${
+                step.status === "Agora"
+                  ? "border-[#132238] bg-[#132238] text-white"
+                  : step.status === "Concluído"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    : step.status === "Planejado"
+                      ? "border-[#ead8c8] bg-[#fffaf3] text-[#8a6b30]"
+                      : "border-[#d9c9b8] bg-white text-[#6f665b]"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-semibold">
+                  {String(step.order).padStart(2, "0")}. {step.title}
+                </p>
+                <span className="text-[10px] opacity-70">{step.status}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
   // A jornada guiada deve abrir por escolha explicita do usuario. Dados carregados de forma assincrona nao devem empurrar a UI para modal ou dashboard.

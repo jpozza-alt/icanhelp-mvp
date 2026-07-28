@@ -76,7 +76,7 @@ export const NR1_JOURNEY_STEPS = [
   {
     id: "estabelecimento",
     order: 3,
-    title: "Estabelecimento",
+    title: "Local de trabalho",
     description: "Defina a unidade abrangida pela jornada.",
     href: "/dashboard/nr1/workspace",
     availability: "available",
