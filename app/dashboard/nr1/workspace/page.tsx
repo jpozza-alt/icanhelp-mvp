@@ -1372,20 +1372,29 @@ useEffect(() => {
     );
   };
 
-  const renderFullJourneyOverview = (variant: "welcome" | "partial") => (
-    <section className="mt-10 rounded-3xl border border-[#eadfce] bg-white/60 p-5 shadow-none">
+  const renderFullJourneyOverview = (variant: "welcome" | "partial" | "workspace") => (
+    <section
+      id={variant === "workspace" ? "nr1-journey-progress" : undefined}
+      className="mt-10 rounded-3xl border border-[#eadfce] bg-white/60 p-5 shadow-none"
+    >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
             Jornada completa
           </p>
           <h2 className="mt-2 text-xl font-semibold text-[#10243e]">
-            {variant === "welcome" ? "Caminho até o PGR" : "Continue olhando o caminho inteiro"}
+            {variant === "welcome"
+              ? "Caminho até o PGR"
+              : variant === "workspace"
+                ? "Progresso da jornada"
+                : "Continue olhando o caminho inteiro"}
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
             {variant === "welcome"
               ? "A jornada avança por etapas: base da empresa, diagnóstico, riscos, plano de ação, evidências e PGR."
-              : "A base inicial ainda pode ser revisada. A trilha abaixo mostra para onde a empresa avança depois da triagem."}
+              : variant === "workspace"
+                ? "Acompanhe as etapas concluídas, o foco atual e os próximos passos até o PGR."
+                : "A base inicial ainda pode ser revisada. A trilha abaixo mostra para onde a empresa avança depois da triagem."}
           </p>
         </div>
         <span className="w-fit rounded-full bg-[#132238] px-3 py-1 text-xs font-semibold text-white">
@@ -3775,7 +3784,7 @@ useEffect(() => {
           nextBestActionPrimaryHref="#nr1-operational-content"
           nextBestActionPrimaryLabel={workspaceV2PrimaryLabel}
           nextBestActionPrimaryOnClick={handleWorkspaceV2PrimaryAction}
-          nextBestActionSecondaryHref="#nr1-operational-content"
+          nextBestActionSecondaryHref="#nr1-journey-progress"
           nextBestActionSecondaryLabel="Ver progresso da jornada"
           nextBestActionReasons={workspaceV2NextBestActionReasons}
           pgrHref="/dashboard/nr1/relatorio-pgr"
@@ -3783,6 +3792,7 @@ useEffect(() => {
 
               topContextSlot={workspaceV2TopContextSlot}>
         <section id="nr1-operational-content" className={showGuidedSetup ? "min-w-0" : "min-w-0 space-y-6"}>
+          {showWorkspaceDashboardContent ? renderFullJourneyOverview("workspace") : null}
 
           {shouldShowPlanResourcesInMainFlow ? (
           <div
