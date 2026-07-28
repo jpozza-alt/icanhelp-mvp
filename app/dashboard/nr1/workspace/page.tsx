@@ -1084,12 +1084,6 @@ useEffect(() => {
     };
   }, [context.tenantId]);
 
-  const progressPercent = useMemo(() => {
-    const values = Object.values(draft.checklist);
-    if (values.length === 0) return 0;
-    const completed = values.filter(Boolean).length;
-    return Math.round((completed / values.length) * 100);
-  }, [draft.checklist]);
 
   const selectedCompany = useMemo(() => {
     return companies.find((item) => item.id === activeCompanyId) || null;
@@ -1326,6 +1320,11 @@ useEffect(() => {
       status,
     };
   });
+  const completedJourneySteps = fullJourneyStepItems.filter((step) => step.status === "Concluído").length;
+  const progressPercent =
+    fullJourneyStepItems.length === 0
+      ? 0
+      : Math.round((completedJourneySteps / fullJourneyStepItems.length) * 100);
   const workspaceCurrentJourneyStepIndex = (() => {
     const currentIndex = fullJourneyStepItems.findIndex((step) => step.status === "Agora");
     if (currentIndex >= 0) return currentIndex;
