@@ -1,11 +1,36 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import type { Database } from "../../../../src/lib/database.types";
+import type { Database, Json } from "../../../../src/lib/database.types";
+import {
+  createNr1AdminClient,
+  Nr1ScopeError,
+  nr1ErrorToResponsePayload,
+  resolveNr1Scope,
+} from "../../../../src/lib/server/nr1-scope";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 type AuditEventRow = Record<string, unknown>;
+type Nr1AuditEventInsert =
+  Database["public"]["Tables"]["nr1_audit_events"]["Insert"];
+
+const MAX_AUDIT_METADATA_BYTES = 64 * 1024;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const allowedAuditBodyFields = new Set([
+  "establishment_id",
+  "module_name",
+  "screen_key",
+  "entity_type",
+  "entity_id",
+  "event_type",
+  "old_value_json",
+  "new_value_json",
+  "persistence_type",
+  "reason",
+]);
+
 
 const tenantHeaderNames = [
   "x-tenant-id",
@@ -118,6 +143,71 @@ function normalizeAuditEvent(row: AuditEventRow) {
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function cleanText(value: unknown, maxLength: number): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > maxLength) {
+    return null;
+  }
+
+  return trimmed;
+}
+
+function isJson(value: unknown, depth = 0): value is Json {
+  if (depth > 20) {
+    return false;
+  }
+
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "boolean"
+  ) {
+    return true;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.every((item) => isJson(item, depth + 1));
+  }
+
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return Object.values(value).every(
+    (item) => item === undefined || isJson(item, depth + 1),
+  );
+}
+
+function jsonByteLength(value: Json): number {
+  return new TextEncoder().encode(JSON.stringify(value)).byteLength;
+}
+
+function normalizePersistenceType(
+  value: unknown,
+): Nr1AuditEventInsert["persistence_type"] | null {
+  if (value === "draft") {
+    return "draft";
+  }
+
+  if (value === "formal" || value === "formal_version") {
+    return "formal_version";
+  }
+
+  return null;
+}
+
 export async function GET(request: NextRequest) {
   const authorization = request.headers.get("authorization") ?? "";
   const authorizationLower = authorization.toLowerCase();
@@ -225,4 +315,201 @@ export async function GET(request: NextRequest) {
     count: rows.length,
     items: rows.map(normalizeAuditEvent),
   });
+}
+
+export async function POST(request: NextRequest) {
+  const tenantId = requiredSearchOrHeader(
+    request,
+    ["tenantId", "tenant_id"],
+    tenantHeaderNames,
+  );
+
+  if (!tenantId) {
+    return json(400, {
+      ok: false,
+      error: "missing_tenant_id",
+    });
+  }
+
+  let parsedBody: unknown;
+  try {
+    parsedBody = await request.json();
+  } catch {
+    return json(400, {
+      ok: false,
+      error: "invalid_json_body",
+      message: "Request body must be valid JSON",
+    });
+  }
+
+  if (!isRecord(parsedBody)) {
+    return json(400, {
+      ok: false,
+      error: "invalid_body",
+      message: "Request body must be a JSON object",
+    });
+  }
+
+  const unsupportedFields = Object.keys(parsedBody).filter(
+    (field) => !allowedAuditBodyFields.has(field),
+  );
+
+  if (unsupportedFields.length > 0) {
+    return json(400, {
+      ok: false,
+      error: "unsupported_fields",
+      fields: unsupportedFields,
+    });
+  }
+
+  const bodyEstablishmentId = cleanText(parsedBody.establishment_id, 36);
+  const requestEstablishmentId = requiredSearchOrHeader(
+    request,
+    ["establishmentId", "establishment_id"],
+    establishmentHeaderNames,
+  );
+
+  if (!bodyEstablishmentId || !UUID_PATTERN.test(bodyEstablishmentId)) {
+    return json(400, {
+      ok: false,
+      error: "invalid_establishment_id",
+    });
+  }
+
+  if (
+    requestEstablishmentId &&
+    requestEstablishmentId !== bodyEstablishmentId
+  ) {
+    return json(400, {
+      ok: false,
+      error: "establishment_context_mismatch",
+    });
+  }
+
+  const moduleName = cleanText(parsedBody.module_name, 32);
+  const screenKey = cleanText(parsedBody.screen_key, 120);
+  const entityType = cleanText(parsedBody.entity_type, 120);
+  const entityId = cleanText(parsedBody.entity_id, 36);
+  const eventType = cleanText(parsedBody.event_type, 160);
+  const reason = cleanText(parsedBody.reason, 500);
+  const persistenceType = normalizePersistenceType(
+    parsedBody.persistence_type,
+  );
+
+  if (moduleName !== "nr1") {
+    return json(400, {
+      ok: false,
+      error: "invalid_module_name",
+    });
+  }
+
+  if (!entityType) {
+    return json(400, {
+      ok: false,
+      error: "invalid_entity_type",
+    });
+  }
+
+  if (!entityId || !UUID_PATTERN.test(entityId)) {
+    return json(400, {
+      ok: false,
+      error: "invalid_entity_id",
+    });
+  }
+
+  if (!eventType) {
+    return json(400, {
+      ok: false,
+      error: "invalid_event_type",
+    });
+  }
+
+  if (!persistenceType) {
+    return json(400, {
+      ok: false,
+      error: "invalid_persistence_type",
+      allowed: ["draft", "formal", "formal_version"],
+    });
+  }
+
+  const oldValue = parsedBody.old_value_json ?? null;
+  const newValue = parsedBody.new_value_json ?? null;
+
+  if (!isJson(oldValue) || !isJson(newValue)) {
+    return json(400, {
+      ok: false,
+      error: "invalid_audit_metadata",
+    });
+  }
+
+  if (
+    jsonByteLength(oldValue) + jsonByteLength(newValue) >
+    MAX_AUDIT_METADATA_BYTES
+  ) {
+    return json(400, {
+      ok: false,
+      error: "audit_metadata_too_large",
+      maxBytes: MAX_AUDIT_METADATA_BYTES,
+    });
+  }
+
+  try {
+    const scope = await resolveNr1Scope({
+      req: request,
+      tenantId,
+      establishmentId: bodyEstablishmentId,
+    });
+    const adminClient = createNr1AdminClient();
+    const insertPayload: Nr1AuditEventInsert = {
+      tenant_id: scope.tenantId,
+      establishment_id: scope.establishment?.id ?? bodyEstablishmentId,
+      module_name: "nr1",
+      screen_key: screenKey,
+      entity_type: entityType,
+      entity_id: entityId,
+      event_type: eventType,
+      old_value_json: oldValue,
+      new_value_json: newValue,
+      persistence_type: persistenceType,
+      reason,
+      user_id: scope.user.id,
+    };
+
+    const insertResult = await adminClient
+      .from("nr1_audit_events")
+      .insert(insertPayload)
+      .select("*")
+      .single();
+
+    if (insertResult.error) {
+      return json(500, {
+        ok: false,
+        error: "audit_event_insert_failed",
+        message: insertResult.error.message,
+      });
+    }
+
+    return json(201, {
+      ok: true,
+      source: "nr1_audit_events",
+      tenantId: scope.tenantId,
+      establishmentId: bodyEstablishmentId,
+      membershipRole: scope.role,
+      item: insertResult.data,
+    });
+  } catch (error) {
+    if (
+      error instanceof Nr1ScopeError &&
+      error.code === "establishment_not_found"
+    ) {
+      return json(403, {
+        ok: false,
+        error: "establishment_scope_forbidden",
+        message: "Establishment does not belong to the requested tenant",
+      });
+    }
+
+    const response = nr1ErrorToResponsePayload(error);
+    return json(response.status, response.body);
+  }
 }
