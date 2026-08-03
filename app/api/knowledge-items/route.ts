@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  hasKnowledgeDomainFeature,
+  resolveTenantPlanFeatures,
+} from "@/lib/server/tenant-plan-features";
 
 export const dynamic = "force-dynamic";
 
@@ -197,8 +201,17 @@ export async function GET(req: NextRequest) {
     const limit = parsePositiveInt(url.searchParams.get("limit"), 20, 100);
     const offset = parsePositiveInt(url.searchParams.get("offset"), 0, 10000);
 
-    if (domain && !isAllowedDomain(domain)) {
+    if (!domain) {
+      return badRequest(ctx.request_id, "Missing required query parameter: domain.");
+    }
+
+    if (!isAllowedDomain(domain)) {
       return badRequest(ctx.request_id, "Invalid domain.");
+    }
+
+    const access = await resolveTenantPlanFeatures(ctx.tenant);
+    if (!hasKnowledgeDomainFeature(access, domain)) {
+      return deny(ctx.request_id);
     }
 
     if (status && !isAllowedStatus(status)) {
@@ -216,9 +229,7 @@ export async function GET(req: NextRequest) {
       .order("updated_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (domain) {
-      query = query.eq("domain", domain);
-    }
+    query = query.eq("domain", domain);
 
     if (status) {
       query = query.eq("status", status);
@@ -302,6 +313,11 @@ export async function POST(req: NextRequest) {
 
     if (!domain || !isAllowedDomain(domain)) {
       return badRequest(ctx.request_id, "Invalid or missing domain.");
+    }
+
+    const access = await resolveTenantPlanFeatures(ctx.tenant);
+    if (!hasKnowledgeDomainFeature(access, domain)) {
+      return deny(ctx.request_id);
     }
 
     if (!category) {

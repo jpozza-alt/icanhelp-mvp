@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  hasKnowledgeDomainFeature,
+  resolveTenantPlanFeatures,
+} from "@/lib/server/tenant-plan-features";
 
 export const dynamic = "force-dynamic";
 
@@ -197,6 +201,11 @@ export async function GET(
       return notFound(ctx.request_id, "knowledge_item_not_found");
     }
 
+    const access = await resolveTenantPlanFeatures(ctx.tenant);
+    if (!hasKnowledgeDomainFeature(access, String(data.domain || ""))) {
+      return deny(ctx.request_id);
+    }
+
     return json(
       {
         ok: true,
@@ -247,6 +256,11 @@ export async function PATCH(
       return notFound(ctx.request_id, "knowledge_item_not_found");
     }
 
+    const access = await resolveTenantPlanFeatures(ctx.tenant);
+    if (!hasKnowledgeDomainFeature(access, String(existing.data.domain || ""))) {
+      return deny(ctx.request_id);
+    }
+
     const updates: Record<string, unknown> = {};
     let changed = false;
 
@@ -254,6 +268,9 @@ export async function PATCH(
       const domain = body?.domain?.toString?.().trim?.();
       if (!domain || !isAllowedDomain(domain)) {
         return badRequest(ctx.request_id, "Invalid domain.");
+      }
+      if (!hasKnowledgeDomainFeature(access, domain)) {
+        return deny(ctx.request_id);
       }
       updates.domain = domain;
       changed = true;
@@ -376,6 +393,11 @@ export async function DELETE(
 
     if (!existing.data) {
       return notFound(ctx.request_id, "knowledge_item_not_found");
+    }
+
+    const access = await resolveTenantPlanFeatures(ctx.tenant);
+    if (!hasKnowledgeDomainFeature(access, String(existing.data.domain || ""))) {
+      return deny(ctx.request_id);
     }
 
     const { error } = await supabase
