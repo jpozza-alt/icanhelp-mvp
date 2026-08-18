@@ -104,7 +104,7 @@ async function getCtx(req: NextRequest): Promise<Ctx | NextResponse> {
       return unauthorized(rid, authErr?.message ?? "user_not_found");
     }
 
-    const args: any = { p_tenant: tenant };
+    const args: { p_tenant: string } = { p_tenant: tenant };
     const { data: isMember, error: rpcErr } = await supabase.rpc("is_tenant_member", args);
 
     if (rpcErr) {

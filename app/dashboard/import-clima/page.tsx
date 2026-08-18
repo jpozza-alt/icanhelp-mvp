@@ -76,16 +76,17 @@ const CLIMA_SEED = [
   },
 ];
 
-function parseTenants(payload: any): TenantOption[] {
+function parseTenants(payload: unknown): TenantOption[] {
+  const candidate = payload as { tenants?: unknown; items?: unknown; data?: unknown };
   const raw =
     (Array.isArray(payload) && payload) ||
-    (Array.isArray(payload?.tenants) && payload.tenants) ||
-    (Array.isArray(payload?.items) && payload.items) ||
-    (Array.isArray(payload?.data) && payload.data) ||
+    (Array.isArray(candidate.tenants) && candidate.tenants) ||
+    (Array.isArray(candidate.items) && candidate.items) ||
+    (Array.isArray(candidate.data) && candidate.data) ||
     [];
 
   return raw
-    .map((item: any) => ({
+    .map((item: Record<string, unknown>) => ({
       id: String(item?.id ?? item?.tenant_id ?? "").trim(),
       name: String(item?.name ?? item?.tenant_name ?? item?.slug ?? "Tenant").trim(),
       slug: item?.slug ? String(item.slug) : null,
@@ -173,8 +174,8 @@ export default function ImportClimaPage() {
         }
 
         setTenantId(parsedTenants[0].id);
-      } catch (e: any) {
-        setError(e?.message || "Falha ao preparar importacao.");
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : "Falha ao preparar importacao.");
       } finally {
         setLoading(false);
       }
@@ -231,13 +232,13 @@ export default function ImportClimaPage() {
             message: "Importado com sucesso.",
           });
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         importResults.push({
           index: index + 1,
           title: item.title,
           status: "FAIL",
           status_code: null,
-          message: e?.message || "Erro inesperado.",
+          message: e instanceof Error ? e.message : "Erro inesperado.",
         });
       }
 

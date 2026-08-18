@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
       establishmentId,
     })
 
-    const adminClient = createNr1AdminClient() as any
+    const adminClient = createNr1AdminClient()
 
     const establishmentResult = await adminClient
       .from("nr1_establishments")

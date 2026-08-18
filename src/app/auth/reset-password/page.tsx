@@ -26,8 +26,8 @@ export default function ResetPasswordPage() {
         if (!data.session) {
           setError("Sessao de recuperacao ausente. Refaça o processo de redefinicao.");
         }
-      } catch (err: any) {
-        setError(err?.message || "Falha ao validar a sessao de recuperacao.");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Falha ao validar a sessao de recuperacao.");
       } finally {
         setLoadingSession(false);
       }
@@ -64,8 +64,8 @@ export default function ResetPasswordPage() {
       setTimeout(() => {
         router.replace("/dashboard");
       }, 1200);
-    } catch (err: any) {
-      setError(err?.message || "Falha ao atualizar a senha.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Falha ao atualizar a senha.");
     } finally {
       setSaving(false);
     }

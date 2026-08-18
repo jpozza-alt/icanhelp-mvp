@@ -29,8 +29,8 @@ export default function ForgotPasswordPage() {
       }
 
       setSuccess("Email de recuperacao enviado. Abra o link no mesmo navegador.");
-    } catch (err: any) {
-      setError(err?.message || "Falha ao enviar o email de recuperacao.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Falha ao enviar o email de recuperacao.");
     } finally {
       setSending(false);
     }

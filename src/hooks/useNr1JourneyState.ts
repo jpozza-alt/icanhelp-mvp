@@ -134,7 +134,7 @@ async function probeEndpoints(urls: string[]): Promise<boolean> {
 export function useNr1JourneyState(): Nr1JourneyStateResult {
   const [state, setState] = useState<Nr1JourneyStateResult>(EMPTY_STATE);
 
-  const loadState = useCallback(async () => {
+  const loadState = useCallback(async function loadState() {
     setState((current) => ({
       ...current,
       isLoading: true,
