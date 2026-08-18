@@ -825,7 +825,7 @@ export default function Nr1PgrReportPage() {
   const pgrTopContextSlot = (
     <section
       id="nr1-pgr-generation"
-      className="nr1-screen-only min-w-0 rounded-[1.75rem] border border-[#d8c7ae] bg-white p-5 shadow-sm"
+      className="nr1-screen-only min-w-0 rounded-[1.75rem] border border-[#d8c7ae] bg-[#FFFCF7] p-5 shadow-sm"
     >
       <div className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
@@ -845,7 +845,7 @@ export default function Nr1PgrReportPage() {
           <select
             value={selectedTenantId}
             onChange={(event) => void handleTenantChange(event.target.value)}
-            className="mt-2 w-full min-w-0 rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-sm font-semibold text-[#10243e] outline-none transition focus:border-[#9d7b37]"
+            className="mt-2 w-full min-w-0 rounded-2xl border border-[#d9c9b8] bg-[#FFFCF7] px-4 py-3 text-sm font-semibold text-[#10243e] outline-none transition focus:border-[#9d7b37]"
           >
             {tenants.map((tenantItem, index) => {
               const tenantName = tenantItem.name.trim();
@@ -874,7 +874,7 @@ export default function Nr1PgrReportPage() {
               setReportPayload(null);
               setSnapshotVersions([]);
             }}
-            className="mt-2 w-full min-w-0 rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-sm font-semibold text-[#10243e] outline-none transition focus:border-[#9d7b37]"
+            className="mt-2 w-full min-w-0 rounded-2xl border border-[#d9c9b8] bg-[#FFFCF7] px-4 py-3 text-sm font-semibold text-[#10243e] outline-none transition focus:border-[#9d7b37]"
           >
             {establishments.map((item) => (
               <option key={item.id} value={item.id}>
@@ -936,7 +936,7 @@ export default function Nr1PgrReportPage() {
             type="button"
             onClick={handlePrintPdf}
             disabled={!report || status === "loading"}
-            className="rounded-2xl border border-[#10243e] bg-white px-5 py-3 text-sm font-semibold text-[#10243e] transition hover:bg-[#f7f1e8] disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-2xl border border-[#10243e] bg-[#FFFCF7] px-5 py-3 text-sm font-semibold text-[#10243e] transition hover:bg-[#f7f1e8] disabled:cursor-not-allowed disabled:opacity-50"
           >
             Imprimir prévia — não formal
           </button>
@@ -947,7 +947,7 @@ export default function Nr1PgrReportPage() {
               type="button"
               onClick={createFormalPgrSnapshot}
               disabled={!reportPayload || status === "loading"}
-              className="rounded-2xl border border-[#178A8F] bg-[#E8F5F6] px-5 py-3 text-sm font-semibold text-[#116B70] transition hover:bg-[#D6F0F2] disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-2xl border border-[#D6B56C] bg-[#FFF8EA] px-5 py-3 text-sm font-semibold text-[#10243E] transition hover:bg-[#F4ECE2] disabled:cursor-not-allowed disabled:opacity-50"
             >
               Criar snapshot formal
             </button>
@@ -1085,7 +1085,7 @@ export default function Nr1PgrReportPage() {
           }
 
           .nr1-print-cover {
-            border-bottom: 2px solid #0f766e !important;
+            border-bottom: 2px solid #D6B56C !important;
             padding-bottom: 10pt !important;
             margin-bottom: 10pt !important;
           }
@@ -1096,9 +1096,9 @@ export default function Nr1PgrReportPage() {
           }
 
           .nr1-print-badge {
-            border: 1px solid #99f6e4 !important;
-            background: #f0fdfa !important;
-            color: #115e59 !important;
+            border: 1px solid #E2D4BF !important;
+            background: #FFF8EA !important;
+            color: #8B5E34 !important;
           }
 
           @page {
@@ -1141,15 +1141,15 @@ export default function Nr1PgrReportPage() {
           <section className="nr1-pgr-content min-w-0 break-words">
 
         {report ? (
-          <section id="nr1-pgr-print-area" className="nr1-pgr-print-area min-w-0 rounded-[24px] border border-[#D9E0E7] bg-white p-5 shadow-[0_18px_50px_rgba(34,49,63,0.08)] sm:p-8">
+          <section id="nr1-pgr-print-area" className="nr1-pgr-print-area min-w-0 rounded-[24px] border border-[#E2D4BF] bg-[#FFFCF7] p-5 shadow-[0_8px_24px_rgba(18,40,70,0.07)] sm:p-8">
             <header className="nr1-print-cover border-b border-slate-300 pb-6">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#178A8F]">Programa de Gerenciamento de Riscos</p>
+                  <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#A36B16]">Programa de Gerenciamento de Riscos</p>
                   <h1 className="mt-3 text-3xl font-bold text-slate-950">Prévia estruturada do PGR — não formal</h1>
                   <p className="mt-2 text-sm text-slate-600">Visualização dinâmica gerada a partir da base NR1 do icanHelp; não constitui versão formal.</p>
                 </div>
-                <div className="nr1-print-badge rounded-2xl px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-[#115e59]">
+                <div className="nr1-print-badge rounded-2xl px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-[#8B5E34]">
                   Prévia não formal
                 </div>
               </div>
@@ -1281,7 +1281,7 @@ export default function Nr1PgrReportPage() {
                   <p className="text-sm text-slate-600">Nenhuma movimentação relevante além dos salvamentos automáticos.</p>
                 )}
 
-                <details className="nr1-screen-only rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-700">
+                <details className="nr1-screen-only rounded-2xl border border-slate-200 bg-[#FFFCF7] p-4 text-sm text-slate-700">
                   <summary className="cursor-pointer font-semibold text-slate-950">Consultar histórico completo ({auditEvents.length})</summary>
                   <div className="mt-4 space-y-3">
                     {auditEvents.map((item, index) => (
@@ -1303,7 +1303,7 @@ export default function Nr1PgrReportPage() {
         ) : null}
 
         {snapshotVersions.length > 0 ? (
-          <section id="nr1SnapshotVersionsPanel" className="nr1-screen-only mt-6 min-w-0 rounded-[24px] border border-[#e2d4bf] bg-white p-6 shadow-sm">
+          <section id="nr1SnapshotVersionsPanel" className="nr1-screen-only mt-6 min-w-0 rounded-[24px] border border-[#e2d4bf] bg-[#FFFCF7] p-6 shadow-sm">
             <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
               <div>
                 <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[#9d7b37]">versões existentes — somente leitura</p>
@@ -1315,13 +1315,13 @@ export default function Nr1PgrReportPage() {
                 type="button"
                 onClick={() => void loadFormalPgrSnapshots()}
                 disabled={!selectedTenantId || !selectedEstablishmentId || status === "loading"}
-                className="rounded-2xl border border-[#d9c9b8] bg-white px-4 py-2 text-sm font-semibold text-[#10243e] transition hover:bg-[#f7f1e8] disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-2xl border border-[#d9c9b8] bg-[#FFFCF7] px-4 py-2 text-sm font-semibold text-[#10243e] transition hover:bg-[#f7f1e8] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Atualizar versões
               </button>
             </div>
 
-            <div className="mt-4 max-w-full overflow-x-auto rounded-2xl border border-[#D9E0E7]">
+            <div className="mt-4 max-w-full overflow-x-auto rounded-2xl border border-[#E2D4BF]">
               <table className="min-w-[640px] border-collapse text-left text-sm">
                 <thead className="bg-[#f7efe6] text-xs uppercase tracking-[0.08em] text-[#6f665b]">
                   <tr>
@@ -1334,11 +1334,11 @@ export default function Nr1PgrReportPage() {
                 </thead>
                 <tbody>
                   {snapshotVersions.map((snapshot) => (
-                    <tr key={snapshot.id} className="border-t border-[#D9E0E7]">
+                    <tr key={snapshot.id} className="border-t border-[#E2D4BF]">
                       <td className="px-4 py-3 font-semibold text-[#10243e]">v{snapshot.version}</td>
-                      <td className="px-4 py-3 text-[#22313F]">{snapshot.document_type}</td>
-                      <td className="px-4 py-3 text-[#22313F]">{snapshot.status}</td>
-                      <td className="px-4 py-3 text-[#22313F]">{dateTimeText(snapshot.generated_at)}</td>
+                      <td className="px-4 py-3 text-[#10243E]">{snapshot.document_type}</td>
+                      <td className="px-4 py-3 text-[#10243E]">{snapshot.status}</td>
+                      <td className="px-4 py-3 text-[#10243E]">{dateTimeText(snapshot.generated_at)}</td>
                       <td className="px-4 py-3 text-[#6f665b]">{snapshot.supersedes_document_id ? "Sim" : "Não"}</td>
                     </tr>
                   ))}
@@ -1560,7 +1560,7 @@ function PgrProfessionalApprovalPanel({
   }
 
   return (
-    <section className="print:hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="print:hidden rounded-2xl border border-slate-200 bg-[#FFFCF7] p-5 shadow-sm">
       <div className="print:hidden mb-4">
         <p className="text-sm font-semibold text-slate-500">Validacao formal</p>
         <h2 className="text-xl font-bold text-slate-900">Aprovacao final profissional do PGR</h2>
@@ -1694,15 +1694,15 @@ function PgrProfessionalApprovalPanel({
         </div>
 
         <dl className="mt-3 grid gap-2 md:grid-cols-3">
-          <div className="rounded-lg bg-white/70 p-3">
+          <div className="rounded-lg bg-[#FFFCF7]/70 p-3">
             <dt className="text-xs font-semibold uppercase tracking-wide text-amber-700">Tenant ID</dt>
             <dd className="mt-1 break-all font-mono text-xs">{effectiveTenantIdForInput || "Nao preenchido"}</dd>
           </div>
-          <div className="rounded-lg bg-white/70 p-3">
+          <div className="rounded-lg bg-[#FFFCF7]/70 p-3">
             <dt className="text-xs font-semibold uppercase tracking-wide text-amber-700">Establishment ID</dt>
             <dd className="mt-1 break-all font-mono text-xs">{effectiveEstablishmentIdForInput || "Nao preenchido"}</dd>
           </div>
-          <div className="rounded-lg bg-white/70 p-3">
+          <div className="rounded-lg bg-[#FFFCF7]/70 p-3">
             <dt className="text-xs font-semibold uppercase tracking-wide text-amber-700">Document Version ID</dt>
             <dd className="mt-1 break-all font-mono text-xs">{effectiveDocumentVersionIdForInput || "Nao preenchido"}</dd>
           </div>

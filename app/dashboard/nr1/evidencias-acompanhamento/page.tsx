@@ -60,9 +60,9 @@ type PsychosocialFactorItem = {
 type ApiRecord = Record<string, unknown>;
 
 const sectionClassName =
-  "rounded-3xl border border-[#D9E0E7] bg-white p-6 shadow-[0_18px_50px_rgba(34,49,63,0.08)]";
+  "rounded-[24px] border border-[#E2D4BF] bg-[#FFFCF7] p-6 shadow-[0_8px_24px_rgba(18,40,70,0.07)]";
 const inputClassName =
-  "mt-2 w-full rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] px-4 py-3 text-sm text-[#22313F] outline-none transition focus:border-[#5E7A96]";
+  "mt-2 w-full rounded-2xl border border-[#D8C8B2] bg-[#FFFCF7] px-4 py-3 text-sm text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25";
 
 const allowedEvidenceLinkedEntityTypes = new Set([
   "diagnosis_session",
@@ -306,11 +306,11 @@ function getPsychosocialFactorStatusLabel(status: string | null | undefined): st
 function getPsychosocialFactorStatusClassName(status: string | null | undefined): string {
   switch (String(status || "").trim().toLowerCase()) {
     case "evidence_found":
-      return "border-[#E9D4C4] bg-[#FBF5EF] text-[#8C5A33]";
+      return "border-[#E9D4C4] bg-[#FBF5EF] text-[#8B5E34]";
     case "not_observed":
       return "border-[#D6E5D7] bg-[#F3F8F4] text-[#4E7355]";
     default:
-      return "border-[#D9E0E7] bg-[#FAFBFC] text-[#5B6B79]";
+      return "border-[#E2D4BF] bg-[#F4ECE2] text-[#60718A]";
   }
 }
 
@@ -334,13 +334,13 @@ function getValidationBadgeClass(value: string | null | undefined) {
     case "validated":
       return "border-[#D6E5D7] bg-[#F3F8F4] text-[#4E7355]";
     case "pending_validation":
-      return "border-[#E9D4C4] bg-[#FBF5EF] text-[#8C5A33]";
+      return "border-[#E9D4C4] bg-[#FBF5EF] text-[#8B5E34]";
     case "rejected":
       return "border-[#E8C8CC] bg-[#F9F1F2] text-[#8A4F58]";
     case "archived":
-      return "border-[#D9E0E7] bg-[#FAFBFC] text-[#5B6B79]";
+      return "border-[#E2D4BF] bg-[#F4ECE2] text-[#60718A]";
     default:
-      return "border-[#D9E0E7] bg-[#FAFBFC] text-[#5B6B79]";
+      return "border-[#E2D4BF] bg-[#F4ECE2] text-[#60718A]";
   }
 }
 
@@ -849,48 +849,48 @@ const pendingValidationCount = useMemo(() => {
     >
       <section id="evidencias-operational-content" className="min-w-0 space-y-6">
         <section className={sectionClassName}>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#A36B16]">
             o que esta tela faz
           </div>
-          <h2 className="mt-3 text-2xl font-semibold text-[#22313F]">
+          <h2 className="mt-3 text-2xl font-semibold text-[#10243E]">
             Mostra evidências reais do estabelecimento, com status, vínculo e rastreabilidade.
           </h2>
-          <p className="mt-4 max-w-3xl text-sm leading-7 text-[#5B6B79]">
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-[#60718A]">
             Esta etapa registra e consulta evidências documentais reais do estabelecimento. O acompanhamento detalhado das ações segue em tela própria.
           </p>
 
           <div className="mt-5 grid gap-4 md:grid-cols-4">
-            <div className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
+            <div className="rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#A36B16]">
                 evidências
               </div>
-              <div className="mt-2 text-2xl font-semibold text-[#22313F]">{items.length}</div>
+              <div className="mt-2 text-2xl font-semibold text-[#10243E]">{items.length}</div>
             </div>
 
-            <div className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
+            <div className="rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#A36B16]">
                 pendentes
               </div>
-              <div className="mt-2 text-2xl font-semibold text-[#22313F]">{pendingValidationCount}</div>
+              <div className="mt-2 text-2xl font-semibold text-[#10243E]">{pendingValidationCount}</div>
             </div>
 
-            <div className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
+            <div className="rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#A36B16]">
                 ligadas à ação
               </div>
-              <div className="mt-2 text-2xl font-semibold text-[#22313F]">{linkedActionPlanCount}</div>
+              <div className="mt-2 text-2xl font-semibold text-[#10243E]">{linkedActionPlanCount}</div>
             </div>
 
-            <div className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
+            <div className="rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#A36B16]">
                 ligadas ao acompanhamento
               </div>
-              <div className="mt-2 text-2xl font-semibold text-[#22313F]">{linkedFollowupCount}</div>
+              <div className="mt-2 text-2xl font-semibold text-[#10243E]">{linkedFollowupCount}</div>
             </div>
           </div>
 
           {loadingSession ? (
-            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">Carregando sessão...</p>
+            <p className="mt-4 text-sm leading-7 text-[#60718A]">Carregando sessão...</p>
           ) : null}
 
           {error ? (
@@ -909,8 +909,8 @@ const pendingValidationCount = useMemo(() => {
         <section className={sectionClassName}>
           <div className="grid gap-4 md:grid-cols-[1.2fr_2fr]">
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Empresa ativa</label>
-              <div className="mt-2 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] px-4 py-3 text-sm text-[#5B6B79]">
+              <label className="text-sm font-semibold text-[#10243E]">Empresa ativa</label>
+              <div className="mt-2 rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] px-4 py-3 text-sm text-[#60718A]">
                 {tenantId
                   ? (tenants.find((item) => item.id === tenantId)?.name || tenantId) + " (" + tenantId + ")"
                   : "Não carregado"}
@@ -918,7 +918,7 @@ const pendingValidationCount = useMemo(() => {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Estabelecimento selecionado</label>
+              <label className="text-sm font-semibold text-[#10243E]">Estabelecimento selecionado</label>
               <select
                 value={selectedEstablishmentId}
                 onChange={(e) => handleSelectedEstablishmentChange(e.target.value)}
@@ -939,32 +939,32 @@ const pendingValidationCount = useMemo(() => {
           </div>
 
           {selectedEstablishment ? (
-            <div className="mt-4 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
+            <div className="mt-4 rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-4 text-sm leading-7 text-[#60718A]">
               <div>
-                <span className="font-semibold text-[#22313F]">Estabelecimento:</span> {selectedEstablishment.name}
+                <span className="font-semibold text-[#10243E]">Estabelecimento:</span> {selectedEstablishment.name}
               </div>
               <div>
-                <span className="font-semibold text-[#22313F]">Cidade/UF:</span>{" "}
+                <span className="font-semibold text-[#10243E]">Cidade/UF:</span>{" "}
                 {[selectedEstablishment.city, selectedEstablishment.state].filter(Boolean).join(" / ") || "Não informado"}
               </div>
               <div>
-                <span className="font-semibold text-[#22313F]">Status:</span> {selectedEstablishment.status === "active" ? "Ativo" : selectedEstablishment.status || "Não informado"}
+                <span className="font-semibold text-[#10243E]">Status:</span> {selectedEstablishment.status === "active" ? "Ativo" : selectedEstablishment.status || "Não informado"}
               </div>
             </div>
           ) : null}
         </section>
 
         <section className={sectionClassName}>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#A36B16]">
             registrar evidência
           </div>
-          <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
+          <h3 className="mt-3 text-xl font-semibold text-[#10243E]">
             Criação manual de evidência documental.
           </h3>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Título da evidência</label>
+              <label className="text-sm font-semibold text-[#10243E]">Título da evidência</label>
               <input
                 value={form.title}
                 onChange={(e) => setForm((current) => ({ ...current, title: e.target.value }))}
@@ -974,7 +974,7 @@ const pendingValidationCount = useMemo(() => {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Tipo</label>
+              <label className="text-sm font-semibold text-[#10243E]">Tipo</label>
               <select
                 value={form.evidence_type}
                 onChange={(e) => setForm((current) => ({ ...current, evidence_type: e.target.value }))}
@@ -989,7 +989,7 @@ const pendingValidationCount = useMemo(() => {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Data de referência</label>
+              <label className="text-sm font-semibold text-[#10243E]">Data de referência</label>
               <input
                 type="date"
                 value={form.reference_date}
@@ -999,7 +999,7 @@ const pendingValidationCount = useMemo(() => {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Responsável</label>
+              <label className="text-sm font-semibold text-[#10243E]">Responsável</label>
               <input
                 value={form.responsible_name}
                 onChange={(e) => setForm((current) => ({ ...current, responsible_name: e.target.value }))}
@@ -1009,7 +1009,7 @@ const pendingValidationCount = useMemo(() => {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Entidade vinculada</label>
+              <label className="text-sm font-semibold text-[#10243E]">Entidade vinculada</label>
               <select
                     className={inputClassName}
                     value={form.linked_entity_type}
@@ -1035,7 +1035,7 @@ const pendingValidationCount = useMemo(() => {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Identificador vinculado</label>
+              <label className="text-sm font-semibold text-[#10243E]">Identificador vinculado</label>
               <input
                 value={form.linked_entity_id}
                 onChange={(e) => setForm((current) => ({ ...current, linked_entity_id: e.target.value }))}
@@ -1045,7 +1045,7 @@ const pendingValidationCount = useMemo(() => {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Nome do arquivo</label>
+              <label className="text-sm font-semibold text-[#10243E]">Nome do arquivo</label>
               <input
                 value={form.file_name}
                 onChange={(e) => setForm((current) => ({ ...current, file_name: e.target.value }))}
@@ -1055,7 +1055,7 @@ const pendingValidationCount = useMemo(() => {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">URL do arquivo</label>
+              <label className="text-sm font-semibold text-[#10243E]">URL do arquivo</label>
               <input
                 value={form.file_url}
                 onChange={(e) => setForm((current) => ({ ...current, file_url: e.target.value }))}
@@ -1065,7 +1065,7 @@ const pendingValidationCount = useMemo(() => {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Status de validação</label>
+              <label className="text-sm font-semibold text-[#10243E]">Status de validação</label>
               <select
                 value={form.validation_status}
                 onChange={(e) => setForm((current) => ({ ...current, validation_status: e.target.value }))}
@@ -1079,7 +1079,7 @@ const pendingValidationCount = useMemo(() => {
             </div>
 
             <div className="md:col-span-2">
-              <label className="text-sm font-semibold text-[#22313F]">Descrição</label>
+              <label className="text-sm font-semibold text-[#10243E]">Descrição</label>
               <textarea
                 value={form.description}
                 onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))}
@@ -1094,7 +1094,7 @@ const pendingValidationCount = useMemo(() => {
               type="button"
               onClick={() => void handleCreateEvidence()}
               disabled={saving || !jwt || !tenantId || !selectedEstablishmentId || !form.title.trim() || !form.evidence_type.trim()}
-              className="rounded-xl bg-[#5E7A96] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#516C86] disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-xl bg-[#10243E] px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(16,36,62,0.14)] transition hover:bg-[#0B1A2D] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? "Salvando..." : "Salvar evidência"}
             </button>
@@ -1115,7 +1115,7 @@ const pendingValidationCount = useMemo(() => {
                   responsible_name: "",
                 })
               }
-              className="rounded-xl border border-[#D9E0E7] bg-[#FAFBFC] px-5 py-3 text-sm font-semibold text-[#22313F]"
+              className="rounded-xl border border-[#E2D4BF] bg-[#F4ECE2] px-5 py-3 text-sm font-semibold text-[#10243E]"
             >
               Limpar campos
             </button>
@@ -1125,38 +1125,38 @@ const pendingValidationCount = useMemo(() => {
         <section className={sectionClassName}>
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8C5A33]">Diagnóstico psicossocial</p>
-              <h2 className="mt-2 text-xl font-semibold text-[#22313F]">Fatores derivados gravados</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-7 text-[#5B6B79]">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#8B5E34]">Diagnóstico psicossocial</p>
+              <h2 className="mt-2 text-xl font-semibold text-[#10243E]">Fatores derivados gravados</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-7 text-[#60718A]">
                 Esta leitura mostra os fatores psicossociais já gravados no sistema para a sessão de diagnóstico informada na URL.
                 O foco é organizacional: concepção, organização e gestão do trabalho, sem análise clínica individual.
               </p>
             </div>
 
-            <div className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] px-4 py-3 text-sm text-[#5B6B79]">
-              Sessão: <span className="font-mono text-xs text-[#22313F]">{urlDiagnosisSessionId || "não informada"}</span>
+            <div className="rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] px-4 py-3 text-sm text-[#60718A]">
+              Sessão: <span className="font-mono text-xs text-[#10243E]">{urlDiagnosisSessionId || "não informada"}</span>
             </div>
           </div>
 
           {!urlDiagnosisSessionId ? (
-            <p className="mt-4 text-sm leading-7 text-[#8C5A33]">
+            <p className="mt-4 text-sm leading-7 text-[#8B5E34]">
               Informe diagnosisSessionId na URL para carregar os fatores psicossociais desta etapa.
             </p>
           ) : loadingPsychosocialFactors ? (
-            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
+            <p className="mt-4 text-sm leading-7 text-[#60718A]">
               Buscando fatores psicossociais...
             </p>
           ) : psychosocialFactors.length === 0 ? (
-            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
+            <p className="mt-4 text-sm leading-7 text-[#60718A]">
               Nenhum fator psicossocial retornado para a sessão informada.
             </p>
           ) : (
             <div className="mt-5 grid gap-3 md:grid-cols-2">
               {psychosocialFactors.map((factor) => (
-                <article key={factor.id} className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
+                <article key={factor.id} className="rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h3 className="text-sm font-semibold text-[#22313F]">
+                      <h3 className="text-sm font-semibold text-[#10243E]">
                         {getPsychosocialFactorDisplayLabel(factor)}
                       </h3>
                       <p className="mt-1 font-mono text-[11px] text-[#7A8894]">{factor.factor_key || "sem_chave"}</p>
@@ -1173,11 +1173,11 @@ const pendingValidationCount = useMemo(() => {
                   </div>
 
                   {factor.evidence_summary ? (
-                    <p className="mt-3 text-sm leading-6 text-[#5B6B79]">{factor.evidence_summary}</p>
+                    <p className="mt-3 text-sm leading-6 text-[#60718A]">{factor.evidence_summary}</p>
                   ) : null}
 
                   {factor.investigation_pending ? (
-                    <p className="mt-3 text-sm font-semibold text-[#8C5A33]">
+                    <p className="mt-3 text-sm font-semibold text-[#8B5E34]">
                       Investigação pendente{factor.pending_action ? ": " + factor.pending_action : ""}
                     </p>
                   ) : null}
@@ -1188,10 +1188,10 @@ const pendingValidationCount = useMemo(() => {
         </section>
 
         <section className={sectionClassName}>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#A36B16]">
             evidências reais
           </div>
-          <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
+          <h3 className="mt-3 text-xl font-semibold text-[#10243E]">
             Evidências documentais vinculadas ao estabelecimento.
           </h3>
 
@@ -1199,13 +1199,13 @@ const pendingValidationCount = useMemo(() => {
           {loadingItems ? (
 
 
-            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
+            <p className="mt-4 text-sm leading-7 text-[#60718A]">
 
 
               Buscando evidências registradas...
             </p>
           ) : items.length === 0 ? (
-            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
+            <p className="mt-4 text-sm leading-7 text-[#60718A]">
               Nenhuma evidência encontrada para o estabelecimento selecionado.
             </p>
           ) : (
@@ -1213,22 +1213,22 @@ const pendingValidationCount = useMemo(() => {
               {items.map((item, index) => (
                 <article
                   key={item.id}
-                  className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-5"
+                  className="rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-5"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#5E7A96]">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#A36B16]">
                         evidência {index + 1}
                       </div>
-                      <h3 className="mt-2 text-lg font-semibold text-[#22313F]">
+                      <h3 className="mt-2 text-lg font-semibold text-[#10243E]">
                         {item.title || "Evidência sem título"}
                       </h3>
-                      <p className="mt-2 text-sm leading-7 text-[#5B6B79]">
+                      <p className="mt-2 text-sm leading-7 text-[#60718A]">
                         {item.description || "Sem descrição complementar."}
                       </p>
                     </div>
 
-                    <div className="rounded-full border px-3 py-2 text-xs font-semibold border-[#D9E0E7] bg-white text-[#5B6B79]">
+                    <div className="rounded-full border px-3 py-2 text-xs font-semibold border-[#E2D4BF] bg-[#FFFCF7] text-[#60718A]">
                       Tipo: {item.evidence_type || "Não informado"}
                     </div>
                   </div>
@@ -1238,50 +1238,50 @@ const pendingValidationCount = useMemo(() => {
                       Validação: {formatValidationStatus(item.validation_status)}
                     </div>
 
-                    <div className="rounded-full border border-[#D9E0E7] bg-white px-3 py-2 text-xs font-semibold text-[#5B6B79]">
+                    <div className="rounded-full border border-[#E2D4BF] bg-[#FFFCF7] px-3 py-2 text-xs font-semibold text-[#60718A]">
                       Referência: {item.reference_date || "Não informada"}
                     </div>
 
-                    <div className="rounded-full border border-[#D9E0E7] bg-white px-3 py-2 text-xs font-semibold text-[#5B6B79]">
+                    <div className="rounded-full border border-[#E2D4BF] bg-[#FFFCF7] px-3 py-2 text-xs font-semibold text-[#60718A]">
                       Responsável: {item.responsible_name || "Não informado"}
                     </div>
                   </div>
 
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
+                    <div className="rounded-2xl border border-[#EADFCF] bg-[#FFFCF7] p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#A36B16]">
                         Entidade vinculada
                       </div>
-                      <div className="mt-2 text-sm leading-7 text-[#22313F]">
+                      <div className="mt-2 text-sm leading-7 text-[#10243E]">
                         {item.linked_entity_type || "Não informada"}
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
+                    <div className="rounded-2xl border border-[#EADFCF] bg-[#FFFCF7] p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#A36B16]">
                         ID vinculado
                       </div>
-                      <div className="mt-2 break-all text-sm leading-7 text-[#22313F]">
+                      <div className="mt-2 break-all text-sm leading-7 text-[#10243E]">
                         {item.linked_entity_id || "Não informado"}
                       </div>
                     </div>
                   </div>
 
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
+                    <div className="rounded-2xl border border-[#EADFCF] bg-[#FFFCF7] p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#A36B16]">
                         Arquivo
                       </div>
-                      <div className="mt-2 break-all text-sm leading-7 text-[#22313F]">
+                      <div className="mt-2 break-all text-sm leading-7 text-[#10243E]">
                         {item.file_name || item.file_url || "Não informado"}
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
+                    <div className="rounded-2xl border border-[#EADFCF] bg-[#FFFCF7] p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#A36B16]">
                         Atualização
                       </div>
-                      <div className="mt-2 text-sm leading-7 text-[#22313F]">
+                      <div className="mt-2 text-sm leading-7 text-[#10243E]">
                         {item.updated_at || item.created_at || "Não informada"}
                       </div>
                     </div>
@@ -1292,7 +1292,7 @@ const pendingValidationCount = useMemo(() => {
                       type="button"
                       onClick={() => void handleArchiveEvidence(item)}
                       disabled={archivingEvidenceId !== null || !jwt || !tenantId || !selectedEstablishmentId}
-                      className="rounded-xl border border-[#E8C8CC] bg-white px-4 py-2 text-xs font-semibold text-[#8A4F58] transition hover:bg-[#F9F1F2] disabled:cursor-not-allowed disabled:opacity-60"
+                      className="rounded-xl border border-[#E8C8CC] bg-[#FFFCF7] px-4 py-2 text-xs font-semibold text-[#8A4F58] transition hover:bg-[#F9F1F2] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {archivingEvidenceId === item.id ? "Arquivando..." : "Arquivar evidência"}
                     </button>
@@ -1302,7 +1302,7 @@ const pendingValidationCount = useMemo(() => {
             </div>
           )}
 
-          <div className="mt-6 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
+          <div className="mt-6 rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-4 text-sm leading-7 text-[#60718A]">
             Esta tela usa registros reais de evidências, com leitura e gravação por estabelecimento. O detalhamento dos acompanhamentos segue na trilha própria.
           </div>
         </section>
@@ -1310,10 +1310,10 @@ const pendingValidationCount = useMemo(() => {
         <section className={sectionClassName}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#A36B16]">
                 navegação da jornada
               </div>
-              <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
+              <h3 className="mt-3 text-xl font-semibold text-[#10243E]">
                 Acompanhamento documental ligado ao estabelecimento selecionado.
               </h3>
             </div>
@@ -1321,14 +1321,14 @@ const pendingValidationCount = useMemo(() => {
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/dashboard/nr1/plano-de-acao"
-                className="rounded-xl border border-[#D9E0E7] bg-[#FAFBFC] px-5 py-3 text-sm font-semibold text-[#22313F]"
+                className="rounded-xl border border-[#E2D4BF] bg-[#F4ECE2] px-5 py-3 text-sm font-semibold text-[#10243E]"
               >
                 Voltar para plano de ação
               </Link>
 
               <Link
                 href="/dashboard/nr1/trilha-acompanhamento"
-                className="rounded-xl bg-[#5E7A96] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#516C86]"
+                className="rounded-xl bg-[#10243E] px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(16,36,62,0.14)] transition hover:bg-[#0B1A2D]"
               >
                 Avançar para trilha
               </Link>

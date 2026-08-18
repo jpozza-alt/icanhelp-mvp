@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
+import Nr1WorkspaceV2Shell from "@/components/nr1/Nr1WorkspaceV2Shell";
+
 type TrainingRecord = {
   id: string;
   establishment_id?: string | null;
@@ -632,14 +634,14 @@ export default function SaudeTreinamentosPage() {
       return (
         <article
           key={record.id}
-          className="rounded-xl border border-amber-300 bg-amber-50 p-4 shadow-sm"
+          className="rounded-xl border border-amber-300 bg-amber-50 p-4 shadow-[0_8px_24px_rgba(18,40,70,0.07)]"
         >
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-lg font-semibold text-slate-900">
+              <h3 className="text-lg font-semibold text-[#10243E]">
                 Editando treinamento
               </h3>
-              <p className="text-sm text-slate-600">ID: {record.id}</p>
+              <p className="text-sm text-[#60718A]">ID: {record.id}</p>
             </div>
           </div>
 
@@ -651,9 +653,9 @@ export default function SaudeTreinamentosPage() {
             }}
           >
             <label className="grid gap-1 text-sm">
-              <span className="font-medium text-slate-700">Treinamento</span>
+              <span className="font-medium text-[#40536A]">Treinamento</span>
               <input
-                className="rounded-lg border border-slate-300 px-3 py-2"
+                className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                 value={editingTrainingForm.training_name}
                 onChange={(event) =>
                   setEditingTrainingForm((current) => ({
@@ -665,9 +667,9 @@ export default function SaudeTreinamentosPage() {
             </label>
 
             <label className="grid gap-1 text-sm">
-              <span className="font-medium text-slate-700">Publico alvo</span>
+              <span className="font-medium text-[#40536A]">Publico alvo</span>
               <input
-                className="rounded-lg border border-slate-300 px-3 py-2"
+                className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                 value={editingTrainingForm.target_audience}
                 onChange={(event) =>
                   setEditingTrainingForm((current) => ({
@@ -679,10 +681,10 @@ export default function SaudeTreinamentosPage() {
             </label>
 
             <label className="grid gap-1 text-sm">
-              <span className="font-medium text-slate-700">Status</span>
+              <span className="font-medium text-[#40536A]">Status</span>
               <input
                 list="training-status-options"
-                className="rounded-lg border border-slate-300 px-3 py-2"
+                className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                 value={editingTrainingForm.status}
                 onChange={(event) =>
                   setEditingTrainingForm((current) => ({
@@ -694,10 +696,10 @@ export default function SaudeTreinamentosPage() {
             </label>
 
             <label className="grid gap-1 text-sm">
-              <span className="font-medium text-slate-700">Periodicidade</span>
+              <span className="font-medium text-[#40536A]">Periodicidade</span>
               <input
                 list="training-periodicity-options"
-                className="rounded-lg border border-slate-300 px-3 py-2"
+                className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                 value={editingTrainingForm.periodicity}
                 onChange={(event) =>
                   setEditingTrainingForm((current) => ({
@@ -709,10 +711,10 @@ export default function SaudeTreinamentosPage() {
             </label>
 
             <label className="grid gap-1 text-sm">
-              <span className="font-medium text-slate-700">Data do ultimo</span>
+              <span className="font-medium text-[#40536A]">Data do ultimo</span>
               <input
                 type="date"
-                className="rounded-lg border border-slate-300 px-3 py-2"
+                className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                 value={editingTrainingForm.last_date}
                 onChange={(event) =>
                   setEditingTrainingForm((current) => ({
@@ -724,10 +726,10 @@ export default function SaudeTreinamentosPage() {
             </label>
 
             <label className="grid gap-1 text-sm">
-              <span className="font-medium text-slate-700">Proximo vencimento</span>
+              <span className="font-medium text-[#40536A]">Proximo vencimento</span>
               <input
                 type="date"
-                className="rounded-lg border border-slate-300 px-3 py-2"
+                className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                 value={editingTrainingForm.next_due_date}
                 onChange={(event) =>
                   setEditingTrainingForm((current) => ({
@@ -739,9 +741,9 @@ export default function SaudeTreinamentosPage() {
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="font-medium text-slate-700">Responsavel</span>
+              <span className="font-medium text-[#40536A]">Responsavel</span>
               <input
-                className="rounded-lg border border-slate-300 px-3 py-2"
+                className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                 value={editingTrainingForm.responsible_name}
                 onChange={(event) =>
                   setEditingTrainingForm((current) => ({
@@ -753,9 +755,9 @@ export default function SaudeTreinamentosPage() {
             </label>
 
             <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="font-medium text-slate-700">Observacoes</span>
+              <span className="font-medium text-[#40536A]">Observacoes</span>
               <textarea
-                className="min-h-28 rounded-lg border border-slate-300 px-3 py-2"
+                className="min-h-28 rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                 value={editingTrainingForm.notes}
                 onChange={(event) =>
                   setEditingTrainingForm((current) => ({
@@ -769,7 +771,7 @@ export default function SaudeTreinamentosPage() {
             <div className="flex flex-wrap gap-3 md:col-span-2">
               <button
                 type="submit"
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                className="rounded-xl bg-[#10243E] px-4 py-2 text-sm font-semibold text-white shadow-[0_6px_16px_rgba(16,36,62,0.16)] transition hover:bg-[#0B1A2D] disabled:opacity-60"
                 disabled={isSavingTrainingEdit}
               >
                 {isSavingTrainingEdit ? "Salvando..." : "Salvar edicao"}
@@ -777,7 +779,7 @@ export default function SaudeTreinamentosPage() {
 
               <button
                 type="button"
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+                className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-4 py-2 text-sm font-semibold text-[#10243E] transition hover:bg-[#F4ECE2]"
                 onClick={cancelTrainingEdit}
                 disabled={isSavingTrainingEdit}
               >
@@ -792,19 +794,19 @@ export default function SaudeTreinamentosPage() {
     return (
       <article
         key={record.id}
-        className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+        className="rounded-xl border border-[#E2D4BF] bg-[#FFFCF7] p-4 shadow-[0_8px_24px_rgba(18,40,70,0.07)]"
       >
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">
+            <h3 className="text-lg font-semibold text-[#10243E]">
               {readString(record, ["training_name"]) || "Treinamento sem nome"}
             </h3>
-            <p className="text-sm text-slate-600">ID: {record.id}</p>
+            <p className="text-sm text-[#60718A]">ID: {record.id}</p>
           </div>
 
           <button
             type="button"
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
+            className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-sm font-semibold text-[#10243E] transition hover:bg-[#F4ECE2]"
             onClick={() => beginTrainingEdit(record)}
           >
             Editar
@@ -813,64 +815,64 @@ export default function SaudeTreinamentosPage() {
 
         <dl className="grid gap-3 text-sm md:grid-cols-2">
           <div>
-            <dt className="font-medium text-slate-700">Publico alvo</dt>
-            <dd className="text-slate-900">
+            <dt className="font-medium text-[#40536A]">Publico alvo</dt>
+            <dd className="text-[#10243E]">
               {readString(record, ["target_audience"]) || "-"}
             </dd>
           </div>
 
           <div>
-            <dt className="font-medium text-slate-700">Status</dt>
-            <dd className="text-slate-900">
+            <dt className="font-medium text-[#40536A]">Status</dt>
+            <dd className="text-[#10243E]">
               {readString(record, ["status"]) || "-"}
             </dd>
           </div>
 
           <div>
-            <dt className="font-medium text-slate-700">Periodicidade</dt>
-            <dd className="text-slate-900">
+            <dt className="font-medium text-[#40536A]">Periodicidade</dt>
+            <dd className="text-[#10243E]">
               {readString(record, ["periodicity"]) || "-"}
             </dd>
           </div>
 
           <div>
-            <dt className="font-medium text-slate-700">Responsavel</dt>
-            <dd className="text-slate-900">
+            <dt className="font-medium text-[#40536A]">Responsavel</dt>
+            <dd className="text-[#10243E]">
               {readString(record, ["responsible_name"]) || "-"}
             </dd>
           </div>
 
           <div>
-            <dt className="font-medium text-slate-700">Data do ultimo</dt>
-            <dd className="text-slate-900">
+            <dt className="font-medium text-[#40536A]">Data do ultimo</dt>
+            <dd className="text-[#10243E]">
               {toDisplayDate(readString(record, ["last_date"]))}
             </dd>
           </div>
 
           <div>
-            <dt className="font-medium text-slate-700">Proximo vencimento</dt>
-            <dd className="text-slate-900">
+            <dt className="font-medium text-[#40536A]">Proximo vencimento</dt>
+            <dd className="text-[#10243E]">
               {toDisplayDate(readString(record, ["next_due_date"]))}
             </dd>
           </div>
 
           <div className="md:col-span-2">
-            <dt className="font-medium text-slate-700">Observacoes</dt>
-            <dd className="whitespace-pre-wrap text-slate-900">
+            <dt className="font-medium text-[#40536A]">Observacoes</dt>
+            <dd className="whitespace-pre-wrap text-[#10243E]">
               {readString(record, ["notes"]) || "-"}
             </dd>
           </div>
 
           <div>
-            <dt className="font-medium text-slate-700">Estabelecimento</dt>
-            <dd className="text-slate-900">
+            <dt className="font-medium text-[#40536A]">Estabelecimento</dt>
+            <dd className="text-[#10243E]">
               {readString(record, ["establishment_id"]) || "-"}
             </dd>
           </div>
 
           <div>
-            <dt className="font-medium text-slate-700">Ultima atualizacao</dt>
-            <dd className="text-slate-900">
+            <dt className="font-medium text-[#40536A]">Ultima atualizacao</dt>
+            <dd className="text-[#10243E]">
               {toDisplayDateTime(readString(record, ["updated_at", "created_at"]))}
             </dd>
           </div>
@@ -880,7 +882,35 @@ export default function SaudeTreinamentosPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-900">
+    <Nr1WorkspaceV2Shell
+      companyName={tenantId ? "Empresa ativa" : "Empresa não selecionada"}
+      establishmentName={establishmentId ? "Local de trabalho ativo" : "Local de trabalho não selecionado"}
+      pgrStatus="Em construção"
+      progressPercent={92}
+      progressDescription="Saúde ocupacional e treinamentos organizados no contexto ativo."
+      activeModule="Saúde e treinamentos"
+      modules={["Base", "Mapeamento", "Riscos", "Plano", "Evidências", "Trilha", "Saúde e treinamentos", "PGR"]}
+      pendingItems={[
+        "Conferir a referência de saúde ocupacional",
+        "Manter os treinamentos e vencimentos atualizados",
+        "Preservar a rastreabilidade para o PGR",
+      ]}
+      nextBestActionLabel="Etapa da jornada"
+      nextBestActionTitle="Conferir saúde ocupacional e treinamentos"
+      nextBestActionDescription="Revise as referências de saúde ocupacional e mantenha os treinamentos vinculados ao local de trabalho ativo."
+      nextBestActionPrimaryHref="#nr1-health-training-content"
+      nextBestActionPrimaryLabel="Ver registros"
+      nextBestActionSecondaryHref="/dashboard/nr1/relatorio-pgr"
+      nextBestActionSecondaryLabel="Voltar para o PGR"
+      nextBestActionReasons={[
+        "Os registros apoiam o acompanhamento preventivo.",
+        "Os vencimentos precisam permanecer atualizados.",
+        "O contexto ativo preserva o escopo do estabelecimento.",
+      ]}
+      pgrHref="/dashboard/nr1/relatorio-pgr"
+      moduleHref="#nr1-health-training-content"
+    >
+      <section id="nr1-health-training-content" className="min-w-0 space-y-6 text-[#10243E]">
       <datalist id="training-status-options">
         {STATUS_SUGGESTIONS.map((option) => (
           <option key={option} value={option} />
@@ -894,16 +924,16 @@ export default function SaudeTreinamentosPage() {
       </datalist>
 
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <header className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <header className="rounded-[24px] border border-[#D6B56C] bg-[#FFFCF7] p-6 shadow-[0_8px_24px_rgba(18,40,70,0.07)]">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
+              <p className="text-sm font-medium uppercase tracking-wide text-[#A36B16]">
                 NR1
               </p>
-              <h1 className="text-3xl font-bold text-slate-900">
+              <h1 className="text-3xl font-bold text-[#10243E]">
                 Saude e Treinamentos
               </h1>
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="mt-2 text-sm text-[#60718A]">
                 Leitura real, criacao controlada e edicao inline de treinamento existente.
               </p>
             </div>
@@ -911,7 +941,7 @@ export default function SaudeTreinamentosPage() {
             <div className="flex flex-wrap gap-3">
               <button
                 type="button"
-                className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700"
+                className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-4 py-2 text-sm font-semibold text-[#10243E] transition hover:bg-[#F4ECE2]"
                 onClick={() => void loadData()}
                 disabled={isRefreshing || isInitialLoading}
               >
@@ -922,9 +952,9 @@ export default function SaudeTreinamentosPage() {
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             <label className="grid gap-1 text-sm">
-              <span className="font-medium text-slate-700">tenantId</span>
+              <span className="font-medium text-[#40536A]">tenantId</span>
               <input
-                className="rounded-lg border border-slate-300 px-3 py-2"
+                className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                 value={tenantId}
                 onChange={(event) => setTenantId(event.target.value)}
                 placeholder="Resolvido automaticamente quando possivel"
@@ -932,9 +962,9 @@ export default function SaudeTreinamentosPage() {
             </label>
 
             <label className="grid gap-1 text-sm">
-              <span className="font-medium text-slate-700">establishment_id</span>
+              <span className="font-medium text-[#40536A]">establishment_id</span>
               <input
-                className="rounded-lg border border-slate-300 px-3 py-2"
+                className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                 value={establishmentId}
                 onChange={(event) => setEstablishmentId(event.target.value)}
                 placeholder="Inferido a partir dos dados quando possivel"
@@ -956,19 +986,19 @@ export default function SaudeTreinamentosPage() {
         </header>
 
         {isInitialLoading ? (
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm text-slate-600">Carregando dados reais...</p>
+          <section className="rounded-[24px] border border-[#D6B56C] bg-[#FFFCF7] p-6 shadow-[0_8px_24px_rgba(18,40,70,0.07)]">
+            <p className="text-sm text-[#60718A]">Carregando dados reais...</p>
           </section>
         ) : (
           <>
             <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="rounded-[24px] border border-[#D6B56C] bg-[#FFFCF7] p-6 shadow-[0_8px_24px_rgba(18,40,70,0.07)]">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-xl font-semibold text-slate-900">
+                    <h2 className="text-xl font-semibold text-[#10243E]">
                       Saude ocupacional
                     </h2>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-[#60718A]">
                       Bloco superior lendo dados reais e mantendo criacao controlada.
                     </p>
                   </div>
@@ -976,54 +1006,54 @@ export default function SaudeTreinamentosPage() {
 
                 <div className="grid gap-4">
                   {healthRefs.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                    <div className="rounded-xl border border-dashed border-[#D8C8B2] bg-[#F4ECE2] p-4 text-sm text-[#60718A]">
                       Nenhuma referencia de saude ocupacional encontrada.
                     </div>
                   ) : (
                     healthRefs.map((item) => (
                       <article
                         key={item.id}
-                        className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                        className="rounded-xl border border-[#E2D4BF] bg-[#F4ECE2] p-4"
                       >
                         <div className="mb-3">
-                          <h3 className="text-lg font-semibold text-slate-900">
+                          <h3 className="text-lg font-semibold text-[#10243E]">
                             Referencia de saude ocupacional
                           </h3>
-                          <p className="text-sm text-slate-600">ID: {item.id}</p>
+                          <p className="text-sm text-[#60718A]">ID: {item.id}</p>
                         </div>
 
                         <dl className="grid gap-3 text-sm md:grid-cols-2">
                           <div>
-                            <dt className="font-medium text-slate-700">PCMSO vigente</dt>
-                            <dd className="text-slate-900">
+                            <dt className="font-medium text-[#40536A]">PCMSO vigente</dt>
+                            <dd className="text-[#10243E]">
                               {boolToLabel(readBoolean(item, ["pcmso_exists"]))}
                             </dd>
                           </div>
 
                           <div>
-                            <dt className="font-medium text-slate-700">Vigencia</dt>
-                            <dd className="text-slate-900">
+                            <dt className="font-medium text-[#40536A]">Vigencia</dt>
+                            <dd className="text-[#10243E]">
                               {toDisplayDate(readString(item, ["pcmso_validity_date"]))}
                             </dd>
                           </div>
 
                           <div>
-                            <dt className="font-medium text-slate-700">Responsavel tecnico</dt>
-                            <dd className="text-slate-900">
+                            <dt className="font-medium text-[#40536A]">Responsavel tecnico</dt>
+                            <dd className="text-[#10243E]">
                               {readString(item, ["technical_responsible"]) || "-"}
                             </dd>
                           </div>
 
                           <div>
-                            <dt className="font-medium text-slate-700">Ha afastamentos relacionados</dt>
-                            <dd className="text-slate-900">
+                            <dt className="font-medium text-[#40536A]">Ha afastamentos relacionados</dt>
+                            <dd className="text-[#10243E]">
                               {boolToLabel(readBoolean(item, ["has_work_related_absences"]))}
                             </dd>
                           </div>
 
                           <div>
-                            <dt className="font-medium text-slate-700">Ha acidentes ou doencas que exigem revisao</dt>
-                            <dd className="text-slate-900">
+                            <dt className="font-medium text-[#40536A]">Ha acidentes ou doencas que exigem revisao</dt>
+                            <dd className="text-[#10243E]">
                               {boolToLabel(
                                 readBoolean(item, ["has_accident_or_disease_requiring_review"]),
                               )}
@@ -1031,15 +1061,15 @@ export default function SaudeTreinamentosPage() {
                           </div>
 
                           <div>
-                            <dt className="font-medium text-slate-700">Ultima atualizacao</dt>
-                            <dd className="text-slate-900">
+                            <dt className="font-medium text-[#40536A]">Ultima atualizacao</dt>
+                            <dd className="text-[#10243E]">
                               {toDisplayDateTime(readString(item, ["updated_at", "created_at"]))}
                             </dd>
                           </div>
 
                           <div className="md:col-span-2">
-                            <dt className="font-medium text-slate-700">Observacoes</dt>
-                            <dd className="whitespace-pre-wrap text-slate-900">
+                            <dt className="font-medium text-[#40536A]">Observacoes</dt>
+                            <dd className="whitespace-pre-wrap text-[#10243E]">
                               {readString(item, ["notes"]) || "-"}
                             </dd>
                           </div>
@@ -1050,11 +1080,11 @@ export default function SaudeTreinamentosPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 className="text-xl font-semibold text-slate-900">
+              <div className="rounded-[24px] border border-[#D6B56C] bg-[#FFFCF7] p-6 shadow-[0_8px_24px_rgba(18,40,70,0.07)]">
+                <h2 className="text-xl font-semibold text-[#10243E]">
                   Nova referencia de saude ocupacional
                 </h2>
-                <p className="mt-1 text-sm text-slate-600">
+                <p className="mt-1 text-sm text-[#60718A]">
                   Formulario de criacao mantido na mesma tela.
                 </p>
 
@@ -1066,9 +1096,9 @@ export default function SaudeTreinamentosPage() {
                   }}
                 >
                   <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-700">Existe PCMSO vigente</span>
+                    <span className="font-medium text-[#40536A]">Existe PCMSO vigente</span>
                     <select
-                      className="rounded-lg border border-slate-300 px-3 py-2"
+                      className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                       value={healthForm.pcmso_exists}
                       onChange={(event) =>
                         setHealthForm((current) => ({
@@ -1084,10 +1114,10 @@ export default function SaudeTreinamentosPage() {
                   </label>
 
                   <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-700">Data de vigencia</span>
+                    <span className="font-medium text-[#40536A]">Data de vigencia</span>
                     <input
                       type="date"
-                      className="rounded-lg border border-slate-300 px-3 py-2"
+                      className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                       value={healthForm.pcmso_validity_date}
                       onChange={(event) =>
                         setHealthForm((current) => ({
@@ -1099,9 +1129,9 @@ export default function SaudeTreinamentosPage() {
                   </label>
 
                   <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-700">Responsavel tecnico</span>
+                    <span className="font-medium text-[#40536A]">Responsavel tecnico</span>
                     <input
-                      className="rounded-lg border border-slate-300 px-3 py-2"
+                      className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                       value={healthForm.technical_responsible}
                       onChange={(event) =>
                         setHealthForm((current) => ({
@@ -1113,11 +1143,11 @@ export default function SaudeTreinamentosPage() {
                   </label>
 
                   <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-700">
+                    <span className="font-medium text-[#40536A]">
                       Ha dados de afastamentos relacionados ao trabalho
                     </span>
                     <select
-                      className="rounded-lg border border-slate-300 px-3 py-2"
+                      className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                       value={healthForm.has_work_related_absences}
                       onChange={(event) =>
                         setHealthForm((current) => ({
@@ -1133,11 +1163,11 @@ export default function SaudeTreinamentosPage() {
                   </label>
 
                   <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-700">
+                    <span className="font-medium text-[#40536A]">
                       Ha acidentes ou doencas que exigem revisao
                     </span>
                     <select
-                      className="rounded-lg border border-slate-300 px-3 py-2"
+                      className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                       value={healthForm.has_accident_or_disease_requiring_review}
                       onChange={(event) =>
                         setHealthForm((current) => ({
@@ -1153,9 +1183,9 @@ export default function SaudeTreinamentosPage() {
                   </label>
 
                   <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-700">Observacoes</span>
+                    <span className="font-medium text-[#40536A]">Observacoes</span>
                     <textarea
-                      className="min-h-24 rounded-lg border border-slate-300 px-3 py-2"
+                      className="min-h-24 rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                       value={healthForm.notes}
                       onChange={(event) =>
                         setHealthForm((current) => ({
@@ -1168,7 +1198,7 @@ export default function SaudeTreinamentosPage() {
 
                   <button
                     type="submit"
-                    className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                    className="rounded-xl bg-[#10243E] px-4 py-2 text-sm font-semibold text-white shadow-[0_6px_16px_rgba(16,36,62,0.16)] transition hover:bg-[#0B1A2D] disabled:opacity-60"
                     disabled={isSavingHealth}
                   >
                     {isSavingHealth ? "Salvando..." : "Salvar referencia de saude"}
@@ -1178,25 +1208,25 @@ export default function SaudeTreinamentosPage() {
             </section>
 
             <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="rounded-[24px] border border-[#D6B56C] bg-[#FFFCF7] p-6 shadow-[0_8px_24px_rgba(18,40,70,0.07)]">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
-                    <h2 className="text-xl font-semibold text-slate-900">
+                    <h2 className="text-xl font-semibold text-[#10243E]">
                       Treinamentos
                     </h2>
-                    <p className="text-sm text-slate-600">
+                    <p className="text-sm text-[#60718A]">
                       Cards reais com edicao inline por registro.
                     </p>
                   </div>
 
-                  <div className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-700">
+                  <div className="rounded-full bg-[#F4ECE2] px-3 py-1 text-sm font-medium text-[#40536A]">
                     Total: {trainingRecords.length}
                   </div>
                 </div>
 
                 <div className="grid gap-4">
                   {trainingRecords.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                    <div className="rounded-xl border border-dashed border-[#D8C8B2] bg-[#F4ECE2] p-4 text-sm text-[#60718A]">
                       Nenhum treinamento encontrado.
                     </div>
                   ) : (
@@ -1205,11 +1235,11 @@ export default function SaudeTreinamentosPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 className="text-xl font-semibold text-slate-900">
+              <div className="rounded-[24px] border border-[#D6B56C] bg-[#FFFCF7] p-6 shadow-[0_8px_24px_rgba(18,40,70,0.07)]">
+                <h2 className="text-xl font-semibold text-[#10243E]">
                   Novo treinamento
                 </h2>
-                <p className="mt-1 text-sm text-slate-600">
+                <p className="mt-1 text-sm text-[#60718A]">
                   Formulario de criacao mantido na mesma tela.
                 </p>
 
@@ -1221,9 +1251,9 @@ export default function SaudeTreinamentosPage() {
                   }}
                 >
                   <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-700">Treinamento</span>
+                    <span className="font-medium text-[#40536A]">Treinamento</span>
                     <input
-                      className="rounded-lg border border-slate-300 px-3 py-2"
+                      className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                       value={trainingForm.training_name}
                       onChange={(event) =>
                         setTrainingForm((current) => ({
@@ -1235,9 +1265,9 @@ export default function SaudeTreinamentosPage() {
                   </label>
 
                   <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-700">Publico alvo</span>
+                    <span className="font-medium text-[#40536A]">Publico alvo</span>
                     <input
-                      className="rounded-lg border border-slate-300 px-3 py-2"
+                      className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                       value={trainingForm.target_audience}
                       onChange={(event) =>
                         setTrainingForm((current) => ({
@@ -1249,10 +1279,10 @@ export default function SaudeTreinamentosPage() {
                   </label>
 
                   <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-700">Status</span>
+                    <span className="font-medium text-[#40536A]">Status</span>
                     <input
                       list="training-status-options"
-                      className="rounded-lg border border-slate-300 px-3 py-2"
+                      className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                       value={trainingForm.status}
                       onChange={(event) =>
                         setTrainingForm((current) => ({
@@ -1264,10 +1294,10 @@ export default function SaudeTreinamentosPage() {
                   </label>
 
                   <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-700">Periodicidade</span>
+                    <span className="font-medium text-[#40536A]">Periodicidade</span>
                     <input
                       list="training-periodicity-options"
-                      className="rounded-lg border border-slate-300 px-3 py-2"
+                      className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                       value={trainingForm.periodicity}
                       onChange={(event) =>
                         setTrainingForm((current) => ({
@@ -1279,10 +1309,10 @@ export default function SaudeTreinamentosPage() {
                   </label>
 
                   <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-700">Data do ultimo</span>
+                    <span className="font-medium text-[#40536A]">Data do ultimo</span>
                     <input
                       type="date"
-                      className="rounded-lg border border-slate-300 px-3 py-2"
+                      className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                       value={trainingForm.last_date}
                       onChange={(event) =>
                         setTrainingForm((current) => ({
@@ -1294,10 +1324,10 @@ export default function SaudeTreinamentosPage() {
                   </label>
 
                   <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-700">Proximo vencimento</span>
+                    <span className="font-medium text-[#40536A]">Proximo vencimento</span>
                     <input
                       type="date"
-                      className="rounded-lg border border-slate-300 px-3 py-2"
+                      className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                       value={trainingForm.next_due_date}
                       onChange={(event) =>
                         setTrainingForm((current) => ({
@@ -1309,9 +1339,9 @@ export default function SaudeTreinamentosPage() {
                   </label>
 
                   <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-700">Responsavel</span>
+                    <span className="font-medium text-[#40536A]">Responsavel</span>
                     <input
-                      className="rounded-lg border border-slate-300 px-3 py-2"
+                      className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                       value={trainingForm.responsible_name}
                       onChange={(event) =>
                         setTrainingForm((current) => ({
@@ -1323,9 +1353,9 @@ export default function SaudeTreinamentosPage() {
                   </label>
 
                   <label className="grid gap-1 text-sm">
-                    <span className="font-medium text-slate-700">Observacoes</span>
+                    <span className="font-medium text-[#40536A]">Observacoes</span>
                     <textarea
-                      className="min-h-24 rounded-lg border border-slate-300 px-3 py-2"
+                      className="min-h-24 rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                       value={trainingForm.notes}
                       onChange={(event) =>
                         setTrainingForm((current) => ({
@@ -1338,7 +1368,7 @@ export default function SaudeTreinamentosPage() {
 
                   <button
                     type="submit"
-                    className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                    className="rounded-xl bg-[#10243E] px-4 py-2 text-sm font-semibold text-white shadow-[0_6px_16px_rgba(16,36,62,0.16)] transition hover:bg-[#0B1A2D] disabled:opacity-60"
                     disabled={isSavingTraining}
                   >
                     {isSavingTraining ? "Salvando..." : "Salvar treinamento"}
@@ -1349,7 +1379,8 @@ export default function SaudeTreinamentosPage() {
           </>
         )}
       </div>
-    </main>
+      </section>
+    </Nr1WorkspaceV2Shell>
   );
 }
 

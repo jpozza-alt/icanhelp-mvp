@@ -61,9 +61,9 @@ type AuditEventItem = {
 };
 
 const supabaseSectionClass =
-  "rounded-3xl border border-[#D9E0E7] bg-white p-6 shadow-[0_18px_50px_rgba(34,49,63,0.08)]";
+  "rounded-[24px] border border-[#E2D4BF] bg-[#FFFCF7] p-6 shadow-[0_8px_24px_rgba(18,40,70,0.07)]";
 const selectClassName =
-  "mt-2 w-full rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] px-4 py-3 text-sm text-[#22313F] outline-none transition focus:border-[#5E7A96]";
+  "mt-2 w-full rounded-2xl border border-[#D8C8B2] bg-[#FFFCF7] px-4 py-3 text-sm text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25";
 
 async function readJsonSafe(response: Response) {
   const text = await response.text();
@@ -241,11 +241,11 @@ function getStatusBadgeClass(value: string | null | undefined) {
     case "in_progress":
       return "border-[#D6E3EE] bg-[#F2F7FB] text-[#45647F]";
     case "open":
-      return "border-[#E9D4C4] bg-[#FBF5EF] text-[#8C5A33]";
+      return "border-[#E9D4C4] bg-[#FBF5EF] text-[#8B5E34]";
     case "overdue":
       return "border-[#E8C8CC] bg-[#F9F1F2] text-[#8A4F58]";
     default:
-      return "border-[#D9E0E7] bg-[#FAFBFC] text-[#5B6B79]";
+      return "border-[#E2D4BF] bg-[#F4ECE2] text-[#60718A]";
   }
 }
 
@@ -965,30 +965,30 @@ export default function Nr1TrilhaAcompanhamentoPage() {
       <div className="space-y-6">
         <section className={supabaseSectionClass}>
           <div className="mt-5 grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
+            <div className="rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#A36B16]">
                 planos de ação
               </div>
-              <div className="mt-2 text-2xl font-semibold text-[#22313F]">{actionPlans.length}</div>
+              <div className="mt-2 text-2xl font-semibold text-[#10243E]">{actionPlans.length}</div>
             </div>
 
-            <div className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
+            <div className="rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#A36B16]">
                 acompanhamentos
               </div>
-              <div className="mt-2 text-2xl font-semibold text-[#22313F]">{acompanhamentos.length}</div>
+              <div className="mt-2 text-2xl font-semibold text-[#10243E]">{acompanhamentos.length}</div>
             </div>
 
-            <div className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
+            <div className="rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#A36B16]">
                 ajustes necessários
               </div>
-              <div className="mt-2 text-2xl font-semibold text-[#22313F]">{adjustmentCount}</div>
+              <div className="mt-2 text-2xl font-semibold text-[#10243E]">{adjustmentCount}</div>
             </div>
           </div>
 
           {loadingSession ? (
-            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">Carregando sessão...</p>
+            <p className="mt-4 text-sm leading-7 text-[#60718A]">Carregando sessão...</p>
           ) : null}
 
           {error ? (
@@ -1007,14 +1007,14 @@ export default function Nr1TrilhaAcompanhamentoPage() {
         <section className={supabaseSectionClass}>
           <div className="grid gap-4 md:grid-cols-3">
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Empresa ativa</label>
-              <div className="mt-2 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] px-4 py-3 text-sm text-[#5B6B79]">
+              <label className="text-sm font-semibold text-[#10243E]">Empresa ativa</label>
+              <div className="mt-2 rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] px-4 py-3 text-sm text-[#60718A]">
                 {tenantId ? activeCompanyName : "Não carregado"}
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Local de trabalho</label>
+              <label className="text-sm font-semibold text-[#10243E]">Local de trabalho</label>
               <select
                 value={selectedEstablishmentId}
                 onChange={(e) => setSelectedEstablishmentId(e.target.value)}
@@ -1034,7 +1034,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Plano de ação</label>
+              <label className="text-sm font-semibold text-[#10243E]">Plano de ação</label>
               <select
                 value={selectedActionPlanId}
                 onChange={(e) => setSelectedActionPlanId(e.target.value)}
@@ -1055,49 +1055,49 @@ export default function Nr1TrilhaAcompanhamentoPage() {
           </div>
 
           {selectedEstablishment ? (
-            <div className="mt-4 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
+            <div className="mt-4 rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-4 text-sm leading-7 text-[#60718A]">
               <div>
-                <span className="font-semibold text-[#22313F]">Local de trabalho:</span> {selectedEstablishment.name}
+                <span className="font-semibold text-[#10243E]">Local de trabalho:</span> {selectedEstablishment.name}
               </div>
               <div>
-                <span className="font-semibold text-[#22313F]">Cidade/UF:</span>{" "}
+                <span className="font-semibold text-[#10243E]">Cidade/UF:</span>{" "}
                 {[selectedEstablishment.city, selectedEstablishment.state].filter(Boolean).join(" / ") || "Não informado"}
               </div>
               <div>
-                <span className="font-semibold text-[#22313F]">Status:</span> {selectedEstablishment.status ? formatStatusLabel(selectedEstablishment.status) : "Não informado"}
+                <span className="font-semibold text-[#10243E]">Status:</span> {selectedEstablishment.status ? formatStatusLabel(selectedEstablishment.status) : "Não informado"}
               </div>
             </div>
           ) : null}
 
           {selectedActionPlan ? (
-            <div className="mt-4 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
+            <div className="mt-4 rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-4 text-sm leading-7 text-[#60718A]">
               <div>
-                <span className="font-semibold text-[#22313F]">Título:</span> {selectedActionPlan.title || "Não informado"}
+                <span className="font-semibold text-[#10243E]">Título:</span> {selectedActionPlan.title || "Não informado"}
               </div>
               <div>
-                <span className="font-semibold text-[#22313F]">Status:</span> {formatStatusLabel(selectedActionPlan.status)}
+                <span className="font-semibold text-[#10243E]">Status:</span> {formatStatusLabel(selectedActionPlan.status)}
               </div>
               <div>
-                <span className="font-semibold text-[#22313F]">Prioridade:</span> {formatPriorityLabel(selectedActionPlan.priority)}
+                <span className="font-semibold text-[#10243E]">Prioridade:</span> {formatPriorityLabel(selectedActionPlan.priority)}
               </div>
               <div>
-                <span className="font-semibold text-[#22313F]">Prazo:</span> {selectedActionPlan.due_date || "Não informado"}
+                <span className="font-semibold text-[#10243E]">Prazo:</span> {selectedActionPlan.due_date || "Não informado"}
               </div>
             </div>
           ) : null}
         </section>
 
         <section className={supabaseSectionClass}>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#A36B16]">
             registrar acompanhamento
           </div>
-          <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
+          <h3 className="mt-3 text-xl font-semibold text-[#10243E]">
             Registre como o plano de ação foi verificado.
           </h3>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Data do acompanhamento</label>
+              <label className="text-sm font-semibold text-[#10243E]">Data do acompanhamento</label>
               <input
                 type="date"
                 value={form.acompanhamento_date}
@@ -1107,7 +1107,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Ajuste corretivo necessário</label>
+              <label className="text-sm font-semibold text-[#10243E]">Ajuste corretivo necessário</label>
               <select
                 value={form.corrective_adjustment_needed ? "sim" : "nao"}
                 onChange={(e) =>
@@ -1124,7 +1124,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Execução</label>
+              <label className="text-sm font-semibold text-[#10243E]">Execução</label>
               <textarea
                 value={form.execution_check}
                 onChange={(e) => setForm((current) => ({ ...current, execution_check: e.target.value }))}
@@ -1134,7 +1134,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Inspeção</label>
+              <label className="text-sm font-semibold text-[#10243E]">Inspeção</label>
               <textarea
                 value={form.inspection_result}
                 onChange={(e) => setForm((current) => ({ ...current, inspection_result: e.target.value }))}
@@ -1144,7 +1144,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Efetividade</label>
+              <label className="text-sm font-semibold text-[#10243E]">Efetividade</label>
               <textarea
                 value={form.effectiveness_result}
                 onChange={(e) => setForm((current) => ({ ...current, effectiveness_result: e.target.value }))}
@@ -1154,7 +1154,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Continuidade</label>
+              <label className="text-sm font-semibold text-[#10243E]">Continuidade</label>
               <textarea
                 value={form.continuity_check}
                 onChange={(e) => setForm((current) => ({ ...current, continuity_check: e.target.value }))}
@@ -1164,7 +1164,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Monitoramento ambiental</label>
+              <label className="text-sm font-semibold text-[#10243E]">Monitoramento ambiental</label>
               <textarea
                 value={form.environmental_monitoring_result}
                 onChange={(e) =>
@@ -1176,7 +1176,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#22313F]">Participação dos trabalhadores</label>
+              <label className="text-sm font-semibold text-[#10243E]">Participação dos trabalhadores</label>
               <textarea
                 value={form.worker_participation_note}
                 onChange={(e) =>
@@ -1188,7 +1188,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             </div>
 
             <div className="md:col-span-2">
-              <label className="text-sm font-semibold text-[#22313F]">Observações</label>
+              <label className="text-sm font-semibold text-[#10243E]">Observações</label>
               <textarea
                 value={form.notes}
                 onChange={(e) => setForm((current) => ({ ...current, notes: e.target.value }))}
@@ -1203,7 +1203,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
               type="button"
               onClick={() => void handleCreateFollowup()}
               disabled={saving || !jwt || !tenantId || !selectedEstablishmentId || !selectedActionPlanId || !form.acompanhamento_date.trim()}
-              className="rounded-xl bg-[#5E7A96] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#516C86] disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-xl bg-[#10243E] px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(16,36,62,0.14)] transition hover:bg-[#0B1A2D] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? "Salvando..." : "Salvar acompanhamento"}
             </button>
@@ -1223,7 +1223,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
                   notes: "",
                 })
               }
-              className="rounded-xl border border-[#D9E0E7] bg-[#FAFBFC] px-5 py-3 text-sm font-semibold text-[#22313F]"
+              className="rounded-xl border border-[#E2D4BF] bg-[#F4ECE2] px-5 py-3 text-sm font-semibold text-[#10243E]"
             >
               Limpar campos
             </button>
@@ -1231,19 +1231,19 @@ export default function Nr1TrilhaAcompanhamentoPage() {
         </section>
 
         <section className={supabaseSectionClass}>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#A36B16]">
             acompanhamentos registrados
           </div>
-          <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
+          <h3 className="mt-3 text-xl font-semibold text-[#10243E]">
             Acompanhamentos do plano de ação selecionado.
           </h3>
 
           {loadingActionPlans || loadingFollowups ? (
-            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
+            <p className="mt-4 text-sm leading-7 text-[#60718A]">
               Carregando acompanhamentos...
             </p>
           ) : acompanhamentos.length === 0 ? (
-            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
+            <p className="mt-4 text-sm leading-7 text-[#60718A]">
               Nenhum acompanhamento registrado para o plano de ação selecionado.
             </p>
           ) : (
@@ -1251,84 +1251,84 @@ export default function Nr1TrilhaAcompanhamentoPage() {
               {acompanhamentos.map((item, index) => (
                 <article
                   key={item.id}
-                  className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-5"
+                  className="rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-5"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#5E7A96]">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#A36B16]">
                         acompanhamento {index + 1}
                       </div>
-                      <h3 className="mt-2 text-lg font-semibold text-[#22313F]">
+                      <h3 className="mt-2 text-lg font-semibold text-[#10243E]">
                         Data de acompanhamento:{" "}
                         {item.acompanhamento_date
                           ? formatDateForDisplay(item.acompanhamento_date)
                           : "Nao informada"}
                       </h3>
-                      <p className="mt-2 text-sm leading-7 text-[#5B6B79]">
+                      <p className="mt-2 text-sm leading-7 text-[#60718A]">
                         {item.notes || "Sem observacoes complementares."}
                       </p>
                     </div>
 
-                    <div className="rounded-full border px-3 py-2 text-xs font-semibold border-[#D9E0E7] bg-white text-[#5B6B79]">
+                    <div className="rounded-full border px-3 py-2 text-xs font-semibold border-[#E2D4BF] bg-[#FFFCF7] text-[#60718A]">
                       Ajuste necessário: {item.corrective_adjustment_needed ? "sim" : "não"}
                     </div>
                   </div>
 
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
+                    <div className="rounded-2xl border border-[#EADFCF] bg-[#FFFCF7] p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#A36B16]">
                         execução
                       </div>
-                      <div className="mt-2 text-sm leading-7 text-[#22313F]">
+                      <div className="mt-2 text-sm leading-7 text-[#10243E]">
                         {item.execution_check || "Não informado"}
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
+                    <div className="rounded-2xl border border-[#EADFCF] bg-[#FFFCF7] p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#A36B16]">
                         inspeção
                       </div>
-                      <div className="mt-2 text-sm leading-7 text-[#22313F]">
+                      <div className="mt-2 text-sm leading-7 text-[#10243E]">
                         {item.inspection_result || "Não informado"}
                       </div>
                     </div>
                   </div>
 
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
+                    <div className="rounded-2xl border border-[#EADFCF] bg-[#FFFCF7] p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#A36B16]">
                         efetividade
                       </div>
-                      <div className="mt-2 text-sm leading-7 text-[#22313F]">
+                      <div className="mt-2 text-sm leading-7 text-[#10243E]">
                         {item.effectiveness_result || "Não informado"}
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
+                    <div className="rounded-2xl border border-[#EADFCF] bg-[#FFFCF7] p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#A36B16]">
                         continuidade
                       </div>
-                      <div className="mt-2 text-sm leading-7 text-[#22313F]">
+                      <div className="mt-2 text-sm leading-7 text-[#10243E]">
                         {item.continuity_check || "Não informado"}
                       </div>
                     </div>
                   </div>
 
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
+                    <div className="rounded-2xl border border-[#EADFCF] bg-[#FFFCF7] p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#A36B16]">
                         monitoramento ambiental
                       </div>
-                      <div className="mt-2 text-sm leading-7 text-[#22313F]">
+                      <div className="mt-2 text-sm leading-7 text-[#10243E]">
                         {item.environmental_monitoring_result || "Não informado"}
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-[#E7EDF2] bg-white p-4">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#5E7A96]">
+                    <div className="rounded-2xl border border-[#EADFCF] bg-[#FFFCF7] p-4">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#A36B16]">
                         participação dos trabalhadores
                       </div>
-                      <div className="mt-2 text-sm leading-7 text-[#22313F]">
+                      <div className="mt-2 text-sm leading-7 text-[#10243E]">
                         {item.worker_participation_note || "Não informado"}
                       </div>
                     </div>
@@ -1338,35 +1338,35 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             </div>
           )}
 
-          <div className="mt-6 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
+          <div className="mt-6 rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-4 text-sm leading-7 text-[#60718A]">
             Os registros desta etapa ajudam a demonstrar o acompanhamento e a efetividade das medidas adotadas.
           </div>
         </section>
 
         <section className={supabaseSectionClass}>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#5E7A96]">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#A36B16]">
             trilha do processo
           </div>
-          <h3 className="mt-3 text-xl font-semibold text-[#22313F]">
+          <h3 className="mt-3 text-xl font-semibold text-[#10243E]">
             Últimas movimentações registradas.
           </h3>
-          <p className="mt-4 max-w-3xl text-sm leading-7 text-[#5B6B79]">
+          <p className="mt-4 max-w-3xl text-sm leading-7 text-[#60718A]">
             Esta área resume os acontecimentos importantes do GRO/PGR em linguagem simples. Os detalhes técnicos continuam preservados, mas não ficam no caminho do usuário.
           </p>
 
-          <div className="mt-5 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#5E7A96]">
+          <div className="mt-5 rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#A36B16]">
               últimas movimentações
             </div>
-            <div className="mt-2 text-2xl font-semibold text-[#22313F]">{Math.min(auditEvents.length, 8)}</div>
+            <div className="mt-2 text-2xl font-semibold text-[#10243E]">{Math.min(auditEvents.length, 8)}</div>
           </div>
 
           {loadingAuditEvents ? (
-            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
+            <p className="mt-4 text-sm leading-7 text-[#60718A]">
               Carregando movimentações...
             </p>
           ) : auditEvents.length === 0 ? (
-            <p className="mt-4 text-sm leading-7 text-[#5B6B79]">
+            <p className="mt-4 text-sm leading-7 text-[#60718A]">
               Nenhum evento formal encontrado para o estabelecimento selecionado.
             </p>
           ) : (
@@ -1374,44 +1374,44 @@ export default function Nr1TrilhaAcompanhamentoPage() {
               {auditEvents.slice(0, 8).map((item, index) => (
                 <article
                   key={item.id}
-                  className="rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-5"
+                  className="rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-5"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#5E7A96]">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#A36B16]">
                         movimentação {index + 1}
                       </div>
-                      <h3 className="mt-2 text-lg font-semibold text-[#22313F]">
+                      <h3 className="mt-2 text-lg font-semibold text-[#10243E]">
                         {auditEventHumanTitle(item)}
                       </h3>
-                      <p className="mt-2 text-sm leading-7 text-[#5B6B79]">
+                      <p className="mt-2 text-sm leading-7 text-[#60718A]">
                         {item.created_at
                           ? new Date(item.created_at).toLocaleString("pt-BR")
                           : "Data nao informada"}
                       </p>
                     </div>
 
-                    <span className="rounded-full border border-[#D9E0E7] bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#5E7A96]">
+                    <span className="rounded-full border border-[#E2D4BF] bg-[#FFFCF7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#A36B16]">
                       {auditEventHumanBadge(item)}
                     </span>
                   </div>
 
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <div className="rounded-2xl border border-[#D9E0E7] bg-white p-4 text-sm leading-7 text-[#5B6B79] md:col-span-2">
-                      <span className="font-semibold text-[#22313F]">O que aconteceu:</span>{" "}
+                    <div className="rounded-2xl border border-[#E2D4BF] bg-[#FFFCF7] p-4 text-sm leading-7 text-[#60718A] md:col-span-2">
+                      <span className="font-semibold text-[#10243E]">O que aconteceu:</span>{" "}
                       {auditEventHumanDescription(item)}
                     </div>
 
-                    <div className="rounded-2xl border border-[#D9E0E7] bg-white p-4 text-sm leading-7 text-[#5B6B79]">
-                      <span className="font-semibold text-[#22313F]">Área da jornada:</span>{" "}
+                    <div className="rounded-2xl border border-[#E2D4BF] bg-[#FFFCF7] p-4 text-sm leading-7 text-[#60718A]">
+                      <span className="font-semibold text-[#10243E]">Área da jornada:</span>{" "}
                       {auditEventHumanArea(item)}
                     </div>
 
-                    <details className="rounded-2xl border border-[#D9E0E7] bg-white p-4 text-sm leading-7 text-[#5B6B79]">
-                      <summary className="cursor-pointer font-semibold text-[#22313F]">
+                    <details className="rounded-2xl border border-[#E2D4BF] bg-[#FFFCF7] p-4 text-sm leading-7 text-[#60718A]">
+                      <summary className="cursor-pointer font-semibold text-[#10243E]">
                         Ver detalhe técnico
                       </summary>
-                      <div className="mt-3 break-words text-xs leading-6 text-[#5B6B79]">
+                      <div className="mt-3 break-words text-xs leading-6 text-[#60718A]">
                         {auditEventTechnicalSummary(item) || "Detalhe técnico não informado."}
                       </div>
                     </details>
@@ -1421,7 +1421,7 @@ export default function Nr1TrilhaAcompanhamentoPage() {
             </div>
           )}
 
-          <div className="mt-6 rounded-2xl border border-[#D9E0E7] bg-[#FAFBFC] p-4 text-sm leading-7 text-[#5B6B79]">
+          <div className="mt-6 rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-4 text-sm leading-7 text-[#60718A]">
             A tela mostra primeiro o que o RH precisa entender. Os registros técnicos permanecem disponíveis em detalhes, sem poluir a leitura principal.
           </div>
         </section>
