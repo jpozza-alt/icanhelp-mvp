@@ -3085,6 +3085,43 @@ useEffect(() => {
       );
 
       const generatedRisk = (response as JsonObject).generatedRisk;
+      const generatedRiskRecord =
+        generatedRisk && typeof generatedRisk === "object" && !Array.isArray(generatedRisk)
+          ? (generatedRisk as JsonObject)
+          : null;
+      const generatedRiskReason = firstString(generatedRisk, ["reason"]);
+
+      if (generatedRiskRecord?.generated === false) {
+        if (generatedRiskReason === "investigation_required") {
+          setDiagnosisSuccess(
+            "Este ponto nao e automaticamente um risco. Vamos entender melhor a situacao antes de classificar. A revisao foi salva e ficou pendente de investigacao."
+          );
+          setDiagnosisStatus("saved");
+          return;
+        }
+
+        if (generatedRiskReason === "no_confirmed_evidence") {
+          setDiagnosisSuccess(
+            "A revisao foi salva, mas ainda nao ha evidencia confirmada suficiente para gerar risco sugerido."
+          );
+          setDiagnosisStatus("saved");
+          return;
+        }
+
+        if (generatedRiskReason === "existing_requires_manual_review") {
+          setDiagnosisSuccess(
+            "Ja existe um risco vinculado a este diagnostico que exige revisao manual. Nenhum risco foi criado ou atualizado automaticamente."
+          );
+          setDiagnosisStatus("saved");
+          return;
+        }
+
+        throw new Error(
+          "A revisao foi salva, mas a geracao automatica do risco foi bloqueada: " +
+            (generatedRiskReason || "motivo nao informado")
+        );
+      }
+
       const riskId =
         firstString(generatedRisk, ["riskId", "risk_id", "id"]) ||
         firstString(response, ["riskId", "risk_id", "id"]);
@@ -3832,6 +3869,35 @@ useEffect(() => {
           moduleHref="#nr1-operational-content"
 
               topContextSlot={workspaceV2TopContextSlot}>
+        {diagnosisError || diagnosisSuccess ? (
+          <div
+            className="pointer-events-none fixed left-1/2 top-4 z-[10050] w-[min(52rem,calc(100vw-2rem))] -translate-x-1/2"
+            role={diagnosisError ? "alert" : "status"}
+            aria-live={diagnosisError ? "assertive" : "polite"}
+          >
+            <div
+              className={`pointer-events-auto flex items-start justify-between gap-4 rounded-2xl border px-5 py-4 text-sm font-medium shadow-2xl backdrop-blur-md ${
+                diagnosisError
+                  ? "border-red-200 bg-red-50/95 text-red-800"
+                  : "border-emerald-200 bg-emerald-50/95 text-emerald-800"
+              }`}
+            >
+              <span>{diagnosisError || diagnosisSuccess}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setDiagnosisError(null);
+                  setDiagnosisSuccess(null);
+                }}
+                className="shrink-0 rounded-lg px-2 py-1 text-xs font-bold underline underline-offset-2 hover:bg-black/5"
+                aria-label="Fechar aviso"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         <section id="nr1-operational-content" className={showGuidedSetup ? "min-w-0" : "min-w-0 space-y-6"}>
           {showWorkspaceDashboardContent ? renderFullJourneyOverview("workspace") : null}
 
@@ -4644,17 +4710,7 @@ useEffect(() => {
                   </div>
                 </div>
 
-                {diagnosisError ? (
-                  <div className="mx-6 mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-                    {diagnosisError}
-                  </div>
-                ) : null}
 
-                {diagnosisSuccess ? (
-                  <div className="mx-6 mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-                    {diagnosisSuccess}
-                  </div>
-                ) : null}
               </div>
 
               <form onSubmit={handleSaveDiagnosisContext} className="rounded-[2rem] border border-[#e2d4bf] bg-white p-6 shadow-sm">

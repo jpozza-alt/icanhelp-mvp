@@ -253,16 +253,64 @@ async function maybeGenerateRiskFromReview(params: {
     return key !== "has_report_channel" && (status === "evidence_found" || status === "needs_investigation")
   })
 
-  const evidenceFoundFactors = relevantFactors.filter((factor) => cleanText(factor.status) === "evidence_found")
+  const hasSupportingEvidence = (factor: Record<string, unknown>): boolean => {
+    const sources = Array.isArray(factor.sources) ? factor.sources : []
+
+    const hasSourceEvidence = sources.some((source) => {
+      if (typeof source === "string") {
+        return Boolean(cleanText(source))
+      }
+
+      if (source && typeof source === "object" && !Array.isArray(source)) {
+        return Object.keys(source as Record<string, unknown>).length > 0
+      }
+
+      return false
+    })
+
+    return (
+      hasSourceEvidence ||
+      Boolean(cleanText(factor.justification)) ||
+      Boolean(cleanText(factor.evidence_summary))
+    )
+  }
+
+  const evidenceFoundFactors = relevantFactors.filter(
+    (factor) => cleanText(factor.status) === "evidence_found" && hasSupportingEvidence(factor),
+  )
 
   const evidenceFoundLabels = evidenceFoundFactors
     .map((factor) => cleanText(factor.factor_label) || cleanText(factor.factor_key))
     .filter((value) => Boolean(value)) as string[]
 
   const needsInvestigationLabels = relevantFactors
-    .filter((factor) => cleanText(factor.status) === "needs_investigation")
+    .filter((factor) => {
+      const status = cleanText(factor.status)
+
+      return (
+        status === "needs_investigation" ||
+        factor.investigation_pending === true ||
+        (status === "evidence_found" && !hasSupportingEvidence(factor))
+      )
+    })
     .map((factor) => cleanText(factor.factor_label) || cleanText(factor.factor_key))
     .filter((value) => Boolean(value)) as string[]
+
+  if (needsInvestigationLabels.length > 0) {
+    return {
+      generated: false,
+      riskId: null,
+      reason: "investigation_required",
+    }
+  }
+
+  if (evidenceFoundLabels.length === 0) {
+    return {
+      generated: false,
+      riskId: null,
+      reason: "no_confirmed_evidence",
+    }
+  }
 
   const hasFactor = (key: string): boolean => {
     return evidenceFoundFactors.some((factor) => cleanText(factor.factor_key) === key)
