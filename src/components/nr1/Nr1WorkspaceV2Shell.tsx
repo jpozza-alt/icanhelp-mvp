@@ -1,6 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
+import {
+  getNr1JourneyStepById,
+  type Nr1JourneyStepId,
+} from "../../lib/nr1-journey";
 
 type Nr1WorkspaceV2ShellProps = {
   companyName?: string;
@@ -27,6 +31,25 @@ type Nr1WorkspaceV2ShellProps = {
 };
 
 const defaultModules = ["Base", "Mapeamento", "Riscos", "Plano", "Evidências", "PGR"];
+
+const defaultModuleStepIds: Readonly<Record<string, Nr1JourneyStepId>> = {
+  Base: "empresa",
+  Mapeamento: "atividades",
+  Riscos: "riscos",
+  Plano: "plano-de-acao",
+  "Evidências": "evidencias",
+  PGR: "geracao-pgr",
+};
+
+function resolveDefaultModuleHref(module: string, fallbackHref: string) {
+  const stepId = defaultModuleStepIds[module];
+
+  if (!stepId) {
+    return fallbackHref;
+  }
+
+  return getNr1JourneyStepById(stepId)?.href ?? fallbackHref;
+}
 
 const defaultPendingItems = [
   "Confirmar atividade principal do local de trabalho",
@@ -129,11 +152,12 @@ export default function Nr1WorkspaceV2Shell({
           <nav className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-3">
             {modules.map((module) => {
               const isActive = module === activeModule;
+              const moduleDestination = resolveDefaultModuleHref(module, moduleHref);
 
               return (
                 <a
                   key={module}
-                  href={isActive ? moduleHref : "#"}
+                  href={moduleDestination}
                   className={`flex items-center justify-between rounded-2xl px-3 py-3 text-sm font-medium transition ${
                     isActive
                       ? "bg-white text-[#10243e]"
