@@ -140,6 +140,24 @@ type DiagnosisContextForm = {
   notes: string;
 };
 
+type DiagnosisHydrationRequest = {
+  context: BackendContext;
+  departmentId: string;
+  activityId: string;
+};
+
+type DiagnosisHydrationResult = {
+  activityId: string;
+  departmentId: string;
+  sessionId: string;
+  contextSaved: boolean;
+  form: DiagnosisContextForm;
+};
+
+type DiagnosisHydrationToken = {
+  requestId: number;
+};
+
 type PsychosocialForm = {
   has_work_overload: boolean;
   has_excessive_pressure: boolean;
@@ -724,6 +742,107 @@ function extractFirstEntity(payload: unknown): SimpleEntity | null {
   return null;
 }
 
+function createDiagnosisHydrationCoordinator() {
+  let requestId = 0;
+
+  return {
+    begin(): DiagnosisHydrationToken {
+      requestId += 1;
+      return { requestId };
+    },
+    cancel(): void {
+      requestId += 1;
+    },
+    markEdited(): void {
+      requestId += 1;
+    },
+    canApply(token: DiagnosisHydrationToken): boolean {
+      return token.requestId === requestId;
+    },
+  };
+}
+
+function diagnosisContextFormFromPayload(payload: unknown): DiagnosisContextForm {
+  if (!isRecord(payload)) return { ...INITIAL_DIAGNOSIS_CONTEXT_FORM };
+
+  const exposedPeopleCount = payload.exposed_people_count;
+
+  return {
+    work_description: stringOrNull(payload.work_description) || "",
+    exposed_people_count:
+      typeof exposedPeopleCount === "number"
+        ? String(exposedPeopleCount)
+        : stringOrNull(exposedPeopleCount) || "",
+    work_routine_type: stringOrNull(payload.work_routine_type) || "",
+    process_changes_frequency: stringOrNull(payload.process_changes_frequency) || "",
+    has_external_work: payload.has_external_work === true,
+    has_multi_company_interaction: payload.has_multi_company_interaction === true,
+    incident_history: stringOrNull(payload.incident_history) || "",
+    notes: stringOrNull(payload.notes) || "",
+  };
+}
+
+async function loadWorkspaceDiagnosisHydration(
+  request: DiagnosisHydrationRequest,
+  requestJson: typeof fetchJson = fetchJson
+): Promise<DiagnosisHydrationResult> {
+  const { context, departmentId, activityId } = request;
+  const emptyResult: DiagnosisHydrationResult = {
+    activityId,
+    departmentId,
+    sessionId: "",
+    contextSaved: false,
+    form: { ...INITIAL_DIAGNOSIS_CONTEXT_FORM },
+  };
+
+  if (!context.tenantId || !context.establishmentId || !departmentId || !activityId) {
+    return emptyResult;
+  }
+
+  const sessionsPath = buildUrl("/api/nr1/diagnosis-sessions", {
+    tenantId: context.tenantId,
+    establishmentId: context.establishmentId,
+    departmentId,
+    activityId,
+  });
+  const sessionsPayload = await requestJson(sessionsPath, { method: "GET" }, context);
+  const session = extractArray<SimpleEntity>(sessionsPayload, ["items", "data"]).find((item) =>
+    firstString(item, ["tenant_id"]) === context.tenantId &&
+    firstString(item, ["establishment_id"]) === context.establishmentId &&
+    firstString(item, ["department_id"]) === departmentId &&
+    firstString(item, ["activity_id"]) === activityId
+  );
+  const sessionId = firstString(session, ["id"]);
+
+  if (!sessionId) return emptyResult;
+
+  const diagnosisContextPath = buildUrl("/api/nr1/diagnosis-context", {
+    tenantId: context.tenantId,
+    establishmentId: context.establishmentId,
+    diagnosisSessionId: sessionId,
+  });
+  const diagnosisContextPayload = await requestJson(
+    diagnosisContextPath,
+    { method: "GET" },
+    context
+  );
+  const item = isRecord(diagnosisContextPayload) && isRecord(diagnosisContextPayload.item)
+    ? diagnosisContextPayload.item
+    : null;
+  const itemMatchesScope = Boolean(
+    item &&
+    firstString(item, ["tenant_id"]) === context.tenantId &&
+    firstString(item, ["diagnosis_session_id"]) === sessionId
+  );
+
+  return {
+    ...emptyResult,
+    sessionId,
+    contextSaved: itemMatchesScope,
+    form: itemMatchesScope ? diagnosisContextFormFromPayload(item) : emptyResult.form,
+  };
+}
+
 function displayName(item: SimpleEntity | null | undefined, fallback: string): string {
   if (!item) return fallback;
 
@@ -993,6 +1112,7 @@ export default function Nr1WorkspacePage() {
   const latestDraftRef = useRef<WorkspaceDraftPayload>(DEFAULT_DRAFT);
   const contextRef = useRef<BackendContext>({ tenantId: null, establishmentId: null });
   const activeCompanyIdRef = useRef<string>("");
+  const diagnosisHydrationCoordinatorRef = useRef(createDiagnosisHydrationCoordinator());
   const [sessionDebug, setSessionDebug] = useState<SessionDebugState>(INITIAL_SESSION_DEBUG);
   const [planFeatures, setPlanFeatures] = useState<Nr1PlanFeaturesResponse | null>(null);
   const [planFeaturesLoading, setPlanFeaturesLoading] = useState<boolean>(false);
@@ -1113,6 +1233,79 @@ useEffect(() => {
   const selectedRisk = useMemo(() => {
     return risks.find((item) => item.id === selectedRiskId) || null;
   }, [risks, selectedRiskId]);
+
+  const effectiveDiagnosisActivityId =
+    diagnosisActivityId || firstString(activities[0], ["id"]) || "";
+  const effectiveDiagnosisActivity =
+    activities.find((item) => item.id === effectiveDiagnosisActivityId) || null;
+  const effectiveDiagnosisDepartmentId =
+    firstString(effectiveDiagnosisActivity, ["department_id"]) || "";
+
+  function updateDiagnosisContextForm(patch: Partial<DiagnosisContextForm>): void {
+    diagnosisHydrationCoordinatorRef.current.markEdited();
+    setDiagnosisContextForm((current) => ({ ...current, ...patch }));
+  }
+
+  useEffect(() => {
+    const coordinator = diagnosisHydrationCoordinatorRef.current;
+    const token = coordinator.begin();
+    const hydrationContext = {
+      tenantId: context.tenantId,
+      establishmentId: context.establishmentId,
+    };
+
+    setDiagnosisActivityId(effectiveDiagnosisActivityId);
+    setDiagnosisSessionId("");
+    setDiagnosisContextSaved(false);
+    setPsychosocialDiagnosisSaved(false);
+    setDiagnosisContextForm({ ...INITIAL_DIAGNOSIS_CONTEXT_FORM });
+    setDiagnosisStatus("idle");
+    setDiagnosisError(null);
+
+    if (
+      !hydrationContext.tenantId ||
+      !hydrationContext.establishmentId ||
+      !effectiveDiagnosisDepartmentId ||
+      !effectiveDiagnosisActivityId
+    ) {
+      return () => coordinator.cancel();
+    }
+
+    void loadWorkspaceDiagnosisHydration({
+      context: hydrationContext,
+      departmentId: effectiveDiagnosisDepartmentId,
+      activityId: effectiveDiagnosisActivityId,
+    }).then((hydratedDiagnosis) => {
+      if (!coordinator.canApply(token)) return;
+
+      const currentContext = contextRef.current;
+      if (
+        currentContext.tenantId !== hydrationContext.tenantId ||
+        currentContext.establishmentId !== hydrationContext.establishmentId
+      ) {
+        return;
+      }
+
+      setDiagnosisActivityId(hydratedDiagnosis.activityId);
+      setDiagnosisSessionId(hydratedDiagnosis.sessionId);
+      setDiagnosisContextForm(hydratedDiagnosis.form);
+      setDiagnosisContextSaved(hydratedDiagnosis.contextSaved);
+      setDiagnosisStatus(hydratedDiagnosis.contextSaved ? "saved" : "idle");
+    }).catch((error) => {
+      if (!coordinator.canApply(token)) return;
+      setDiagnosisStatus("error");
+      setDiagnosisError(
+        error instanceof Error ? error.message : "Erro ao carregar diagnostico salvo."
+      );
+    });
+
+    return () => coordinator.cancel();
+  }, [
+    context.tenantId,
+    context.establishmentId,
+    effectiveDiagnosisActivityId,
+    effectiveDiagnosisDepartmentId,
+  ]);
 
   const hasCompany = companies.length > 0;
   const hasEstablishment = Boolean(context.establishmentId) || establishments.length > 0;
@@ -2606,6 +2799,7 @@ useEffect(() => {
   }
 
   async function handleStartDiagnosisSession(): Promise<void> {
+    diagnosisHydrationCoordinatorRef.current.cancel();
     setDiagnosisStatus("saving");
     setDiagnosisError(null);
     setDiagnosisSuccess(null);
@@ -2658,6 +2852,7 @@ useEffect(() => {
 
   async function handleSaveDiagnosisContext(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    diagnosisHydrationCoordinatorRef.current.cancel();
     setDiagnosisStatus("saving");
     setDiagnosisError(null);
     setDiagnosisSuccess(null);
@@ -4679,6 +4874,7 @@ useEffect(() => {
                       <select
                         value={diagnosisActivityId || firstString(activities[0], ["id"]) || ""}
                         onChange={(event) => {
+                          diagnosisHydrationCoordinatorRef.current.cancel();
                           setDiagnosisActivityId(event.target.value);
                           setDiagnosisSessionId("");
                           setDiagnosisRiskId("");
@@ -4732,7 +4928,7 @@ useEffect(() => {
                 <div className="mt-6 grid gap-4">
                   <textarea
                     value={diagnosisContextForm.work_description}
-                    onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, work_description: event.target.value }))}
+                    onChange={(event) => updateDiagnosisContextForm({ work_description: event.target.value })}
                     rows={4}
                     placeholder="Descreva a rotina real da atividade."
                     className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
@@ -4751,26 +4947,26 @@ useEffect(() => {
                   <div className="grid gap-4 md:grid-cols-3">
                     <input
                       value={diagnosisContextForm.exposed_people_count}
-                      onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, exposed_people_count: event.target.value }))}
+                      onChange={(event) => updateDiagnosisContextForm({ exposed_people_count: event.target.value })}
                       placeholder="Quantas pessoas fazem essa atividade?"
                       className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                     />
                     <input
                       value={diagnosisContextForm.work_routine_type}
-                      onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, work_routine_type: event.target.value }))}
+                      onChange={(event) => updateDiagnosisContextForm({ work_routine_type: event.target.value })}
                       placeholder="Como é a rotina? Ex.: fixa, por demanda, por turnos"
                       className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                     />
                     <input
                       value={diagnosisContextForm.process_changes_frequency}
-                      onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, process_changes_frequency: event.target.value }))}
+                      onChange={(event) => updateDiagnosisContextForm({ process_changes_frequency: event.target.value })}
                       placeholder="Mudanças no processo? Ex.: raras, mensais, frequentes"
                       className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
                     />
                   </div>
                   <textarea
                     value={diagnosisContextForm.incident_history}
-                    onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, incident_history: event.target.value }))}
+                    onChange={(event) => updateDiagnosisContextForm({ incident_history: event.target.value })}
                     rows={3}
                     placeholder="Registre sinais agregados observados."
                     className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
@@ -4788,7 +4984,7 @@ useEffect(() => {
                   </details>
                   <textarea
                     value={diagnosisContextForm.notes}
-                    onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, notes: event.target.value }))}
+                    onChange={(event) => updateDiagnosisContextForm({ notes: event.target.value })}
                     rows={3}
                     placeholder="Registre observações complementares."
                     className="rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
@@ -4808,7 +5004,7 @@ useEffect(() => {
                       <input
                         type="checkbox"
                         checked={diagnosisContextForm.has_external_work}
-                        onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, has_external_work: event.target.checked }))}
+                        onChange={(event) => updateDiagnosisContextForm({ has_external_work: event.target.checked })}
                         className="h-4 w-4 rounded border-[#d9c9b8] accent-[#10243e]"
                       />
                       <span>Parte do trabalho ocorre fora da empresa ou local de trabalho</span>
@@ -4817,7 +5013,7 @@ useEffect(() => {
                       <input
                         type="checkbox"
                         checked={diagnosisContextForm.has_multi_company_interaction}
-                        onChange={(event) => setDiagnosisContextForm((prev) => ({ ...prev, has_multi_company_interaction: event.target.checked }))}
+                        onChange={(event) => updateDiagnosisContextForm({ has_multi_company_interaction: event.target.checked })}
                         className="h-4 w-4 rounded border-[#d9c9b8] accent-[#10243e]"
                       />
                       <span>A atividade envolve terceiros, clientes, fornecedores ou outra empresa</span>

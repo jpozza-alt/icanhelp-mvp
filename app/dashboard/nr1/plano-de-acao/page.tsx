@@ -3,17 +3,20 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import Nr1WorkspaceContextBar from "@/components/nr1/Nr1WorkspaceContextBar";
+import { useNr1WorkspaceContext } from "@/lib/nr1-workspace-context";
 import { Nr1JourneyCard } from "@/components/nr1/Nr1JourneyCard";
 import { Nr1ProgressDashboard } from "@/components/nr1/Nr1ProgressDashboard";
 import { Nr1StepGuard } from "@/components/nr1/Nr1StepGuard";
 import {
   clearNr1PlanoLocalDraft,
   completeNr1PlanoLocalDraft,
+  createEmptyNr1PlanoLocalDraft,
   getNr1PlanoLocalProgress,
   getNr1PlanoMissingFields,
   readNr1PlanoLocalDraft,
   writeNr1PlanoLocalDraft,
   type Nr1PlanoLocalDraft,
+  type Nr1PlanoLocalScope,
 } from "@/lib/nr1-plano-local";
 
 type SaveStatus = "loading" | "idle" | "dirty" | "saving" | "saved" | "error";
@@ -75,31 +78,52 @@ function Field(props: {
 }
 
 export default function Nr1PlanoAcaoPage() {
-  const [draft, setDraft] = useState<Nr1PlanoLocalDraft>(() => readNr1PlanoLocalDraft());
-  const [hydrated, setHydrated] = useState(false);
+  const contextState = useNr1WorkspaceContext();
+  const localScope = useMemo<Nr1PlanoLocalScope | null>(() => {
+    if (contextState.status !== "ready") return null;
+    return {
+      userId: contextState.context.userId,
+      tenantId: contextState.context.tenantId,
+      establishmentId: contextState.context.establishmentId,
+    };
+  }, [contextState]);
+  const localScopeKey = localScope
+    ? `${localScope.userId}:${localScope.tenantId}:${localScope.establishmentId}`
+    : null;
+  const [draft, setDraft] = useState<Nr1PlanoLocalDraft>(() => createEmptyNr1PlanoLocalDraft());
+  const [loadedScopeKey, setLoadedScopeKey] = useState<string | null>(null);
+  const hydrated = localScopeKey !== null && loadedScopeKey === localScopeKey;
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("loading");
   const [feedback, setFeedback] = useState("");
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
-    const loaded = readNr1PlanoLocalDraft();
-    setDraft(loaded);
-    setHydrated(true);
-    setLastSavedAt(loaded.updatedAt);
-    setSaveStatus(loaded.updatedAt ? "saved" : "idle");
-  }, []);
+    const timer = window.setTimeout(() => {
+      if (!localScope || !localScopeKey) {
+        setLoadedScopeKey(null);
+        setDraft(createEmptyNr1PlanoLocalDraft());
+        setLastSavedAt(null);
+        setSaveStatus("loading");
+        return;
+      }
+      const loaded = readNr1PlanoLocalDraft(localScope);
+      setDraft(loaded);
+      setLoadedScopeKey(localScopeKey);
+      setLastSavedAt(loaded.updatedAt);
+      setSaveStatus(loaded.updatedAt ? "saved" : "idle");
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [localScope, localScopeKey]);
 
   useEffect(() => {
-    if (!hydrated) {
+    if (!hydrated || !localScope) {
       return;
     }
-
-    setSaveStatus("dirty");
 
     const timer = window.setTimeout(() => {
       try {
         setSaveStatus("saving");
-        const saved = writeNr1PlanoLocalDraft(draft);
+        const saved = writeNr1PlanoLocalDraft(draft, localScope);
         setLastSavedAt(saved.updatedAt);
         setSaveStatus("saved");
       } catch {
@@ -110,7 +134,7 @@ export default function Nr1PlanoAcaoPage() {
     return () => {
       window.clearTimeout(timer);
     };
-  }, [draft, hydrated]);
+  }, [draft, hydrated, localScope]);
 
   const missingFields = useMemo(() => getNr1PlanoMissingFields(draft), [draft]);
   const progress = useMemo(() => getNr1PlanoLocalProgress(draft), [draft]);
@@ -122,13 +146,15 @@ export default function Nr1PlanoAcaoPage() {
       isCompleted: false,
       completedAt: null,
     }));
+    setSaveStatus("dirty");
     setFeedback("");
   }
 
   function handleManualSave() {
+    if (!localScope) return;
     try {
       setSaveStatus("saving");
-      const saved = writeNr1PlanoLocalDraft(draft);
+      const saved = writeNr1PlanoLocalDraft(draft, localScope);
       setLastSavedAt(saved.updatedAt);
       setSaveStatus("saved");
       setFeedback("Rascunho do plano salvo localmente.");
@@ -139,12 +165,13 @@ export default function Nr1PlanoAcaoPage() {
   }
 
   function handleClearDraft() {
+    if (!localScope) return;
     const confirmed = window.confirm("Limpar o rascunho local do plano?");
     if (!confirmed) {
       return;
     }
 
-    const cleared = clearNr1PlanoLocalDraft();
+    const cleared = clearNr1PlanoLocalDraft(localScope);
     setDraft(cleared);
     setLastSavedAt(cleared.updatedAt);
     setSaveStatus("idle");
@@ -152,6 +179,7 @@ export default function Nr1PlanoAcaoPage() {
   }
 
   function handleComplete() {
+    if (!localScope) return;
     const missing = getNr1PlanoMissingFields(draft);
 
     if (missing.length > 0) {
@@ -161,8 +189,8 @@ export default function Nr1PlanoAcaoPage() {
     }
 
     try {
-      writeNr1PlanoLocalDraft(draft);
-      const completed = completeNr1PlanoLocalDraft();
+      writeNr1PlanoLocalDraft(draft, localScope);
+      const completed = completeNr1PlanoLocalDraft(localScope);
       setDraft(completed);
       setLastSavedAt(completed.updatedAt);
       setSaveStatus("saved");

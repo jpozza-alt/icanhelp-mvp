@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server.js";
 import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
@@ -6,6 +6,16 @@ export const dynamic = "force-dynamic";
 type MembershipRow = {
   tenant_id: string;
   role: string;
+};
+
+const ACTIVE_TENANT_COOKIE = "icanhelp_tenant";
+const ACTIVE_TENANT_USER_COOKIE = "icanhelp_tenant_user";
+const ACTIVE_ESTABLISHMENT_COOKIE = "icanhelp_establishment";
+const ACTIVE_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: true,
+  sameSite: "lax" as const,
+  path: "/",
 };
 
 function json(payload: unknown, status = 200) {
@@ -63,42 +73,93 @@ function normalizeTenantId(body: unknown) {
 }
 
 function readActiveTenantFromCookie(req: NextRequest) {
-  const tenantCookie = req.cookies.get("icanhelp_tenant")?.value?.trim() ?? "";
+  const tenantCookie = req.cookies.get(ACTIVE_TENANT_COOKIE)?.value?.trim() ?? "";
+  const userCookie = req.cookies.get(ACTIVE_TENANT_USER_COOKIE)?.value?.trim() ?? "";
   const establishmentCookie =
-    req.cookies.get("icanhelp_establishment")?.value?.trim() ?? "";
+    req.cookies.get(ACTIVE_ESTABLISHMENT_COOKIE)?.value?.trim() ?? "";
 
   return {
     tenantId: tenantCookie,
+    userId: userCookie,
     establishmentId: establishmentCookie,
   };
 }
 
+function clearActiveTenantCookies(response: NextResponse) {
+  for (const name of [
+    ACTIVE_TENANT_COOKIE,
+    ACTIVE_TENANT_USER_COOKIE,
+    ACTIVE_ESTABLISHMENT_COOKIE,
+  ]) {
+    response.cookies.set(name, "", { ...ACTIVE_COOKIE_OPTIONS, maxAge: 0 });
+  }
+
+  return response;
+}
+
+function clearedJson(payload: unknown, status: number) {
+  return clearActiveTenantCookies(json(payload, status));
+}
+
 export async function GET(req: NextRequest) {
   try {
+    const token = getBearer(req);
+    if (!token) {
+      return clearedJson({ ok: false, error: "missing_bearer" }, 401);
+    }
+
+    const supabase = createUserSupabase(token);
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !authData.user) {
+      return clearedJson(
+        { ok: false, error: authError?.message ?? "user_not_found" },
+        401
+      );
+    }
+
     const active = readActiveTenantFromCookie(req);
 
-    if (!active.tenantId) {
-      return json(
+    if (!active.tenantId || active.userId !== authData.user.id) {
+      return clearedJson(
         {
           ok: false,
-          error: "active_tenant_not_set",
+          error: active.tenantId ? "active_tenant_invalid" : "active_tenant_not_set",
           tenantId: "",
-          establishmentId: active.establishmentId || "",
+          establishmentId: "",
         },
         404
       );
     }
 
+    const { data: membership, error: membershipError } = await supabase
+      .from("tenant_memberships")
+      .select("tenant_id, role")
+      .eq("user_id", authData.user.id)
+      .eq("tenant_id", active.tenantId)
+      .maybeSingle();
+
+    if (membershipError) {
+      return json({ ok: false, error: membershipError.message }, 500);
+    }
+
+    if (!membership) {
+      return clearedJson({ ok: false, error: "active_tenant_invalid" }, 404);
+    }
+
+    const row = membership as MembershipRow;
+
     return json({
       ok: true,
-      tenantId: active.tenantId,
-      tenant_id: active.tenantId,
-      activeTenantId: active.tenantId,
-      active_tenant_id: active.tenantId,
+      tenantId: row.tenant_id,
+      tenant_id: row.tenant_id,
+      activeTenantId: row.tenant_id,
+      active_tenant_id: row.tenant_id,
       establishmentId: active.establishmentId || "",
       establishment_id: active.establishmentId || "",
       activeEstablishmentId: active.establishmentId || "",
       active_establishment_id: active.establishmentId || "",
+      role: row.role,
     });
   } catch (error) {
     return json(
@@ -112,7 +173,7 @@ export async function POST(req: NextRequest) {
   try {
     const token = getBearer(req);
     if (!token) {
-      return json({ ok: false, error: "missing_bearer" }, 401);
+      return clearedJson({ ok: false, error: "missing_bearer" }, 401);
     }
 
     const body = await req.json().catch(() => null);
@@ -126,7 +187,7 @@ export async function POST(req: NextRequest) {
     const { data: authData, error: authError } = await supabase.auth.getUser();
 
     if (authError || !authData.user) {
-      return json(
+      return clearedJson(
         { ok: false, error: authError?.message ?? "user_not_found" },
         401
       );
@@ -156,12 +217,17 @@ export async function POST(req: NextRequest) {
       role: row.role,
     });
 
-    response.cookies.set("icanhelp_tenant", row.tenant_id, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-      path: "/",
+    response.cookies.set(ACTIVE_TENANT_COOKIE, row.tenant_id, {
+      ...ACTIVE_COOKIE_OPTIONS,
       maxAge: 60 * 60 * 24 * 30,
+    });
+    response.cookies.set(ACTIVE_TENANT_USER_COOKIE, authData.user.id, {
+      ...ACTIVE_COOKIE_OPTIONS,
+      maxAge: 60 * 60 * 24 * 30,
+    });
+    response.cookies.set(ACTIVE_ESTABLISHMENT_COOKIE, "", {
+      ...ACTIVE_COOKIE_OPTIONS,
+      maxAge: 0,
     });
 
     return response;

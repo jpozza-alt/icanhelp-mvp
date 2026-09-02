@@ -1,6 +1,7 @@
 export type Nr1DiagnosticoLocalScope = {
-  tenantId?: string | null;
-  establishmentId?: string | null;
+  userId: string;
+  tenantId: string;
+  establishmentId: string;
 };
 
 export type Nr1DiagnosticoLocalDraft = {
@@ -46,17 +47,27 @@ function mergeDraft(input?: Partial<Nr1DiagnosticoLocalDraft> | null): Nr1Diagno
   };
 }
 
-export function getNr1DiagnosticoLocalScopeKey(scope?: Nr1DiagnosticoLocalScope): string {
-  const tenantId = scope?.tenantId?.trim() || "tenant-local";
-  const establishmentId = scope?.establishmentId?.trim() || "estabelecimento-local";
-  return `${tenantId}:${establishmentId}`;
+export function createEmptyNr1DiagnosticoLocalDraft(): Nr1DiagnosticoLocalDraft {
+  return mergeDraft();
 }
 
-export function getNr1DiagnosticoLocalStorageKey(scope?: Nr1DiagnosticoLocalScope): string {
+export function getNr1DiagnosticoLocalScopeKey(scope: Nr1DiagnosticoLocalScope): string {
+  const userId = scope.userId.trim();
+  const tenantId = scope.tenantId.trim();
+  const establishmentId = scope.establishmentId.trim();
+
+  if (!userId || !tenantId || !establishmentId) {
+    throw new Error("nr1_diagnostico_scope_required");
+  }
+
+  return `${userId}:${tenantId}:${establishmentId}`;
+}
+
+export function getNr1DiagnosticoLocalStorageKey(scope: Nr1DiagnosticoLocalScope): string {
   return `${STORAGE_PREFIX}:${getNr1DiagnosticoLocalScopeKey(scope)}`;
 }
 
-export function readNr1DiagnosticoLocalDraft(scope?: Nr1DiagnosticoLocalScope): Nr1DiagnosticoLocalDraft {
+export function readNr1DiagnosticoLocalDraft(scope: Nr1DiagnosticoLocalScope): Nr1DiagnosticoLocalDraft {
   if (!hasStorage()) {
     return mergeDraft();
   }
@@ -77,7 +88,7 @@ export function readNr1DiagnosticoLocalDraft(scope?: Nr1DiagnosticoLocalScope): 
 
 export function writeNr1DiagnosticoLocalDraft(
   partial: Partial<Nr1DiagnosticoLocalDraft>,
-  scope?: Nr1DiagnosticoLocalScope
+  scope: Nr1DiagnosticoLocalScope
 ): Nr1DiagnosticoLocalDraft {
   const current = readNr1DiagnosticoLocalDraft(scope);
   const next = mergeDraft({
@@ -96,7 +107,7 @@ export function writeNr1DiagnosticoLocalDraft(
   return next;
 }
 
-export function completeNr1DiagnosticoLocalDraft(scope?: Nr1DiagnosticoLocalScope): Nr1DiagnosticoLocalDraft {
+export function completeNr1DiagnosticoLocalDraft(scope: Nr1DiagnosticoLocalScope): Nr1DiagnosticoLocalDraft {
   const current = readNr1DiagnosticoLocalDraft(scope);
   return writeNr1DiagnosticoLocalDraft(
     {
@@ -108,14 +119,14 @@ export function completeNr1DiagnosticoLocalDraft(scope?: Nr1DiagnosticoLocalScop
   );
 }
 
-export function clearNr1DiagnosticoLocalDraft(scope?: Nr1DiagnosticoLocalScope): Nr1DiagnosticoLocalDraft {
+export function clearNr1DiagnosticoLocalDraft(scope: Nr1DiagnosticoLocalScope): Nr1DiagnosticoLocalDraft {
   if (hasStorage()) {
     window.localStorage.removeItem(getNr1DiagnosticoLocalStorageKey(scope));
   }
   return mergeDraft();
 }
 
-export function isNr1DiagnosticoLocalCompleted(scope?: Nr1DiagnosticoLocalScope): boolean {
+export function isNr1DiagnosticoLocalCompleted(scope: Nr1DiagnosticoLocalScope): boolean {
   return readNr1DiagnosticoLocalDraft(scope).isCompleted === true;
 }
 

@@ -5,7 +5,7 @@ import { useMemo, useSyncExternalStore } from "react";
 import { isNr1DiagnosticoLocalCompleted } from "@/lib/nr1-diagnostico-local";
 import { useNr1SetoresApiState } from "@/hooks/useNr1SetoresApiState";
 import { isNr1RiscosLocalCompleted } from "@/lib/nr1-riscos-local";
-import { useNr1WorkspaceReadContext } from "@/lib/nr1-workspace-read-context";
+import { useNr1WorkspaceContext } from "@/lib/nr1-workspace-context";
 
 type StepKey = "diagnostico-inicial" | "setores" | "riscos" | "plano-de-acao";
 
@@ -40,10 +40,16 @@ export function Nr1StepGuard(props: Nr1StepGuardProps) {
   const mustValidateSetores =
     props.stepKey === "riscos";
 
-  const contextState =
-    useNr1WorkspaceReadContext(
-      mustValidateSetores
-    );
+  const contextState = useNr1WorkspaceContext();
+  const mustValidateLocalDraft = props.stepKey === "plano-de-acao";
+  const localScope =
+    contextState.status === "ready"
+      ? {
+          userId: contextState.context.userId,
+          tenantId: contextState.context.tenantId,
+          establishmentId: contextState.context.establishmentId,
+        }
+      : null;
 
   const setoresApiState =
     useNr1SetoresApiState(contextState);
@@ -57,14 +63,14 @@ export function Nr1StepGuard(props: Nr1StepGuardProps) {
   const diagnosticoCompleted =
     useSyncExternalStore(
       subscribeNoop,
-      isNr1DiagnosticoLocalCompleted,
+      () => localScope ? isNr1DiagnosticoLocalCompleted(localScope) : false,
       getServerFalseSnapshot
     );
 
   const riscosCompleted =
     useSyncExternalStore(
       subscribeNoop,
-      isNr1RiscosLocalCompleted,
+      () => localScope ? isNr1RiscosLocalCompleted(localScope) : false,
       getServerFalseSnapshot
     );
 
@@ -142,6 +148,10 @@ export function Nr1StepGuard(props: Nr1StepGuardProps) {
 
   if (
     !ready ||
+    (
+      mustValidateLocalDraft &&
+      contextState.status === "loading"
+    ) ||
     (
       mustValidateSetores &&
       (

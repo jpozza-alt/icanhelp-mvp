@@ -1,8 +1,16 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 
 import Nr1WorkspaceV2Shell from "@/components/nr1/Nr1WorkspaceV2Shell";
+
+const supabaseBrowserClient = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    ""
+);
 
 type TrainingRecord = {
   id: string;
@@ -279,12 +287,22 @@ async function fetchJson(url: string, init?: RequestInit): Promise<unknown> {
   return payload;
 }
 
+async function getBrowserAccessToken(): Promise<string> {
+  const result = await supabaseBrowserClient.auth.getSession();
+  const accessToken = result.data.session?.access_token?.trim() ?? "";
+  if (!accessToken) throw new Error("Autenticacao necessaria para continuar.");
+  return accessToken;
+}
+
 async function resolveContext(): Promise<{ tenantId: string; establishmentId: string }> {
   let tenantId = "";
   let establishmentId = "";
+  const accessToken = await getBrowserAccessToken();
 
   try {
-    const activePayload = await fetchJson("/api/tenants/active");
+    const activePayload = await fetchJson("/api/tenants/active", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
     if (isRecord(activePayload)) {
       tenantId =
         readString(activePayload, ["tenantId", "tenant_id", "activeTenantId", "active_tenant_id"]) ||

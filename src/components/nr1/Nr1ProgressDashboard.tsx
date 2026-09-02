@@ -8,6 +8,7 @@ import {
 } from "@/lib/nr1-diagnostico-local";
 import { isNr1SetoresLocalCompleted } from "@/lib/nr1-setores-local";
 import { isNr1RiscosLocalCompleted } from "@/lib/nr1-riscos-local";
+import { useNr1WorkspaceContext } from "@/lib/nr1-workspace-context";
 
 type Nr1JourneyStepId = "diagnostico-inicial" | "setores" | "riscos" | "plano-de-acao";
 
@@ -22,6 +23,7 @@ function joinClassNames(...values: Array<string | undefined>): string {
 }
 
 export function Nr1ProgressDashboard(props: Nr1ProgressDashboardProps) {
+  const contextState = useNr1WorkspaceContext();
   const [diagnosticoCompleted, setDiagnosticoCompleted] = useState(false);
   const [setoresCompleted, setSetoresCompleted] = useState(false);
   const [riscosCompleted, setRiscosCompleted] = useState(false);
@@ -29,18 +31,29 @@ export function Nr1ProgressDashboard(props: Nr1ProgressDashboardProps) {
   const [estabelecimentoNome, setEstabelecimentoNome] = useState("Estabelecimento local");
 
   useEffect(() => {
-    setDiagnosticoCompleted(isNr1DiagnosticoLocalCompleted());
-    setSetoresCompleted(isNr1SetoresLocalCompleted());
-    setRiscosCompleted(isNr1RiscosLocalCompleted());
-
-    const draft = readNr1DiagnosticoLocalDraft();
-    if (draft.empresaNome.trim()) {
-      setEmpresaNome(draft.empresaNome.trim());
-    }
-    if (draft.estabelecimentoNome.trim()) {
-      setEstabelecimentoNome(draft.estabelecimentoNome.trim());
-    }
-  }, []);
+    const timer = window.setTimeout(() => {
+      if (contextState.status !== "ready") {
+        setDiagnosticoCompleted(false);
+        setSetoresCompleted(false);
+        setRiscosCompleted(false);
+        setEmpresaNome("Empresa local");
+        setEstabelecimentoNome("Estabelecimento local");
+        return;
+      }
+      const scope = {
+        userId: contextState.context.userId,
+        tenantId: contextState.context.tenantId,
+        establishmentId: contextState.context.establishmentId,
+      };
+      setDiagnosticoCompleted(isNr1DiagnosticoLocalCompleted(scope));
+      setSetoresCompleted(isNr1SetoresLocalCompleted());
+      setRiscosCompleted(isNr1RiscosLocalCompleted(scope));
+      const draft = readNr1DiagnosticoLocalDraft(scope);
+      setEmpresaNome(draft.empresaNome.trim() || "Empresa local");
+      setEstabelecimentoNome(draft.estabelecimentoNome.trim() || "Estabelecimento local");
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [contextState]);
 
   const nextHref = useMemo(() => {
     if (!diagnosticoCompleted) return "/dashboard/nr1/diagnostico-inicial";

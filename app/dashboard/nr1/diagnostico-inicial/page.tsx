@@ -3,14 +3,17 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import Nr1WorkspaceContextBar from "@/components/nr1/Nr1WorkspaceContextBar";
+import { useNr1WorkspaceContext } from "@/lib/nr1-workspace-context";
 import {
   clearNr1DiagnosticoLocalDraft,
   completeNr1DiagnosticoLocalDraft,
+  createEmptyNr1DiagnosticoLocalDraft,
   getNr1DiagnosticoLocalProgress,
   getNr1DiagnosticoMissingFields,
   readNr1DiagnosticoLocalDraft,
   writeNr1DiagnosticoLocalDraft,
   type Nr1DiagnosticoLocalDraft,
+  type Nr1DiagnosticoLocalScope,
 } from "@/lib/nr1-diagnostico-local";
 
 type SaveStatus = "loading" | "idle" | "dirty" | "saving" | "saved" | "error";
@@ -95,31 +98,54 @@ function Toggle(props: {
 }
 
 export default function Nr1DiagnosticoInicialPage() {
-  const [draft, setDraft] = useState<Nr1DiagnosticoLocalDraft>(() => readNr1DiagnosticoLocalDraft());
-  const [hydrated, setHydrated] = useState(false);
+  const contextState = useNr1WorkspaceContext();
+  const diagnosticoScope = useMemo<Nr1DiagnosticoLocalScope | null>(() => {
+    if (contextState.status !== "ready") return null;
+    return {
+      userId: contextState.context.userId,
+      tenantId: contextState.context.tenantId,
+      establishmentId: contextState.context.establishmentId,
+    };
+  }, [contextState]);
+  const diagnosticoScopeKey = diagnosticoScope
+    ? `${diagnosticoScope.userId}:${diagnosticoScope.tenantId}:${diagnosticoScope.establishmentId}`
+    : null;
+  const [draft, setDraft] = useState<Nr1DiagnosticoLocalDraft>(() =>
+    createEmptyNr1DiagnosticoLocalDraft()
+  );
+  const [loadedScopeKey, setLoadedScopeKey] = useState<string | null>(null);
+  const hydrated = diagnosticoScopeKey !== null && loadedScopeKey === diagnosticoScopeKey;
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("loading");
   const [feedback, setFeedback] = useState("");
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
-    const loaded = readNr1DiagnosticoLocalDraft();
-    setDraft(loaded);
-    setHydrated(true);
-    setLastSavedAt(loaded.updatedAt);
-    setSaveStatus(loaded.updatedAt ? "saved" : "idle");
-  }, []);
+    const timer = window.setTimeout(() => {
+      if (!diagnosticoScope || !diagnosticoScopeKey) {
+        setLoadedScopeKey(null);
+        setDraft(createEmptyNr1DiagnosticoLocalDraft());
+        setLastSavedAt(null);
+        setSaveStatus("loading");
+        return;
+      }
+      const loaded = readNr1DiagnosticoLocalDraft(diagnosticoScope);
+      setDraft(loaded);
+      setLoadedScopeKey(diagnosticoScopeKey);
+      setLastSavedAt(loaded.updatedAt);
+      setSaveStatus(loaded.updatedAt ? "saved" : "idle");
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [diagnosticoScope, diagnosticoScopeKey]);
 
   useEffect(() => {
-    if (!hydrated) {
+    if (!hydrated || !diagnosticoScope || saveStatus !== "dirty") {
       return;
     }
-
-    setSaveStatus("dirty");
 
     const timer = window.setTimeout(() => {
       try {
         setSaveStatus("saving");
-        const saved = writeNr1DiagnosticoLocalDraft(draft);
+        const saved = writeNr1DiagnosticoLocalDraft(draft, diagnosticoScope);
         setLastSavedAt(saved.updatedAt);
         setSaveStatus("saved");
       } catch {
@@ -130,7 +156,7 @@ export default function Nr1DiagnosticoInicialPage() {
     return () => {
       window.clearTimeout(timer);
     };
-  }, [draft, hydrated]);
+  }, [draft, hydrated, diagnosticoScope, saveStatus]);
 
   const missingFields = useMemo(() => getNr1DiagnosticoMissingFields(draft), [draft]);
   const progress = useMemo(() => getNr1DiagnosticoLocalProgress(draft), [draft]);
@@ -142,6 +168,7 @@ export default function Nr1DiagnosticoInicialPage() {
       isCompleted: false,
       completedAt: null,
     }));
+    setSaveStatus("dirty");
     setFeedback("");
   }
 
@@ -152,13 +179,15 @@ export default function Nr1DiagnosticoInicialPage() {
       isCompleted: false,
       completedAt: null,
     }));
+    setSaveStatus("dirty");
     setFeedback("");
   }
 
   function handleManualSave() {
+    if (!diagnosticoScope) return;
     try {
       setSaveStatus("saving");
-      const saved = writeNr1DiagnosticoLocalDraft(draft);
+      const saved = writeNr1DiagnosticoLocalDraft(draft, diagnosticoScope);
       setLastSavedAt(saved.updatedAt);
       setSaveStatus("saved");
       setFeedback("Rascunho salvo localmente.");
@@ -169,12 +198,13 @@ export default function Nr1DiagnosticoInicialPage() {
   }
 
   function handleClearDraft() {
+    if (!diagnosticoScope) return;
     const confirmed = window.confirm("Limpar o rascunho local do diagnostico inicial?");
     if (!confirmed) {
       return;
     }
 
-    const cleared = clearNr1DiagnosticoLocalDraft();
+    const cleared = clearNr1DiagnosticoLocalDraft(diagnosticoScope);
     setDraft(cleared);
     setLastSavedAt(cleared.updatedAt);
     setSaveStatus("idle");
@@ -182,6 +212,7 @@ export default function Nr1DiagnosticoInicialPage() {
   }
 
   function handleComplete() {
+    if (!diagnosticoScope) return;
     const missing = getNr1DiagnosticoMissingFields(draft);
 
     if (missing.length > 0) {
@@ -191,8 +222,8 @@ export default function Nr1DiagnosticoInicialPage() {
     }
 
     try {
-      writeNr1DiagnosticoLocalDraft(draft);
-      const completed = completeNr1DiagnosticoLocalDraft();
+      writeNr1DiagnosticoLocalDraft(draft, diagnosticoScope);
+      const completed = completeNr1DiagnosticoLocalDraft(diagnosticoScope);
       setDraft(completed);
       setLastSavedAt(completed.updatedAt);
       setSaveStatus("saved");

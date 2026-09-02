@@ -1,6 +1,7 @@
 export type Nr1RiscosLocalScope = {
-  tenantId?: string | null;
-  establishmentId?: string | null;
+  userId: string;
+  tenantId: string;
+  establishmentId: string;
 };
 
 export type Nr1RiscosLocalDraft = {
@@ -46,17 +47,27 @@ function mergeDraft(input?: Partial<Nr1RiscosLocalDraft> | null): Nr1RiscosLocal
   };
 }
 
-export function getNr1RiscosLocalScopeKey(scope?: Nr1RiscosLocalScope): string {
-  const tenantId = scope?.tenantId?.trim() || "tenant-local";
-  const establishmentId = scope?.establishmentId?.trim() || "estabelecimento-local";
-  return `${tenantId}:${establishmentId}`;
+export function createEmptyNr1RiscosLocalDraft(): Nr1RiscosLocalDraft {
+  return mergeDraft();
 }
 
-export function getNr1RiscosLocalStorageKey(scope?: Nr1RiscosLocalScope): string {
+export function getNr1RiscosLocalScopeKey(scope: Nr1RiscosLocalScope): string {
+  const userId = scope.userId.trim();
+  const tenantId = scope.tenantId.trim();
+  const establishmentId = scope.establishmentId.trim();
+
+  if (!userId || !tenantId || !establishmentId) {
+    throw new Error("nr1_riscos_scope_required");
+  }
+
+  return `${userId}:${tenantId}:${establishmentId}`;
+}
+
+export function getNr1RiscosLocalStorageKey(scope: Nr1RiscosLocalScope): string {
   return `${STORAGE_PREFIX}:${getNr1RiscosLocalScopeKey(scope)}`;
 }
 
-export function readNr1RiscosLocalDraft(scope?: Nr1RiscosLocalScope): Nr1RiscosLocalDraft {
+export function readNr1RiscosLocalDraft(scope: Nr1RiscosLocalScope): Nr1RiscosLocalDraft {
   if (!hasStorage()) {
     return mergeDraft();
   }
@@ -77,7 +88,7 @@ export function readNr1RiscosLocalDraft(scope?: Nr1RiscosLocalScope): Nr1RiscosL
 
 export function writeNr1RiscosLocalDraft(
   partial: Partial<Nr1RiscosLocalDraft>,
-  scope?: Nr1RiscosLocalScope
+  scope: Nr1RiscosLocalScope
 ): Nr1RiscosLocalDraft {
   const current = readNr1RiscosLocalDraft(scope);
   const next = mergeDraft({
@@ -96,7 +107,7 @@ export function writeNr1RiscosLocalDraft(
   return next;
 }
 
-export function completeNr1RiscosLocalDraft(scope?: Nr1RiscosLocalScope): Nr1RiscosLocalDraft {
+export function completeNr1RiscosLocalDraft(scope: Nr1RiscosLocalScope): Nr1RiscosLocalDraft {
   const current = readNr1RiscosLocalDraft(scope);
   return writeNr1RiscosLocalDraft(
     {
@@ -108,14 +119,14 @@ export function completeNr1RiscosLocalDraft(scope?: Nr1RiscosLocalScope): Nr1Ris
   );
 }
 
-export function clearNr1RiscosLocalDraft(scope?: Nr1RiscosLocalScope): Nr1RiscosLocalDraft {
+export function clearNr1RiscosLocalDraft(scope: Nr1RiscosLocalScope): Nr1RiscosLocalDraft {
   if (hasStorage()) {
     window.localStorage.removeItem(getNr1RiscosLocalStorageKey(scope));
   }
   return mergeDraft();
 }
 
-export function isNr1RiscosLocalCompleted(scope?: Nr1RiscosLocalScope): boolean {
+export function isNr1RiscosLocalCompleted(scope: Nr1RiscosLocalScope): boolean {
   return readNr1RiscosLocalDraft(scope).isCompleted === true;
 }
 

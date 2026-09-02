@@ -3,17 +3,20 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import Nr1WorkspaceContextBar from "@/components/nr1/Nr1WorkspaceContextBar";
+import { useNr1WorkspaceContext } from "@/lib/nr1-workspace-context";
 import { Nr1JourneyCard } from "@/components/nr1/Nr1JourneyCard";
 import { Nr1ProgressDashboard } from "@/components/nr1/Nr1ProgressDashboard";
 import { Nr1StepGuard } from "@/components/nr1/Nr1StepGuard";
 import {
   clearNr1RiscosLocalDraft,
   completeNr1RiscosLocalDraft,
+  createEmptyNr1RiscosLocalDraft,
   getNr1RiscosLocalProgress,
   getNr1RiscosMissingFields,
   readNr1RiscosLocalDraft,
   writeNr1RiscosLocalDraft,
   type Nr1RiscosLocalDraft,
+  type Nr1RiscosLocalScope,
 } from "@/lib/nr1-riscos-local";
 
 type SaveStatus = "loading" | "idle" | "dirty" | "saving" | "saved" | "error";
@@ -98,31 +101,52 @@ function Toggle(props: {
 }
 
 export default function Nr1RiscosPage() {
-  const [draft, setDraft] = useState<Nr1RiscosLocalDraft>(() => readNr1RiscosLocalDraft());
-  const [hydrated, setHydrated] = useState(false);
+  const contextState = useNr1WorkspaceContext();
+  const localScope = useMemo<Nr1RiscosLocalScope | null>(() => {
+    if (contextState.status !== "ready") return null;
+    return {
+      userId: contextState.context.userId,
+      tenantId: contextState.context.tenantId,
+      establishmentId: contextState.context.establishmentId,
+    };
+  }, [contextState]);
+  const localScopeKey = localScope
+    ? `${localScope.userId}:${localScope.tenantId}:${localScope.establishmentId}`
+    : null;
+  const [draft, setDraft] = useState<Nr1RiscosLocalDraft>(() => createEmptyNr1RiscosLocalDraft());
+  const [loadedScopeKey, setLoadedScopeKey] = useState<string | null>(null);
+  const hydrated = localScopeKey !== null && loadedScopeKey === localScopeKey;
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("loading");
   const [feedback, setFeedback] = useState("");
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
-    const loaded = readNr1RiscosLocalDraft();
-    setDraft(loaded);
-    setHydrated(true);
-    setLastSavedAt(loaded.updatedAt);
-    setSaveStatus(loaded.updatedAt ? "saved" : "idle");
-  }, []);
+    const timer = window.setTimeout(() => {
+      if (!localScope || !localScopeKey) {
+        setLoadedScopeKey(null);
+        setDraft(createEmptyNr1RiscosLocalDraft());
+        setLastSavedAt(null);
+        setSaveStatus("loading");
+        return;
+      }
+      const loaded = readNr1RiscosLocalDraft(localScope);
+      setDraft(loaded);
+      setLoadedScopeKey(localScopeKey);
+      setLastSavedAt(loaded.updatedAt);
+      setSaveStatus(loaded.updatedAt ? "saved" : "idle");
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [localScope, localScopeKey]);
 
   useEffect(() => {
-    if (!hydrated) {
+    if (!hydrated || !localScope) {
       return;
     }
-
-    setSaveStatus("dirty");
 
     const timer = window.setTimeout(() => {
       try {
         setSaveStatus("saving");
-        const saved = writeNr1RiscosLocalDraft(draft);
+        const saved = writeNr1RiscosLocalDraft(draft, localScope);
         setLastSavedAt(saved.updatedAt);
         setSaveStatus("saved");
       } catch {
@@ -133,7 +157,7 @@ export default function Nr1RiscosPage() {
     return () => {
       window.clearTimeout(timer);
     };
-  }, [draft, hydrated]);
+  }, [draft, hydrated, localScope]);
 
   const missingFields = useMemo(() => getNr1RiscosMissingFields(draft), [draft]);
   const progress = useMemo(() => getNr1RiscosLocalProgress(draft), [draft]);
@@ -145,6 +169,7 @@ export default function Nr1RiscosPage() {
       isCompleted: false,
       completedAt: null,
     }));
+    setSaveStatus("dirty");
     setFeedback("");
   }
 
@@ -155,13 +180,15 @@ export default function Nr1RiscosPage() {
       isCompleted: false,
       completedAt: null,
     }));
+    setSaveStatus("dirty");
     setFeedback("");
   }
 
   function handleManualSave() {
+    if (!localScope) return;
     try {
       setSaveStatus("saving");
-      const saved = writeNr1RiscosLocalDraft(draft);
+      const saved = writeNr1RiscosLocalDraft(draft, localScope);
       setLastSavedAt(saved.updatedAt);
       setSaveStatus("saved");
       setFeedback("Rascunho de riscos salvo localmente.");
@@ -172,12 +199,13 @@ export default function Nr1RiscosPage() {
   }
 
   function handleClearDraft() {
+    if (!localScope) return;
     const confirmed = window.confirm("Limpar o rascunho local de riscos?");
     if (!confirmed) {
       return;
     }
 
-    const cleared = clearNr1RiscosLocalDraft();
+    const cleared = clearNr1RiscosLocalDraft(localScope);
     setDraft(cleared);
     setLastSavedAt(cleared.updatedAt);
     setSaveStatus("idle");
@@ -185,6 +213,7 @@ export default function Nr1RiscosPage() {
   }
 
   function handleComplete() {
+    if (!localScope) return;
     const missing = getNr1RiscosMissingFields(draft);
 
     if (missing.length > 0) {
@@ -194,8 +223,8 @@ export default function Nr1RiscosPage() {
     }
 
     try {
-      writeNr1RiscosLocalDraft(draft);
-      const completed = completeNr1RiscosLocalDraft();
+      writeNr1RiscosLocalDraft(draft, localScope);
+      const completed = completeNr1RiscosLocalDraft(localScope);
       setDraft(completed);
       setLastSavedAt(completed.updatedAt);
       setSaveStatus("saved");

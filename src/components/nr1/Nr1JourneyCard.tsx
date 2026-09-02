@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { isNr1DiagnosticoLocalCompleted } from "@/lib/nr1-diagnostico-local";
 import { isNr1SetoresLocalCompleted } from "@/lib/nr1-setores-local";
 import { isNr1RiscosLocalCompleted } from "@/lib/nr1-riscos-local";
+import { useNr1WorkspaceContext } from "@/lib/nr1-workspace-context";
 
 type Nr1JourneyStepId = "diagnostico-inicial" | "setores" | "riscos" | "plano-de-acao";
 
@@ -19,15 +20,30 @@ function joinClassNames(...values: Array<string | undefined>): string {
 }
 
 export function Nr1JourneyCard(props: Nr1JourneyCardProps) {
+  const contextState = useNr1WorkspaceContext();
   const [diagnosticoCompleted, setDiagnosticoCompleted] = useState(false);
   const [setoresCompleted, setSetoresCompleted] = useState(false);
   const [riscosCompleted, setRiscosCompleted] = useState(false);
 
   useEffect(() => {
-    setDiagnosticoCompleted(isNr1DiagnosticoLocalCompleted());
-    setSetoresCompleted(isNr1SetoresLocalCompleted());
-    setRiscosCompleted(isNr1RiscosLocalCompleted());
-  }, []);
+    const timer = window.setTimeout(() => {
+      if (contextState.status !== "ready") {
+        setDiagnosticoCompleted(false);
+        setSetoresCompleted(false);
+        setRiscosCompleted(false);
+        return;
+      }
+      const scope = {
+        userId: contextState.context.userId,
+        tenantId: contextState.context.tenantId,
+        establishmentId: contextState.context.establishmentId,
+      };
+      setDiagnosticoCompleted(isNr1DiagnosticoLocalCompleted(scope));
+      setSetoresCompleted(isNr1SetoresLocalCompleted());
+      setRiscosCompleted(isNr1RiscosLocalCompleted(scope));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [contextState]);
 
   const currentStep = props.currentStep ?? "diagnostico-inicial";
 

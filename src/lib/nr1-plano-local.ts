@@ -1,6 +1,7 @@
 export type Nr1PlanoLocalScope = {
-  tenantId?: string | null;
-  establishmentId?: string | null;
+  userId: string;
+  tenantId: string;
+  establishmentId: string;
 };
 
 export type Nr1PlanoLocalDraft = {
@@ -39,18 +40,28 @@ function mergeDraft(input?: Partial<Nr1PlanoLocalDraft> | null): Nr1PlanoLocalDr
     ...(input ?? {}),
   };
 }
-
-export function getNr1PlanoLocalScopeKey(scope?: Nr1PlanoLocalScope): string {
-  const tenantId = scope?.tenantId?.trim() || "tenant-local";
-  const establishmentId = scope?.establishmentId?.trim() || "estabelecimento-local";
-  return `${tenantId}:${establishmentId}`;
+export function createEmptyNr1PlanoLocalDraft(): Nr1PlanoLocalDraft {
+  return mergeDraft();
 }
 
-export function getNr1PlanoLocalStorageKey(scope?: Nr1PlanoLocalScope): string {
+
+export function getNr1PlanoLocalScopeKey(scope: Nr1PlanoLocalScope): string {
+  const userId = scope.userId.trim();
+  const tenantId = scope.tenantId.trim();
+  const establishmentId = scope.establishmentId.trim();
+
+  if (!userId || !tenantId || !establishmentId) {
+    throw new Error("nr1_plano_scope_required");
+  }
+
+  return `${userId}:${tenantId}:${establishmentId}`;
+}
+
+export function getNr1PlanoLocalStorageKey(scope: Nr1PlanoLocalScope): string {
   return `${STORAGE_PREFIX}:${getNr1PlanoLocalScopeKey(scope)}`;
 }
 
-export function readNr1PlanoLocalDraft(scope?: Nr1PlanoLocalScope): Nr1PlanoLocalDraft {
+export function readNr1PlanoLocalDraft(scope: Nr1PlanoLocalScope): Nr1PlanoLocalDraft {
   if (!hasStorage()) {
     return mergeDraft();
   }
@@ -71,7 +82,7 @@ export function readNr1PlanoLocalDraft(scope?: Nr1PlanoLocalScope): Nr1PlanoLoca
 
 export function writeNr1PlanoLocalDraft(
   partial: Partial<Nr1PlanoLocalDraft>,
-  scope?: Nr1PlanoLocalScope
+  scope: Nr1PlanoLocalScope
 ): Nr1PlanoLocalDraft {
   const current = readNr1PlanoLocalDraft(scope);
   const next = mergeDraft({
@@ -90,7 +101,7 @@ export function writeNr1PlanoLocalDraft(
   return next;
 }
 
-export function completeNr1PlanoLocalDraft(scope?: Nr1PlanoLocalScope): Nr1PlanoLocalDraft {
+export function completeNr1PlanoLocalDraft(scope: Nr1PlanoLocalScope): Nr1PlanoLocalDraft {
   const current = readNr1PlanoLocalDraft(scope);
   return writeNr1PlanoLocalDraft(
     {
@@ -102,14 +113,14 @@ export function completeNr1PlanoLocalDraft(scope?: Nr1PlanoLocalScope): Nr1Plano
   );
 }
 
-export function clearNr1PlanoLocalDraft(scope?: Nr1PlanoLocalScope): Nr1PlanoLocalDraft {
+export function clearNr1PlanoLocalDraft(scope: Nr1PlanoLocalScope): Nr1PlanoLocalDraft {
   if (hasStorage()) {
     window.localStorage.removeItem(getNr1PlanoLocalStorageKey(scope));
   }
   return mergeDraft();
 }
 
-export function isNr1PlanoLocalCompleted(scope?: Nr1PlanoLocalScope): boolean {
+export function isNr1PlanoLocalCompleted(scope: Nr1PlanoLocalScope): boolean {
   return readNr1PlanoLocalDraft(scope).isCompleted === true;
 }
 
