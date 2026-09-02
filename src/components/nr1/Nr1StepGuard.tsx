@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { isNr1DiagnosticoLocalCompleted } from "@/lib/nr1-diagnostico-local";
-import { isNr1SetoresLocalCompleted } from "@/lib/nr1-setores-local";
+import { useNr1SetoresApiState } from "@/hooks/useNr1SetoresApiState";
 import { isNr1RiscosLocalCompleted } from "@/lib/nr1-riscos-local";
+import { useNr1WorkspaceReadContext } from "@/lib/nr1-workspace-read-context";
 
 type StepKey = "diagnostico-inicial" | "setores" | "riscos" | "plano-de-acao";
 
@@ -23,56 +24,132 @@ const ROUTES: Record<StepKey, string> = {
   "plano-de-acao": "/dashboard/nr1/plano-de-acao",
 };
 
-export function Nr1StepGuard(props: Nr1StepGuardProps) {
-  const [ready, setReady] = useState(false);
-  const [diagnosticoCompleted, setDiagnosticoCompleted] = useState(false);
-  const [setoresCompleted, setSetoresCompleted] = useState(false);
-  const [riscosCompleted, setRiscosCompleted] = useState(false);
+function subscribeNoop() {
+  return () => undefined;
+}
 
-  useEffect(() => {
-    setDiagnosticoCompleted(isNr1DiagnosticoLocalCompleted());
-    setSetoresCompleted(isNr1SetoresLocalCompleted());
-    setRiscosCompleted(isNr1RiscosLocalCompleted());
-    setReady(true);
-  }, []);
+function getClientReadySnapshot() {
+  return true;
+}
+
+function getServerFalseSnapshot() {
+  return false;
+}
+
+export function Nr1StepGuard(props: Nr1StepGuardProps) {
+  const mustValidateSetores =
+    props.stepKey === "riscos";
+
+  const contextState =
+    useNr1WorkspaceReadContext(
+      mustValidateSetores
+    );
+
+  const setoresApiState =
+    useNr1SetoresApiState(contextState);
+
+  const ready = useSyncExternalStore(
+    subscribeNoop,
+    getClientReadySnapshot,
+    getServerFalseSnapshot
+  );
+
+  const diagnosticoCompleted =
+    useSyncExternalStore(
+      subscribeNoop,
+      isNr1DiagnosticoLocalCompleted,
+      getServerFalseSnapshot
+    );
+
+  const riscosCompleted =
+    useSyncExternalStore(
+      subscribeNoop,
+      isNr1RiscosLocalCompleted,
+      getServerFalseSnapshot
+    );
+
+  const setoresCompleted =
+    setoresApiState.isComplete;
 
   const guardState = useMemo(() => {
     if (props.stepKey === "diagnostico-inicial") {
       return { allowed: true, missing: "" };
     }
 
-                    if (props.stepKey === "setores") {
+    if (props.stepKey === "setores") {
       return { allowed: true, missing: "" };
     }
 
-                    if (props.stepKey === "riscos") {
+    if (props.stepKey === "riscos") {
       if (!setoresCompleted) {
-        return { allowed: false, missing: "setores" };
+        return {
+          allowed: false,
+          missing: "setores",
+        };
       }
-      return { allowed: true, missing: "" };
+
+      return {
+        allowed: true,
+        missing: "",
+      };
     }
 
     if (props.stepKey === "plano-de-acao") {
       if (!riscosCompleted) {
-        return { allowed: false, missing: "riscos" };
+        return {
+          allowed: false,
+          missing: "riscos",
+        };
       }
-      return { allowed: true, missing: "" };
+
+      return {
+        allowed: true,
+        missing: "",
+      };
     }
 
     if (!diagnosticoCompleted) {
-      return { allowed: false, missing: "diagnostico" };
+      return {
+        allowed: false,
+        missing: "diagnostico",
+      };
     }
+
     if (!setoresCompleted) {
-      return { allowed: false, missing: "setores" };
+      return {
+        allowed: false,
+        missing: "setores",
+      };
     }
+
     if (!riscosCompleted) {
-      return { allowed: false, missing: "riscos" };
+      return {
+        allowed: false,
+        missing: "riscos",
+      };
     }
 
-    return { allowed: true, missing: "" };
-  }, [diagnosticoCompleted, props.stepKey, riscosCompleted, setoresCompleted]);
+    return {
+      allowed: true,
+      missing: "",
+    };
+  }, [
+    diagnosticoCompleted,
+    props.stepKey,
+    riscosCompleted,
+    setoresCompleted,
+  ]);
 
-  if (!ready) {
+  if (
+    !ready ||
+    (
+      mustValidateSetores &&
+      (
+        contextState.status === "loading" ||
+        setoresApiState.isLoading
+      )
+    )
+  ) {
     return (
       <section className="rounded-[24px] border border-[#DBE5F0] bg-white p-6 shadow-[0_10px_30px_rgba(18,40,70,0.08)]">
         <h2 className="text-2xl font-semibold text-[#132238]">Preparando etapa</h2>
@@ -149,7 +226,3 @@ export function Nr1StepGuard(props: Nr1StepGuardProps) {
 }
 
 export default Nr1StepGuard;
-
-
-
-
