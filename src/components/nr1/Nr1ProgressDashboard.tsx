@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import {
-  isNr1DiagnosticoLocalCompleted,
-  readNr1DiagnosticoLocalDraft,
-} from "@/lib/nr1-diagnostico-local";
-import { isNr1SetoresLocalCompleted } from "@/lib/nr1-setores-local";
+import { isNr1DiagnosticoLocalCompleted } from "@/lib/nr1-diagnostico-local";
 import { isNr1RiscosLocalCompleted } from "@/lib/nr1-riscos-local";
 import { useNr1WorkspaceContext } from "@/lib/nr1-workspace-context";
+import { useNr1SetoresApiState } from "@/hooks/useNr1SetoresApiState";
+import { useNr1WorkspaceDisplayState } from "@/hooks/useNr1WorkspaceDisplayState";
 
-type Nr1JourneyStepId = "diagnostico-inicial" | "setores" | "riscos" | "plano-de-acao";
+type Nr1JourneyStepId =
+  | "diagnostico-inicial"
+  | "setores"
+  | "riscos"
+  | "plano-de-acao";
 
 type Nr1ProgressDashboardProps = {
   currentStep?: Nr1JourneyStepId;
@@ -24,52 +26,76 @@ function joinClassNames(...values: Array<string | undefined>): string {
 
 export function Nr1ProgressDashboard(props: Nr1ProgressDashboardProps) {
   const contextState = useNr1WorkspaceContext();
+  const setoresApiState = useNr1SetoresApiState(contextState);
+  const displayState = useNr1WorkspaceDisplayState(contextState);
+
   const [diagnosticoCompleted, setDiagnosticoCompleted] = useState(false);
-  const [setoresCompleted, setSetoresCompleted] = useState(false);
   const [riscosCompleted, setRiscosCompleted] = useState(false);
-  const [empresaNome, setEmpresaNome] = useState("Empresa local");
-  const [estabelecimentoNome, setEstabelecimentoNome] = useState("Estabelecimento local");
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       if (contextState.status !== "ready") {
         setDiagnosticoCompleted(false);
-        setSetoresCompleted(false);
         setRiscosCompleted(false);
-        setEmpresaNome("Empresa local");
-        setEstabelecimentoNome("Estabelecimento local");
         return;
       }
+
       const scope = {
         userId: contextState.context.userId,
         tenantId: contextState.context.tenantId,
         establishmentId: contextState.context.establishmentId,
       };
+
       setDiagnosticoCompleted(isNr1DiagnosticoLocalCompleted(scope));
-      setSetoresCompleted(isNr1SetoresLocalCompleted());
       setRiscosCompleted(isNr1RiscosLocalCompleted(scope));
-      const draft = readNr1DiagnosticoLocalDraft(scope);
-      setEmpresaNome(draft.empresaNome.trim() || "Empresa local");
-      setEstabelecimentoNome(draft.estabelecimentoNome.trim() || "Estabelecimento local");
     }, 0);
+
     return () => window.clearTimeout(timer);
   }, [contextState]);
 
+  const setoresCompleted = setoresApiState.isComplete;
+
+  const empresaNome =
+    displayState.companyName ||
+    (displayState.isLoading ? "Carregando empresa..." : "Empresa ativa");
+
+  const estabelecimentoNome =
+    displayState.establishmentName ||
+    (displayState.isLoading
+      ? "Carregando estabelecimento..."
+      : "Estabelecimento ativo");
+
   const nextHref = useMemo(() => {
-    if (!diagnosticoCompleted) return "/dashboard/nr1/diagnostico-inicial";
-    if (!setoresCompleted) return "/dashboard/nr1/setores";
-    if (!riscosCompleted) return "/dashboard/nr1/riscos";
-    if (props.currentStep === "plano-de-acao") return "/dashboard/nr1/plano-de-acao";
+    if (!diagnosticoCompleted) {
+      return "/dashboard/nr1/diagnostico-inicial";
+    }
+
+    if (!setoresCompleted) {
+      return "/dashboard/nr1/setores";
+    }
+
+    if (!riscosCompleted) {
+      return "/dashboard/nr1/riscos";
+    }
+
     return "/dashboard/nr1/plano-de-acao";
-  }, [diagnosticoCompleted, props.currentStep, riscosCompleted, setoresCompleted]);
+  }, [diagnosticoCompleted, riscosCompleted, setoresCompleted]);
 
   const nextLabel = useMemo(() => {
-    if (!diagnosticoCompleted) return "Concluir diagnostico";
-    if (!setoresCompleted) return "Concluir setores";
-    if (!riscosCompleted) return "Concluir riscos";
-    if (props.currentStep === "plano-de-acao") return "Ir para plano";
+    if (!diagnosticoCompleted) {
+      return "Concluir diagnostico";
+    }
+
+    if (!setoresCompleted) {
+      return "Concluir setores";
+    }
+
+    if (!riscosCompleted) {
+      return "Concluir riscos";
+    }
+
     return "Ir para plano";
-  }, [diagnosticoCompleted, props.currentStep, riscosCompleted, setoresCompleted]);
+  }, [diagnosticoCompleted, riscosCompleted, setoresCompleted]);
 
   return (
     <section
@@ -81,8 +107,9 @@ export function Nr1ProgressDashboard(props: Nr1ProgressDashboardProps) {
       <div className="flex flex-col gap-6">
         <div>
           <div className="text-xs font-bold uppercase tracking-[0.16em] text-[#60718A]">
-            Resumo local
+            Resumo da jornada
           </div>
+
           <h2 className="mt-3 text-2xl font-semibold text-[#132238]">
             {empresaNome} - {estabelecimentoNome}
           </h2>
@@ -93,6 +120,7 @@ export function Nr1ProgressDashboard(props: Nr1ProgressDashboardProps) {
             <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#60718A]">
               diagnostico
             </div>
+
             <div className="mt-2 text-base font-semibold text-[#132238]">
               {diagnosticoCompleted ? "Concluido" : "Pendente"}
             </div>
@@ -102,6 +130,7 @@ export function Nr1ProgressDashboard(props: Nr1ProgressDashboardProps) {
             <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#60718A]">
               setores
             </div>
+
             <div className="mt-2 text-base font-semibold text-[#132238]">
               {setoresCompleted ? "Concluido" : "Pendente"}
             </div>
@@ -111,6 +140,7 @@ export function Nr1ProgressDashboard(props: Nr1ProgressDashboardProps) {
             <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#60718A]">
               riscos
             </div>
+
             <div className="mt-2 text-base font-semibold text-[#132238]">
               {riscosCompleted ? "Concluido" : "Pendente"}
             </div>
@@ -120,8 +150,15 @@ export function Nr1ProgressDashboard(props: Nr1ProgressDashboardProps) {
             <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#60718A]">
               proximo passo
             </div>
+
             <div className="mt-2 text-base font-semibold text-[#132238]">
-              {!diagnosticoCompleted ? "Diagnostico" : !setoresCompleted ? "Setores" : !riscosCompleted ? "Riscos" : "Plano"}
+              {!diagnosticoCompleted
+                ? "Diagnostico"
+                : !setoresCompleted
+                  ? "Setores"
+                  : !riscosCompleted
+                    ? "Riscos"
+                    : "Plano"}
             </div>
           </div>
         </div>
