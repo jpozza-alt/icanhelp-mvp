@@ -1330,6 +1330,23 @@ useEffect(() => {
     setGuidedSetupOpen(true);
   }
 
+  function openGuidedSetupAtPendingStep(): void {
+    const pendingStep: GuidedStepKey =
+      !hasCompany
+        ? "empresa"
+        : !hasEstablishment
+          ? "estabelecimento"
+          : !hasDepartment
+            ? "setor"
+            : "atividade";
+
+    setFormError(null);
+    setSuccessMessage(null);
+    setGuidedSetupChoice("review");
+    setGuidedStepKey(pendingStep);
+    setOnboardingMicroStepIndex(0);
+    setGuidedSetupOpen(true);
+  }
   function handleResumeGateDashboard(): void {
     setFormError(null);
     setSuccessMessage(null);
@@ -3960,7 +3977,7 @@ useEffect(() => {
 
   const handleWorkspaceV2PrimaryAction = () => {
       if (!isWorkspaceMode) {
-        openGuidedSetupReview();
+        openGuidedSetupAtPendingStep();
         return;
       }
 
