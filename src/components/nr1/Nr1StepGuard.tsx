@@ -17,12 +17,16 @@ type Nr1StepGuardProps = {
   [key: string]: unknown;
 };
 
+type GuardMissing = "" | "context" | "diagnostico" | "setores" | "riscos";
+
 const ROUTES: Record<StepKey, string> = {
   "diagnostico-inicial": "/dashboard/nr1/diagnostico-inicial",
   setores: "/dashboard/nr1/setores",
   riscos: "/dashboard/nr1/riscos",
   "plano-de-acao": "/dashboard/nr1/plano-de-acao",
 };
+
+const WORKSPACE_ROUTE = "/dashboard/nr1/workspace";
 
 function subscribeNoop() {
   return () => undefined;
@@ -77,7 +81,10 @@ export function Nr1StepGuard(props: Nr1StepGuardProps) {
   const setoresCompleted =
     setoresApiState.isComplete;
 
-  const guardState = useMemo(() => {
+  const guardState = useMemo<{
+    allowed: boolean;
+    missing: GuardMissing;
+  }>(() => {
     if (props.stepKey === "diagnostico-inicial") {
       return { allowed: true, missing: "" };
     }
@@ -87,6 +94,16 @@ export function Nr1StepGuard(props: Nr1StepGuardProps) {
     }
 
     if (props.stepKey === "riscos") {
+      if (
+        contextState.status === "error" ||
+        setoresApiState.error
+      ) {
+        return {
+          allowed: false,
+          missing: "context",
+        };
+      }
+
       if (!setoresCompleted) {
         return {
           allowed: false,
@@ -101,6 +118,13 @@ export function Nr1StepGuard(props: Nr1StepGuardProps) {
     }
 
     if (props.stepKey === "plano-de-acao") {
+      if (contextState.status === "error") {
+        return {
+          allowed: false,
+          missing: "context",
+        };
+      }
+
       if (!riscosCompleted) {
         return {
           allowed: false,
@@ -140,9 +164,11 @@ export function Nr1StepGuard(props: Nr1StepGuardProps) {
       missing: "",
     };
   }, [
+    contextState.status,
     diagnosticoCompleted,
     props.stepKey,
     riscosCompleted,
+    setoresApiState.error,
     setoresCompleted,
   ]);
 
@@ -175,28 +201,36 @@ export function Nr1StepGuard(props: Nr1StepGuardProps) {
   }
 
   const blockedTitle =
-    guardState.missing === "diagnostico"
+    guardState.missing === "context"
+      ? "Nao foi possivel validar o contexto da empresa"
+      : guardState.missing === "diagnostico"
       ? "Diagnostico inicial pendente"
       : guardState.missing === "setores"
       ? "Setores e atividades pendentes"
       : "Riscos pendentes";
 
   const blockedDescription =
-    guardState.missing === "diagnostico"
+    guardState.missing === "context"
+      ? "Confirme a empresa e o estabelecimento no workspace e tente novamente."
+      : guardState.missing === "diagnostico"
       ? "Conclua o diagnostico inicial antes de liberar esta etapa."
       : guardState.missing === "setores"
       ? "Conclua a etapa de setores e atividades antes de liberar esta etapa."
       : "Conclua a etapa de riscos para liberar o plano de acao.";
 
   const primaryHref =
-    guardState.missing === "diagnostico"
+    guardState.missing === "context"
+      ? WORKSPACE_ROUTE
+      : guardState.missing === "diagnostico"
       ? ROUTES["diagnostico-inicial"]
       : guardState.missing === "setores"
       ? ROUTES.setores
       : ROUTES.riscos;
 
   const primaryLabel =
-    guardState.missing === "diagnostico"
+    guardState.missing === "context"
+      ? "Voltar ao workspace"
+      : guardState.missing === "diagnostico"
       ? "Abrir diagnostico inicial"
       : guardState.missing === "setores"
       ? "Abrir setores e atividades"

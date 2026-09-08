@@ -1788,83 +1788,124 @@ useEffect(() => {
     };
   }, [activities.length, companies.length, context.establishmentId, departments.length, establishments.length, progressPercent]);
   const resolveContext = useCallback(async (): Promise<BackendContext> => {
-    const paths = [
-      "/api/debug/context",
-      "/api/tenants",
-      "/api/tenant/select",
-    ];
     const accessToken = await getBrowserAccessToken();
-    const headers = new Headers({
-      accept: "application/json",
-    });
 
     if (!accessToken) {
       throw new Error("Sua sessão expirou. Faça login novamente para salvar com segurança.");
     }
 
-    if (accessToken) {
-      headers.set("Authorization", "Bearer " + accessToken);
-    }
+    const headers = new Headers({
+      accept: "application/json",
+      Authorization: "Bearer " + accessToken,
+    });
 
-    let fallbackEstablishmentId: string | null = null;
-    let authFailed = false;
+    const readJsonResponse = async (
+      path: string
+    ): Promise<{ response: Response; payload: unknown }> => {
+      const response = await fetch(path, {
+        method: "GET",
+        cache: "no-store",
+        credentials: "same-origin",
+        headers,
+      });
 
-    for (const path of paths) {
-      let payload: unknown | null = null;
+      const text = await response.text();
+      let payload: unknown = {};
 
-      try {
-        const response = await fetch(path, {
-          method: "GET",
-          cache: "no-store",
-          credentials: "same-origin",
-          headers,
-        });
-        const text = await response.text();
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            authFailed = true;
-          }
-
-          throw new Error(`${response.status} ${response.statusText} ${text.slice(0, 240)}`.trim());
+      if (text.trim()) {
+        try {
+          payload = JSON.parse(text) as unknown;
+        } catch {
+          payload = {};
         }
-
-        payload = text.trim() ? (JSON.parse(text) as unknown) : {};
-      } catch {
-        continue;
       }
 
-      const tenantCandidates = extractTenantCandidatesFromPayload(payload);
-      const selectedTenant = tenantCandidates[0] || null;
+      return { response, payload };
+    };
 
-      const tenantId = selectedTenant?.tenantId || null;
+    const activeResult = await readJsonResponse("/api/tenants/active");
 
-      const establishmentId =
-        nestedString(payload, ["establishment", "id"]) ||
-        nestedString(payload, ["activeEstablishment", "id"]) ||
-        nestedString(payload, ["data", "establishment", "id"]) ||
-        nestedString(payload, ["data", "activeEstablishment", "id"]) ||
-        firstString(payload, ["establishment_id", "establishmentId", "active_establishment_id"]);
-
-      if (!fallbackEstablishmentId && establishmentId) {
-        fallbackEstablishmentId = establishmentId;
-      }
-
-      if (tenantId) {
-        return {
-          tenantId,
-          establishmentId: establishmentId || fallbackEstablishmentId,
-        };
-      }
-    }
-
-    if (authFailed) {
+    if (activeResult.response.status === 401) {
       throw new Error("Sua sessão expirou. Faça login novamente para salvar com segurança.");
     }
 
+    if (activeResult.response.ok) {
+      const activeTenantId =
+        firstString(activeResult.payload, [
+          "tenantId",
+          "tenant_id",
+          "activeTenantId",
+          "active_tenant_id",
+        ]) ||
+        extractTenantCandidatesFromPayload(activeResult.payload)[0]?.tenantId ||
+        "";
+
+      if (!activeTenantId) {
+        throw new Error("active_tenant_missing");
+      }
+
+      const activeEstablishmentId =
+        firstString(activeResult.payload, [
+          "establishmentId",
+          "establishment_id",
+          "activeEstablishmentId",
+          "active_establishment_id",
+        ]) || "";
+
+      return {
+        tenantId: activeTenantId,
+        establishmentId: activeEstablishmentId || null,
+      };
+    }
+
+    if (activeResult.response.status !== 404) {
+      throw new Error("active_tenant_unavailable");
+    }
+
+    const tenantsResult = await readJsonResponse("/api/tenants");
+
+    if (tenantsResult.response.status === 401) {
+      throw new Error("Sua sessão expirou. Faça login novamente para salvar com segurança.");
+    }
+
+    if (!tenantsResult.response.ok) {
+      throw new Error("tenant_memberships_unavailable");
+    }
+
+    const tenantCandidates = extractTenantCandidatesFromPayload(tenantsResult.payload);
+
+    if (tenantCandidates.length === 0) {
+      return {
+        tenantId: null,
+        establishmentId: null,
+      };
+    }
+
+    if (tenantCandidates.length === 1) {
+      const tenantId = tenantCandidates[0].tenantId;
+      const selection = getStoredWorkspaceSelection(tenantId);
+
+      return {
+        tenantId,
+        establishmentId: selection.establishmentId || null,
+      };
+    }
+
+    const selectedCandidates = tenantCandidates.filter((candidate) => {
+      const selection = getStoredWorkspaceSelection(candidate.tenantId);
+      return Boolean(selection.companyId && selection.establishmentId);
+    });
+
+    if (selectedCandidates.length !== 1) {
+      throw new Error("tenant_selection_ambiguous");
+    }
+
+    const tenantId = selectedCandidates[0].tenantId;
+    const selection = getStoredWorkspaceSelection(tenantId);
+
     return {
-      tenantId: null,
-      establishmentId: fallbackEstablishmentId,
+      tenantId,
+      establishmentId: selection.establishmentId || null,
     };
   }, []);
 
