@@ -175,6 +175,17 @@ type PsychosocialForm = {
   notes: string;
 };
 
+type PsychosocialHydrationRequest = {
+  context: BackendContext;
+  sessionId: string;
+};
+
+type PsychosocialHydrationResult = {
+  sessionId: string;
+  saved: boolean;
+  form: PsychosocialForm;
+};
+
 
 type DiagnosisFqbForm = {
   has_noise: boolean;
@@ -782,6 +793,75 @@ function diagnosisContextFormFromPayload(payload: unknown): DiagnosisContextForm
   };
 }
 
+function psychosocialFormFromPayload(payload: unknown): PsychosocialForm {
+  if (!isRecord(payload)) return { ...INITIAL_PSYCHOSOCIAL_FORM };
+
+  return {
+    has_work_overload: payload.has_work_overload === true,
+    has_excessive_pressure: payload.has_excessive_pressure === true,
+    has_role_ambiguity: payload.has_role_ambiguity === true,
+    has_low_autonomy: payload.has_low_autonomy === true,
+    has_leadership_support_failure: payload.has_leadership_support_failure === true,
+    has_peer_conflict: payload.has_peer_conflict === true,
+    has_hostile_public_contact: payload.has_hostile_public_contact === true,
+    has_constant_interruptions: payload.has_constant_interruptions === true,
+    has_task_accumulation: payload.has_task_accumulation === true,
+    has_communication_difficulty: payload.has_communication_difficulty === true,
+    has_remote_isolation: payload.has_remote_isolation === true,
+    has_badly_managed_change: payload.has_badly_managed_change === true,
+    has_report_channel: payload.has_report_channel === true,
+    notes: stringOrNull(payload.notes) || "",
+  };
+}
+
+async function loadWorkspacePsychosocialHydration(
+  request: PsychosocialHydrationRequest,
+  requestJson: typeof fetchJson = fetchJson
+): Promise<PsychosocialHydrationResult> {
+  const { context, sessionId } = request;
+
+  const emptyResult: PsychosocialHydrationResult = {
+    sessionId,
+    saved: false,
+    form: { ...INITIAL_PSYCHOSOCIAL_FORM },
+  };
+
+  if (!context.tenantId || !context.establishmentId || !sessionId) {
+    return emptyResult;
+  }
+
+  const path = buildUrl("/api/nr1/diagnosis-psychosocial", {
+    tenantId: context.tenantId,
+    establishmentId: context.establishmentId,
+    diagnosisSessionId: sessionId,
+  });
+
+  const payload = await requestJson(
+    path,
+    { method: "GET" },
+    context
+  );
+
+  const item =
+    isRecord(payload) && isRecord(payload.item)
+      ? payload.item
+      : null;
+
+  const itemMatchesScope = Boolean(
+    item &&
+      firstString(item, ["tenant_id"]) === context.tenantId &&
+      firstString(item, ["diagnosis_session_id"]) === sessionId
+  );
+
+  return {
+    sessionId,
+    saved: itemMatchesScope,
+    form: itemMatchesScope
+      ? psychosocialFormFromPayload(item)
+      : emptyResult.form,
+  };
+}
+
 async function loadWorkspaceDiagnosisHydration(
   request: DiagnosisHydrationRequest,
   requestJson: typeof fetchJson = fetchJson
@@ -1246,6 +1326,11 @@ useEffect(() => {
     setDiagnosisContextForm((current) => ({ ...current, ...patch }));
   }
 
+  function updatePsychosocialForm(patch: Partial<PsychosocialForm>): void {
+    diagnosisHydrationCoordinatorRef.current.markEdited();
+    setPsychosocialForm((current) => ({ ...current, ...patch }));
+  }
+
   useEffect(() => {
     const coordinator = diagnosisHydrationCoordinatorRef.current;
     const token = coordinator.begin();
@@ -1258,6 +1343,7 @@ useEffect(() => {
     setDiagnosisSessionId("");
     setDiagnosisContextSaved(false);
     setPsychosocialDiagnosisSaved(false);
+    setPsychosocialForm({ ...INITIAL_PSYCHOSOCIAL_FORM });
     setDiagnosisContextForm({ ...INITIAL_DIAGNOSIS_CONTEXT_FORM });
     setDiagnosisStatus("idle");
     setDiagnosisError(null);
@@ -1291,6 +1377,41 @@ useEffect(() => {
       setDiagnosisContextForm(hydratedDiagnosis.form);
       setDiagnosisContextSaved(hydratedDiagnosis.contextSaved);
       setDiagnosisStatus(hydratedDiagnosis.contextSaved ? "saved" : "idle");
+
+      if (!hydratedDiagnosis.sessionId) {
+        setPsychosocialForm({ ...INITIAL_PSYCHOSOCIAL_FORM });
+        setPsychosocialDiagnosisSaved(false);
+        return;
+      }
+
+      void loadWorkspacePsychosocialHydration({
+        context: hydrationContext,
+        sessionId: hydratedDiagnosis.sessionId,
+      }).then((hydratedPsychosocial) => {
+        if (!coordinator.canApply(token)) return;
+
+        const currentContextAfterPsychosocial = contextRef.current;
+
+        if (
+          currentContextAfterPsychosocial.tenantId !== hydrationContext.tenantId ||
+          currentContextAfterPsychosocial.establishmentId !== hydrationContext.establishmentId ||
+          hydratedPsychosocial.sessionId !== hydratedDiagnosis.sessionId
+        ) {
+          return;
+        }
+
+        setPsychosocialForm(hydratedPsychosocial.form);
+        setPsychosocialDiagnosisSaved(hydratedPsychosocial.saved);
+      }).catch((error) => {
+        if (!coordinator.canApply(token)) return;
+
+        setDiagnosisStatus("error");
+        setDiagnosisError(
+          error instanceof Error
+            ? error.message
+            : "Erro ao carregar fatores psicossociais salvos."
+        );
+      });
     }).catch((error) => {
       if (!coordinator.canApply(token)) return;
       setDiagnosisStatus("error");
@@ -5245,7 +5366,7 @@ useEffect(() => {
                           <input
                             type="checkbox"
                             checked={Boolean(psychosocialForm[key as keyof PsychosocialForm])}
-                            onChange={(event) => setPsychosocialForm((prev) => ({ ...prev, [key]: event.target.checked }))}
+                            onChange={(event) => updatePsychosocialForm({ [key]: event.target.checked } as Partial<PsychosocialForm>)}
                             className="mt-1 h-4 w-4 rounded border-[#d9c9b8] accent-[#10243e]"
                           />
                           <span className="font-semibold text-[#10243e]">{label}</span>
@@ -5262,7 +5383,7 @@ useEffect(() => {
 
                 <textarea
                   value={psychosocialForm.notes}
-                  onChange={(event) => setPsychosocialForm((prev) => ({ ...prev, notes: event.target.value }))}
+                  onChange={(event) => updatePsychosocialForm({ notes: event.target.value })}
                   rows={4}
                   placeholder="O que justifica os itens marcados? Informe fatos, exemplos, indicadores ou relatos agregados. Não registre nomes, CID, prontuário ou sintomas individuais."
                   className="mt-6 w-full rounded-xl border border-[#d9c9b8] px-3 py-2 text-sm"
