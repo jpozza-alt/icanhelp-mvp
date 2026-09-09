@@ -236,6 +236,20 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    const employeeCount = cleanNullableNumber(body.employee_count)
+
+    if (
+      employeeCount === null ||
+      !Number.isInteger(employeeCount) ||
+      employeeCount <= 0
+    ) {
+      return json(400, {
+        ok: false,
+        error: "invalid_employee_count",
+        message: "employee_count is required and must be an integer greater than zero",
+      })
+    }
+
     const userClient = createNr1UserClientFromBearer(bearerToken)
 
     const payload: Nr1DepartmentInsert = {
@@ -243,7 +257,7 @@ export async function POST(req: NextRequest) {
       establishment_id: establishmentId,
       name,
       description: cleanText(body.description),
-      employee_count: cleanNullableNumber(body.employee_count),
+      employee_count: employeeCount,
       shift_pattern: cleanText(body.shift_pattern),
       has_direct_leadership: cleanBooleanOrNull(body.has_direct_leadership),
       has_public_contact: cleanBooleanOrNull(body.has_public_contact),

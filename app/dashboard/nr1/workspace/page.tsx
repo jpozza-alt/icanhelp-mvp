@@ -2680,6 +2680,18 @@ useEffect(() => {
       return;
     }
 
+    const departmentEmployeeCount = numberOrNull(departmentForm.employee_count);
+
+    if (
+      departmentEmployeeCount === null ||
+      !Number.isInteger(departmentEmployeeCount) ||
+      departmentEmployeeCount <= 0
+    ) {
+      setFormStatus("error");
+      setFormError("Informe uma quantidade de pessoas inteira e maior que zero.");
+      return;
+    }
+
     try {
       const path = buildUrl("/api/nr1/departments", {
         tenantId: currentContext.tenantId,
@@ -2693,7 +2705,7 @@ useEffect(() => {
             establishment_id: currentContext.establishmentId,
             name: departmentForm.name,
             description: departmentForm.description,
-            employee_count: numberOrNull(departmentForm.employee_count),
+            employee_count: departmentEmployeeCount,
             shift_pattern: departmentForm.shift_pattern,
             has_direct_leadership: departmentForm.has_direct_leadership,
             has_public_contact: departmentForm.has_public_contact,
