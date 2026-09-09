@@ -1708,7 +1708,7 @@ useEffect(() => {
             ]
           : [
               { question: "Qual atividade esse setor executa?", helper: "Escreva como as pessoas chamam essa atividade no dia a dia." },
-              { question: "O que acontece nessa atividade?", helper: "Descreva em linguagem simples, sem jargao tecnico." },
+              { question: "O que a pessoa faz nessa atividade no dia a dia?", helper: "Descreva em uma frase simples as principais tarefas realizadas." },
             ];
 
   const onboardingMicroStep =
@@ -1756,6 +1756,13 @@ useEffect(() => {
 
       if (cnpjLookupStatus !== "ready") {
         setFormError("Clique em Buscar dados pelo CNPJ antes de continuar.");
+        return;
+      }
+    }
+
+    if (onboardingCurrentStep.key === "atividade" && onboardingMicroStepIndex === 0) {
+      if (activityForm.name.trim().length < 3) {
+        setFormError("Informe uma atividade com pelo menos 3 caracteres antes de continuar.");
         return;
       }
     }
@@ -4807,7 +4814,7 @@ useEffect(() => {
                       <textarea
                         value={activityForm.real_activity_description}
                         onChange={(event) => setActivityForm((prev) => ({ ...prev, real_activity_description: event.target.value }))}
-                        placeholder="Descreva em uma frase simples"
+                        placeholder="Ex.: atende clientes, confere documentos, lança informações no sistema e responde solicitações por telefone."
                         rows={4}
                         className="w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
                       />
