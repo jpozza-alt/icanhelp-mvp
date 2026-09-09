@@ -78,6 +78,7 @@ async function upsertPsychosocialFactors(
     status: row[factor.key] === true ? "evidence_found" : "not_observed",
     confidence_level: "low",
     sources: [],
+    justification: row[factor.key] === true ? row.notes : null,
     investigation_pending: false,
   }))
 
