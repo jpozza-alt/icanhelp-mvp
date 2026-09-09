@@ -2565,6 +2565,26 @@ useEffect(() => {
       return;
     }
 
+    const establishmentCity = establishmentForm.city.trim();
+    const establishmentState = establishmentForm.state.trim().toUpperCase();
+    const validBrazilianUfCodes = new Set([
+      "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO",
+      "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI",
+      "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+    ]);
+
+    if (establishmentCity.length < 2) {
+      setFormStatus("error");
+      setFormError("Informe a cidade do local de trabalho.");
+      return;
+    }
+
+    if (!validBrazilianUfCodes.has(establishmentState)) {
+      setFormStatus("error");
+      setFormError("Informe uma UF brasileira válida.");
+      return;
+    }
+
     try {
       const path = buildUrl("/api/nr1/establishments", {
         tenantId: currentContext.tenantId,
@@ -2579,8 +2599,8 @@ useEffect(() => {
             name: establishmentForm.name,
             establishment_type: establishmentForm.establishment_type,
             cnpj_unit: establishmentForm.cnpj_unit,
-            city: establishmentForm.city,
-            state: establishmentForm.state,
+            city: establishmentCity,
+            state: establishmentState,
             employee_count: numberOrNull(establishmentForm.employee_count),
             has_third_parties: establishmentForm.has_third_parties,
             has_external_activities: establishmentForm.has_external_activities,

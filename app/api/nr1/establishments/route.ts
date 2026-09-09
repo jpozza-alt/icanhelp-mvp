@@ -13,6 +13,12 @@ import {
 
 export const dynamic = "force-dynamic"
 
+const BRAZILIAN_UF_CODES = new Set([
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO",
+  "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI",
+  "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+])
+
 type CreateEstablishmentBody = {
   company_id?: string
   name?: string
@@ -255,6 +261,8 @@ export async function POST(req: NextRequest) {
 
     const companyId = cleanText(body.company_id)
     const name = cleanText(body.name)
+    const city = cleanText(body.city)
+    const state = cleanText(body.state)?.toUpperCase() ?? null
 
     if (!companyId) {
       return json(400, {
@@ -269,6 +277,22 @@ export async function POST(req: NextRequest) {
         ok: false,
         error: "invalid_name",
         message: "name is required and must have at least 3 characters",
+      })
+    }
+
+    if (!city || city.length < 2) {
+      return json(400, {
+        ok: false,
+        error: "invalid_city",
+        message: "city is required",
+      })
+    }
+
+    if (!state || !BRAZILIAN_UF_CODES.has(state)) {
+      return json(400, {
+        ok: false,
+        error: "invalid_state",
+        message: "state must be a valid Brazilian UF code",
       })
     }
 
@@ -294,8 +318,8 @@ export async function POST(req: NextRequest) {
       number: cleanText(body.number),
       complement: cleanText(body.complement),
       district: cleanText(body.district),
-      city: cleanText(body.city),
-      state: cleanText(body.state),
+      city,
+      state,
       employee_count: cleanNullableNumber(body.employee_count),
       has_third_parties: cleanBoolean(body.has_third_parties, false),
       has_external_activities: cleanBoolean(body.has_external_activities, false),
