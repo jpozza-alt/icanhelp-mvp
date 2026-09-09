@@ -2767,6 +2767,14 @@ useEffect(() => {
       return;
     }
 
+    const activityDescription = activityForm.real_activity_description.trim();
+
+    if (!activityDescription) {
+      setFormStatus("error");
+      setFormError("Descreva o que a pessoa faz nessa atividade antes de salvar.");
+      return;
+    }
+
     try {
       const path = buildUrl("/api/nr1/activities", {
         tenantId: currentContext.tenantId,
@@ -2780,7 +2788,7 @@ useEffect(() => {
             establishment_id: currentContext.establishmentId,
             department_id: departmentId,
             name: activityForm.name,
-            real_activity_description: activityForm.real_activity_description,
+            real_activity_description: activityDescription,
             frequency: activityForm.frequency,
             exposed_worker_count: numberOrNull(activityForm.exposed_worker_count),
             execution_location: activityForm.execution_location,

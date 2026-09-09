@@ -7,6 +7,11 @@ const workspace = readFileSync(
   "utf8"
 );
 
+const activitiesRoute = readFileSync(
+  "app/api/nr1/activities/route.ts",
+  "utf8"
+);
+
 function between(
   source: string,
   startMarker: string,
@@ -88,5 +93,93 @@ test("guided activity description shows a concrete example", () => {
     workspace.includes(
       'placeholder="Ex.: atende clientes, confere documentos, lança informações no sistema e responde solicitações por telefone."'
     )
+  );
+});
+test("workspace requires the real activity description before final save", () => {
+  const block = between(
+    workspace,
+    "  async function handleCreateActivity(event: FormEvent<HTMLFormElement>): Promise<void> {",
+    "  async function ensureDiagnosisSession(): Promise<string> {"
+  );
+
+  const descriptionNormalization = block.indexOf(
+    "const activityDescription = activityForm.real_activity_description.trim();"
+  );
+
+  const descriptionGuard = block.indexOf(
+    "if (!activityDescription)"
+  );
+
+  const errorMessage = block.indexOf(
+    'setFormError("Descreva o que a pessoa faz nessa atividade antes de salvar.");'
+  );
+
+  const activitiesPost = block.indexOf(
+    'const path = buildUrl("/api/nr1/activities"'
+  );
+
+  assert.ok(descriptionNormalization >= 0);
+  assert.ok(descriptionGuard > descriptionNormalization);
+  assert.ok(errorMessage > descriptionGuard);
+  assert.ok(activitiesPost > errorMessage);
+});
+
+test("workspace sends the validated trimmed activity description", () => {
+  const block = between(
+    workspace,
+    "  async function handleCreateActivity(event: FormEvent<HTMLFormElement>): Promise<void> {",
+    "  async function ensureDiagnosisSession(): Promise<string> {"
+  );
+
+  assert.ok(
+    block.includes(
+      "real_activity_description: activityDescription,"
+    )
+  );
+
+  assert.equal(
+    block.includes(
+      "real_activity_description: activityForm.real_activity_description,"
+    ),
+    false
+  );
+});
+
+test("activities API independently rejects an empty real activity description", () => {
+  const descriptionNormalization = activitiesRoute.indexOf(
+    "const realActivityDescription = cleanText(body.real_activity_description)"
+  );
+
+  const descriptionGuard = activitiesRoute.indexOf(
+    "if (!realActivityDescription)"
+  );
+
+  const errorCode = activitiesRoute.indexOf(
+    'error: "invalid_real_activity_description"'
+  );
+
+  const insert = activitiesRoute.indexOf(
+    '.from("nr1_activities")',
+    errorCode
+  );
+
+  assert.ok(descriptionNormalization >= 0);
+  assert.ok(descriptionGuard > descriptionNormalization);
+  assert.ok(errorCode > descriptionGuard);
+  assert.ok(insert > errorCode);
+});
+
+test("activities API persists the validated real activity description", () => {
+  assert.ok(
+    activitiesRoute.includes(
+      "real_activity_description: realActivityDescription,"
+    )
+  );
+
+  assert.equal(
+    activitiesRoute.includes(
+      "real_activity_description: cleanText(body.real_activity_description),"
+    ),
+    false
   );
 });

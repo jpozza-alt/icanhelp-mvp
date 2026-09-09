@@ -307,6 +307,16 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    const realActivityDescription = cleanText(body.real_activity_description)
+
+    if (!realActivityDescription) {
+      return json(400, {
+        ok: false,
+        error: "invalid_real_activity_description",
+        message: "real_activity_description is required",
+      })
+    }
+
     const userClient = createNr1UserClientFromBearer(bearerToken)
 
     const departmentCheck = await requireDepartmentInTenantAndEstablishment(
@@ -329,7 +339,7 @@ export async function POST(req: NextRequest) {
       establishment_id: establishmentId,
       department_id: departmentId,
       name,
-      real_activity_description: cleanText(body.real_activity_description),
+      real_activity_description: realActivityDescription,
       frequency: cleanText(body.frequency),
       exposed_worker_count: cleanNullableNumber(body.exposed_worker_count),
       execution_location: cleanText(body.execution_location),
