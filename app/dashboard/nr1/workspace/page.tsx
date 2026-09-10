@@ -1475,6 +1475,26 @@ useEffect(() => {
     const isFirstRunMode = workspaceBooted && !hasAnyTriageBase && !showGuidedSetup && guidedSetupChoice !== "dashboard";
   const showWorkspaceShell = workspaceBooted && !isFirstRunMode && !showExistingBaseResume;
   const showWorkspaceDashboardContent = showWorkspaceShell && !showGuidedSetup;
+  const [requestedWorkspaceSection, setRequestedWorkspaceSection] =
+    useState<string | null>(null);
+
+  useEffect(() => {
+    const requestedSection =
+      new URLSearchParams(window.location.search).get("section");
+
+    setRequestedWorkspaceSection(
+      requestedSection === "riscos" ? "riscos" : null
+    );
+  }, []);
+
+  const effectiveActiveSection =
+    requestedWorkspaceSection ?? draft.activeSection;
+
+  const officialDiagnosisReady = Boolean(
+    diagnosisSessionId &&
+      diagnosisContextSaved &&
+      psychosocialDiagnosisSaved
+  );
   const previousWorkspaceModeRef = useRef(isWorkspaceMode);
 
   function openGuidedSetupReview(): void {
@@ -1659,7 +1679,7 @@ useEffect(() => {
       (step.id === "estabelecimento" && hasEstablishment) ||
       (step.id === "setores" && hasDepartment) ||
       (step.id === "atividades" && hasActivity) ||
-      (step.id === "diagnostico-inicial" && Boolean(draft.checklist.diagnosis_started)) ||
+      (step.id === "diagnostico-inicial" && officialDiagnosisReady) ||
       (step.id === "riscos" && risks.length > 0) ||
       (step.id === "plano-de-acao" && actionPlans.length > 0);
 
@@ -1668,10 +1688,10 @@ useEffect(() => {
       (step.id === "estabelecimento" && onboardingCurrentStep.key === "estabelecimento") ||
       (step.id === "setores" && onboardingCurrentStep.key === "setor") ||
       (step.id === "atividades" && onboardingCurrentStep.key === "atividade") ||
-      (step.id === "diagnostico-inicial" && draft.activeSection === "diagnostico") ||
-      (step.id === "riscos" && draft.activeSection === "riscos") ||
-      (step.id === "plano-de-acao" && draft.activeSection === "riscos") ||
-      (step.id === "revisoes-auditoria" && draft.activeSection === "auditoria");
+      (step.id === "diagnostico-inicial" && effectiveActiveSection === "diagnostico") ||
+      (step.id === "riscos" && effectiveActiveSection === "riscos") ||
+      (step.id === "plano-de-acao" && effectiveActiveSection === "riscos") ||
+      (step.id === "revisoes-auditoria" && effectiveActiveSection === "auditoria");
 
     const status = isComplete
       ? "Concluído"
@@ -4137,13 +4157,13 @@ useEffect(() => {
   );
 
   const workspaceV2ActiveModule =
-    draft.activeSection === "cadastros"
+    effectiveActiveSection === "cadastros"
       ? "Base"
-      : draft.activeSection === "diagnostico"
+      : effectiveActiveSection === "diagnostico"
         ? "Mapeamento"
-        : draft.activeSection === "riscos"
+        : effectiveActiveSection === "riscos"
           ? "Riscos"
-          : draft.activeSection === "auditoria"
+          : effectiveActiveSection === "auditoria"
             ? "PGR"
             : "Mapeamento";
 
@@ -5095,7 +5115,7 @@ useEffect(() => {
             </section>
           ) : null}
 
-          {showWorkspaceDashboardContent && isWorkspaceMode && draft.activeSection === "diagnostico" ? (
+          {showWorkspaceDashboardContent && isWorkspaceMode && effectiveActiveSection === "diagnostico" ? (
             <section className="space-y-6">
               <div className="overflow-hidden rounded-[2rem] border border-[#d8bd78] bg-white shadow-sm">
                 <div className="grid gap-0 lg:grid-cols-[1.25fr_0.75fr]">
@@ -5475,7 +5495,7 @@ useEffect(() => {
                   </div>
                   {diagnosisRiskId ? (
                     <a
-                      href="/dashboard/nr1/riscos"
+                      href="/dashboard/nr1/workspace?section=riscos"
                       className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800"
                     >
                       Revisar risco no Inventário
@@ -5504,7 +5524,7 @@ useEffect(() => {
               </div>
             </section>
           ) : null}
-          {showWorkspaceDashboardContent && isWorkspaceMode && draft.activeSection === "riscos" ? (
+          {showWorkspaceDashboardContent && isWorkspaceMode && effectiveActiveSection === "riscos" ? (
             <section className="space-y-6">
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -5915,7 +5935,7 @@ useEffect(() => {
               </div>
             </section>
           ) : null}
-          {showWorkspaceDashboardContent && isWorkspaceMode && draft.activeSection === "auditoria" ? (
+          {showWorkspaceDashboardContent && isWorkspaceMode && effectiveActiveSection === "auditoria" ? (
             <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between gap-4">
                 <div>

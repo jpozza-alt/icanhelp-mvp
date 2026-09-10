@@ -20,10 +20,20 @@ const journey = fs.readFileSync(
   "utf8"
 );
 
-test("generated diagnosis risk exposes a direct inventory review action", () => {
+test("generated diagnosis risk exposes direct official inventory review action", () => {
   assert.match(
     workspace,
-    /\{diagnosisRiskId \? \(\s*<a\s+href="\/dashboard\/nr1\/riscos"[\s\S]*?>\s*Revisar risco no Inventário\s*<\/a>\s*\) : \(\s*<button[\s\S]*?handleGeneratePreliminaryRiskFromDiagnosis[\s\S]*?>\s*Gerar risco sugerido\s*<\/button>\s*\)\}/
+    /href="\/dashboard\/nr1\/workspace\?section=riscos"[\s\S]{0,500}Revisar risco no Inventário/
+  );
+
+  assert.match(
+    workspace,
+    /handleGeneratePreliminaryRiskFromDiagnosis\(\)/
+  );
+
+  assert.match(
+    workspace,
+    />\s*Gerar risco sugerido\s*</
   );
 });
 
@@ -39,19 +49,7 @@ test("post-generation copy keeps human review explicit", () => {
   );
 });
 
-test("risk generation remains the action before a risk exists", () => {
-  assert.match(
-    workspace,
-    /handleGeneratePreliminaryRiskFromDiagnosis\(\)/
-  );
-
-  assert.match(
-    workspace,
-    />\s*Gerar risco sugerido\s*</
-  );
-});
-
-test("workspace menu uses human-readable inventory label without changing internal module key", () => {
+test("workspace menu keeps inventory label and internal risk module key", () => {
   assert.match(
     shell,
     /<span>\{module === "Riscos" \? "Inventário de riscos" : module\}<\/span>/
@@ -63,7 +61,7 @@ test("workspace menu uses human-readable inventory label without changing intern
   );
 });
 
-test("canonical journey route for inventory remains unchanged", () => {
+test("canonical inventory journey route points to official workspace section", () => {
   const riskStart = journey.indexOf('id: "riscos"');
   const planStart = journey.indexOf('id: "plano-de-acao"', riskStart);
 
@@ -79,60 +77,114 @@ test("canonical journey route for inventory remains unchanged", () => {
 
   assert.match(
     riskStep,
+    /href:\s*"\/dashboard\/nr1\/workspace\?section=riscos"/
+  );
+
+  assert.doesNotMatch(
+    riskStep,
     /href:\s*"\/dashboard\/nr1\/riscos"/
   );
 });
-test("existing generated diagnosis risk is rehydrated from official risk list after reload", () => {
-  assert.ok(
-    workspace.includes("function generatedDiagnosisRiskIdForSession(")
+
+test("workspace route selects official risk section without backend persistence", () => {
+  assert.match(
+    workspace,
+    /new URLSearchParams\(window\.location\.search\)\.get\("section"\)/
   );
 
-  assert.ok(
-    workspace.includes('firstString(item, ["diagnosis_session_id"])')
+  assert.match(
+    workspace,
+    /requestedSection === "riscos" \? "riscos" : null/
   );
 
-  assert.ok(
-    workspace.includes("itemSessionId === sessionId")
+  assert.match(
+    workspace,
+    /const effectiveActiveSection =[\s\S]*requestedWorkspaceSection \?\? draft\.activeSection;/
   );
 
-  assert.ok(
-    workspace.includes('itemCategory === "psychosocial"')
+  assert.match(
+    workspace,
+    /effectiveActiveSection === "riscos"/
   );
 
-  assert.ok(
-    workspace.includes('itemStatus === "identified"')
+  const routeStart =
+    workspace.indexOf("const [requestedWorkspaceSection");
+
+  const routeEnd =
+    workspace.indexOf(
+      "const previousWorkspaceModeRef",
+      routeStart
+    );
+
+  assert.ok(routeStart >= 0);
+  assert.ok(routeEnd > routeStart);
+
+  const routeBlock =
+    workspace.slice(routeStart, routeEnd);
+
+  assert.doesNotMatch(routeBlock, /patchDraft\(/);
+  assert.doesNotMatch(routeBlock, /method:\s*"POST"/);
+  assert.doesNotMatch(routeBlock, /method:\s*"PATCH"/);
+  assert.doesNotMatch(routeBlock, /method:\s*"DELETE"/);
+});
+
+test("workspace diagnosis journey status uses official hydrated diagnosis state", () => {
+  assert.match(
+    workspace,
+    /const officialDiagnosisReady = Boolean\([\s\S]*diagnosisSessionId[\s\S]*diagnosisContextSaved[\s\S]*psychosocialDiagnosisSaved[\s\S]*\);/
   );
 
-  assert.ok(
-    workspace.includes("!itemDeletedAt")
+  assert.match(
+    workspace,
+    /step\.id === "diagnostico-inicial" && officialDiagnosisReady/
   );
 
+  assert.doesNotMatch(
+    workspace,
+    /step\.id === "diagnostico-inicial" && Boolean\(draft\.checklist\.diagnosis_started\)/
+  );
+});
+
+test("existing generated diagnosis risk remains rehydrated after reload", () => {
   assert.ok(
     workspace.includes(
-      '"Risco sugerido a partir da revisao dos pontos"'
+      "function generatedDiagnosisRiskIdForSession("
     )
   );
 
   assert.ok(
     workspace.includes(
-      '"Risco preliminar gerado pelo diagnostico guiado"'
+      'firstString(item, ["diagnosis_session_id"])'
     )
   );
 
   assert.ok(
     workspace.includes(
-      '"Risco psicossocial preliminar gerado pelo diagnostico guiado"'
+      "itemSessionId === sessionId"
+    )
+  );
+
+  assert.ok(
+    workspace.includes(
+      'itemCategory === "psychosocial"'
+    )
+  );
+
+  assert.ok(
+    workspace.includes(
+      'itemStatus === "identified"'
+    )
+  );
+
+  assert.ok(
+    workspace.includes(
+      "!itemDeletedAt"
     )
   );
 
   assert.match(
     workspace,
     /setDiagnosisRiskId\(\s*generatedDiagnosisRiskIdForSession\(\s*risks,\s*diagnosisSessionId\s*\)\s*\)/
-  );
-
-  assert.match(
-    workspace,
-    /\}, \[diagnosisSessionId, risks\]\);/
   );
 });
 

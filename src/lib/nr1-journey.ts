@@ -148,7 +148,7 @@ export const NR1_JOURNEY_STEPS = [
     order: 10,
     title: "Inventário de riscos",
     description: "Consolide os riscos identificados.",
-    href: "/dashboard/nr1/riscos",
+    href: "/dashboard/nr1/workspace?section=riscos",
     availability: "available",
     countsTowardProgress: true,
     isComplete: (state) => state.hasRisks,
