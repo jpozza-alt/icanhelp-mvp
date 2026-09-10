@@ -5430,22 +5430,33 @@ useEffect(() => {
                       Consolida a revisão dos sinais e prepara um risco sugerido vinculado à atividade, setor e local de trabalho.
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void handleGeneratePreliminaryRiskFromDiagnosis()}
-                    disabled={diagnosisStatus === "saving"}
-                    className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
-                  >
-                    Gerar risco sugerido
-                  </button>
+                  {diagnosisRiskId ? (
+                    <a
+                      href="/dashboard/nr1/riscos"
+                      className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800"
+                    >
+                      Revisar risco no Inventário
+                    </a>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void handleGeneratePreliminaryRiskFromDiagnosis()}
+                      disabled={diagnosisStatus === "saving"}
+                      className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
+                    >
+                      Gerar risco sugerido
+                    </button>
+                  )}
                 </div>
 
                 <div className="mt-5 rounded-2xl border border-emerald-200 bg-white/70 p-4 text-sm text-emerald-950">
-                  Depois da revisão, o sistema gera um risco sugerido para conferência antes de adicionar ao inventário e revisar o plano de ação.
+                  {diagnosisRiskId
+                    ? "O risco sugerido foi gerado e precisa de revisão humana antes de qualquer consolidação."
+                    : "Depois da revisão, o sistema gera um risco sugerido para conferência antes de adicionar ao inventário e revisar o plano de ação."}
                 </div>
 
                 {diagnosisRiskId ? (
-                  <p className="mt-4 text-sm text-emerald-900">Risco sugerido criado e pronto para revisao no inventario.<span className="sr-only"> ID interno: {diagnosisRiskId}</span></p>
+                  <p className="mt-4 text-sm text-emerald-900">Risco sugerido pronto para revisão humana no Inventário de Riscos. Revise e confirme antes de seguir para o Plano de Ação.<span className="sr-only"> ID interno: {diagnosisRiskId}</span></p>
                 ) : null}
               </div>
             </section>

@@ -164,7 +164,7 @@ export default function Nr1WorkspaceV2Shell({
                       : "text-white/70 hover:bg-white/10 hover:text-white"
                   }`}
                 >
-                  <span>{module}</span>
+                  <span>{module === "Riscos" ? "Inventário de riscos" : module}</span>
                   {isActive ? <span className="text-xs">Atual</span> : null}
                 </a>
               );
