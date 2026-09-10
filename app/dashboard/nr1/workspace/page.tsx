@@ -923,6 +923,41 @@ async function loadWorkspaceDiagnosisHydration(
   };
 }
 
+const GENERATED_DIAGNOSIS_RISK_TITLES = new Set([
+  "Risco sugerido a partir da revisao dos pontos",
+  "Risco preliminar gerado pelo diagnostico guiado",
+  "Risco psicossocial preliminar gerado pelo diagnostico guiado",
+]);
+
+function generatedDiagnosisRiskIdForSession(
+  items: SimpleEntity[],
+  diagnosisSessionId: string,
+): string {
+  const sessionId = diagnosisSessionId.trim();
+
+  if (!sessionId) return "";
+
+  const generatedRisk = items.find((item) => {
+    const itemSessionId = firstString(item, ["diagnosis_session_id"]);
+    const itemTitle = firstString(item, ["title"]);
+    const itemCategory = firstString(item, ["risk_category"]);
+    const itemStatus = firstString(item, ["status"]);
+    const itemDeletedAt = firstString(item, ["deleted_at"]);
+
+    return (
+      itemSessionId === sessionId &&
+      itemCategory === "psychosocial" &&
+      itemStatus === "identified" &&
+      !itemDeletedAt &&
+      Boolean(
+        itemTitle &&
+          GENERATED_DIAGNOSIS_RISK_TITLES.has(itemTitle)
+      )
+    );
+  });
+
+  return firstString(generatedRisk, ["id"]) || "";
+}
 function displayName(item: SimpleEntity | null | undefined, fallback: string): string {
   if (!item) return fallback;
 
@@ -3863,6 +3898,14 @@ useEffect(() => {
       void refreshRiskActionData(selectedRiskId);
     }
   }, [context.tenantId, context.establishmentId]);
+  useEffect(() => {
+    setDiagnosisRiskId(
+      generatedDiagnosisRiskIdForSession(
+        risks,
+        diagnosisSessionId
+      )
+    );
+  }, [diagnosisSessionId, risks]);
   useEffect(() => {
     let cancelled = false;
 

@@ -82,3 +82,85 @@ test("canonical journey route for inventory remains unchanged", () => {
     /href:\s*"\/dashboard\/nr1\/riscos"/
   );
 });
+test("existing generated diagnosis risk is rehydrated from official risk list after reload", () => {
+  assert.ok(
+    workspace.includes("function generatedDiagnosisRiskIdForSession(")
+  );
+
+  assert.ok(
+    workspace.includes('firstString(item, ["diagnosis_session_id"])')
+  );
+
+  assert.ok(
+    workspace.includes("itemSessionId === sessionId")
+  );
+
+  assert.ok(
+    workspace.includes('itemCategory === "psychosocial"')
+  );
+
+  assert.ok(
+    workspace.includes('itemStatus === "identified"')
+  );
+
+  assert.ok(
+    workspace.includes("!itemDeletedAt")
+  );
+
+  assert.ok(
+    workspace.includes(
+      '"Risco sugerido a partir da revisao dos pontos"'
+    )
+  );
+
+  assert.ok(
+    workspace.includes(
+      '"Risco preliminar gerado pelo diagnostico guiado"'
+    )
+  );
+
+  assert.ok(
+    workspace.includes(
+      '"Risco psicossocial preliminar gerado pelo diagnostico guiado"'
+    )
+  );
+
+  assert.match(
+    workspace,
+    /setDiagnosisRiskId\(\s*generatedDiagnosisRiskIdForSession\(\s*risks,\s*diagnosisSessionId\s*\)\s*\)/
+  );
+
+  assert.match(
+    workspace,
+    /\}, \[diagnosisSessionId, risks\]\);/
+  );
+});
+
+test("diagnosis risk rehydration helper remains read only", () => {
+  const helperStart =
+    workspace.indexOf(
+      "function generatedDiagnosisRiskIdForSession("
+    );
+
+  const helperEnd =
+    workspace.indexOf(
+      "function displayName(",
+      helperStart
+    );
+
+  assert.ok(helperStart >= 0);
+  assert.ok(helperEnd > helperStart);
+
+  const helper =
+    workspace.slice(
+      helperStart,
+      helperEnd
+    );
+
+  assert.doesNotMatch(helper, /\.insert\(/);
+  assert.doesNotMatch(helper, /\.update\(/);
+  assert.doesNotMatch(helper, /\.delete\(/);
+  assert.doesNotMatch(helper, /method:\s*"POST"/);
+  assert.doesNotMatch(helper, /method:\s*"PATCH"/);
+  assert.doesNotMatch(helper, /method:\s*"DELETE"/);
+});
