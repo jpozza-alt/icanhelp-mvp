@@ -31,6 +31,70 @@ test("unsupported automatic evidence does not enter risk matrix", () => {
   assert.match(route, /status === "evidence_found" && !hasSupportingEvidence\(factor\)/);
 });
 
+test("workspace generated risk title is recognized by generated-risk identity contract", () => {
+  const titleMatch = workspace.match(/generated_risk_title:\s*"([^"]+)"/);
+  assert.ok(titleMatch);
+
+  const workspaceGeneratedTitle = titleMatch[1];
+
+  assert.equal(
+    workspaceGeneratedTitle,
+    "Risco sugerido a partir da revisao dos pontos"
+  );
+
+  const identityStart =
+    route.indexOf("const isGeneratedDiagnosisRisk =");
+
+  const protectionStart =
+    route.indexOf(
+      "const canUpdateExistingGeneratedRisk =",
+      identityStart
+    );
+
+  assert.ok(identityStart >= 0);
+  assert.ok(protectionStart > identityStart);
+
+  const identityBlock =
+    route.slice(
+      identityStart,
+      protectionStart
+    );
+
+  assert.ok(
+    identityBlock.includes(
+      `existingRiskTitle === "${workspaceGeneratedTitle}"`
+    )
+  );
+
+  const protectionBlock =
+    route.slice(
+      protectionStart,
+      route.indexOf(
+        "if (!canUpdateExistingGeneratedRisk)",
+        protectionStart
+      )
+    );
+
+  assert.match(
+    protectionBlock,
+    /!existingRiskDeletedAt/
+  );
+
+  assert.match(
+    protectionBlock,
+    /existingRiskStatus === "identified"/
+  );
+
+  assert.match(
+    protectionBlock,
+    /existingRiskCategory === "psychosocial"/
+  );
+
+  assert.match(
+    protectionBlock,
+    /isGeneratedDiagnosisRisk/
+  );
+});
 test("workspace handles blocked generation before using risk id", () => {
   assert.match(workspace, /generatedRiskRecord\?\.generated === false/);
   assert.match(workspace, /generatedRiskReason === "investigation_required"/);

@@ -439,6 +439,7 @@ async function maybeGenerateRiskFromReview(params: {
     const existingRiskDeletedAt = cleanText(existingRisk.deleted_at)
 
     const isGeneratedDiagnosisRisk =
+      existingRiskTitle === "Risco sugerido a partir da revisao dos pontos" ||
       existingRiskTitle === "Risco preliminar gerado pelo diagnostico guiado" ||
       existingRiskTitle === "Risco psicossocial preliminar gerado pelo diagnostico guiado"
 
