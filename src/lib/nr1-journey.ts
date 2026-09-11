@@ -158,7 +158,7 @@ export const NR1_JOURNEY_STEPS = [
     order: 11,
     title: "Plano de ação",
     description: "Transforme riscos em acao acompanhavel.",
-    href: "/dashboard/nr1/plano-de-acao",
+    href: "/dashboard/nr1/workspace?section=plano",
     availability: "available",
     countsTowardProgress: true,
     isComplete: (state) => state.hasActionPlans,

@@ -96,11 +96,15 @@ export default function Nr1WorkspaceV2Shell({
 }: Nr1WorkspaceV2ShellProps) {
   const safeProgress = clampProgress(progressPercent);
   const progressWidth = `${safeProgress}%`;
+  const activeModuleLabel =
+    activeModule === "Riscos"
+      ? "Inventário de riscos"
+      : activeModule;
 
   return (
     <div className="min-h-screen bg-[#f4efe7] text-[#10243e]">
       <div className="mx-auto grid min-h-screen max-w-[1440px] grid-cols-1 lg:grid-cols-[292px_1fr]">
-        <aside className="border-r border-[#e2d4bf] bg-[#10243e] px-5 py-6 text-white">
+        <aside className="border-r border-[#e2d4bf] bg-[#10243e] px-5 py-6 text-white lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto">
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#d8bd78]">
               icanHelp NR-1
@@ -185,6 +189,25 @@ export default function Nr1WorkspaceV2Shell({
         </aside>
 
         <section className="px-5 py-6 lg:px-8">
+          <div className="sticky top-0 z-40 -mx-2 mb-4 rounded-2xl border border-[#d8c7ae] bg-[#fffdf9]/95 px-4 py-3 shadow-sm backdrop-blur">
+            <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <span className="text-[#7c6b56]">Você está em: </span>
+                <strong>{activeModuleLabel}</strong>
+              </div>
+
+              <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
+                <span>
+                  <strong>{safeProgress}%</strong> da jornada
+                </span>
+                <span>
+                  <span className="text-[#7c6b56]">Próxima ação: </span>
+                  <strong>{nextBestActionPrimaryLabel}</strong>
+                </span>
+              </div>
+            </div>
+          </div>
+
           <section className="rounded-[2rem] border border-[#d8bd78] bg-[#10243e] p-6 text-white shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[#d8bd78]">
               {nextBestActionLabel}

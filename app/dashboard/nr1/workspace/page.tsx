@@ -997,6 +997,33 @@ function generatedDiagnosisRiskIdForSession(
 
   return firstString(generatedRisk, ["id"]) || "";
 }
+function formatRiskCategory(value: string | null): string {
+  const labels: Record<string, string> = {
+    psychosocial: "Psicossocial relacionado ao trabalho",
+    physical: "Físico",
+    chemical: "Químico",
+    biological: "Biológico",
+    ergonomic: "Ergonômico",
+    accident: "Acidente",
+  };
+
+  if (!value) return "Não informada";
+  return labels[value] || value;
+}
+
+function formatRiskLevel(value: string | null): string {
+  const labels: Record<string, string> = {
+    low: "Baixo",
+    medium: "Médio",
+    high: "Alto",
+    critical: "Crítico",
+    very_high: "Muito alto",
+  };
+
+  if (!value) return "Não informado";
+  return labels[value] || value;
+}
+
 function displayName(item: SimpleEntity | null | undefined, fallback: string): string {
   if (!item) return fallback;
 
@@ -1516,14 +1543,26 @@ useEffect(() => {
   const showWorkspaceDashboardContent = showWorkspaceShell && !showGuidedSetup;
   const [requestedWorkspaceSection, setRequestedWorkspaceSection] =
     useState<string | null>(null);
+  const [showManualRiskForm, setShowManualRiskForm] = useState(false);
+  const [actionPlanGuideStep, setActionPlanGuideStep] = useState<1 | 2 | 3>(1);
 
   useEffect(() => {
     const requestedSection =
       new URLSearchParams(window.location.search).get("section");
+    const requestedRiskId =
+      new URLSearchParams(window.location.search).get("riskId");
 
     setRequestedWorkspaceSection(
       requestedSection === "riscos" ? "riscos" : null
     );
+
+    if (requestedSection === "plano") {
+      setRequestedWorkspaceSection("plano");
+    }
+
+    if (requestedRiskId) {
+      setSelectedRiskId(requestedRiskId);
+    }
   }, []);
 
   const effectiveActiveSection =
@@ -1766,7 +1805,7 @@ useEffect(() => {
       ) ||
       (
         step.id === "plano-de-acao" &&
-        effectiveActiveSection === "riscos" &&
+        (effectiveActiveSection === "riscos" || effectiveActiveSection === "plano") &&
         hasRiskReadyForActionPlan &&
         actionPlans.length === 0
       ) ||
@@ -4343,9 +4382,9 @@ useEffect(() => {
         ? "Mapeamento"
         : effectiveActiveSection === "riscos"
           ? "Riscos"
-          : effectiveActiveSection === "auditoria"
-            ? "PGR"
-            : "Mapeamento";
+          : effectiveActiveSection === "plano"
+            ? "Plano"
+            : "Base"
 
   const workspaceV2PendingItems = [
     hasCompany ? "Empresa revisada" : "Revisar empresa",
@@ -4360,7 +4399,9 @@ useEffect(() => {
       ? "Diagnóstico concluído. O risco sugerido aguarda revisão humana antes do Plano de Ação."
       : hasRiskReadyForActionPlan && actionPlans.length === 0
         ? "Risco confirmado. Próximo foco: definir o Plano de Ação."
-        : officialDiagnosisReady
+        : actionPlans.length > 0
+          ? "Plano de Ação registrado. Próximo foco: acompanhar a execução e reunir evidências."
+          : officialDiagnosisReady
           ? "Diagnóstico concluído. Acompanhe riscos, ações e evidências da jornada."
           : "Base pronta. Próximo foco: mapear a rotina real de trabalho.";
 
@@ -4370,7 +4411,9 @@ useEffect(() => {
       ? "Revisar e confirmar o risco sugerido"
       : hasRiskReadyForActionPlan && actionPlans.length === 0
         ? "Definir Plano de Ação para o risco confirmado"
-        : officialDiagnosisReady
+        : actionPlans.length > 0
+          ? "Registrar evidências da execução"
+          : officialDiagnosisReady
           ? "Continuar a jornada a partir dos riscos"
           : "Mapear a rotina real da atividade principal";
 
@@ -4379,8 +4422,10 @@ useEffect(() => {
     : hasPendingGeneratedRiskReview
       ? "Revise os dados do risco sugerido, confirme se representam a realidade do trabalho e só então libere o Plano de Ação."
       : hasRiskReadyForActionPlan && actionPlans.length === 0
-        ? "O risco já passou pela revisão humana. Agora defina medida, responsável, prazo, monitoramento e evidência."
-        : officialDiagnosisReady
+        ? "O risco já passou pela revisão humana. Agora defina a ação, o responsável, o prazo e como a execução será comprovada."
+        : actionPlans.length > 0
+          ? "O Plano de Ação já foi registrado. Agora acompanhe a execução e vincule as evidências que comprovam o que foi realizado."
+          : officialDiagnosisReady
           ? "Use o Inventário para manter riscos e ações coerentes com o diagnóstico e com as evidências."
           : "A base inicial está pronta. Agora o sistema deve entender como o trabalho acontece na prática para transformar essa leitura em riscos, prioridades e plano de ação.";
 
@@ -4390,7 +4435,9 @@ useEffect(() => {
       ? "Revisar risco sugerido"
       : hasRiskReadyForActionPlan && actionPlans.length === 0
         ? "Definir Plano de Ação"
-        : officialDiagnosisReady
+        : actionPlans.length > 0
+          ? "Ir para Evidências"
+          : officialDiagnosisReady
           ? "Abrir Inventário de riscos"
           : "Mapear rotina da atividade";
 
@@ -4418,12 +4465,31 @@ useEffect(() => {
         return;
       }
 
+      if (actionPlans.length > 0) {
+        window.location.href = "/dashboard/nr1/evidencias-acompanhamento";
+        return;
+      }
+
       const nextSection =
-        hasPendingGeneratedRiskReview ||
-        hasRiskReadyForActionPlan ||
-        officialDiagnosisReady
+        hasPendingGeneratedRiskReview
           ? "riscos"
-          : "diagnostico";
+          : hasRiskReadyForActionPlan
+            ? "plano"
+            : officialDiagnosisReady
+              ? "riscos"
+              : "diagnostico";
+
+      if (nextSection === "plano") {
+        const riskId =
+          firstString(selectedInventoryRisk, ["id"]) ||
+          selectedRiskId ||
+          "";
+
+        window.location.href =
+          "/dashboard/nr1/workspace?section=plano" +
+          (riskId ? "&riskId=" + encodeURIComponent(riskId) : "");
+        return;
+      }
 
       patchDraft(
         { activeSection: nextSection },
@@ -5740,23 +5806,45 @@ useEffect(() => {
               </div>
             </section>
           ) : null}
-          {showWorkspaceDashboardContent && isWorkspaceMode && effectiveActiveSection === "riscos" ? (
+          {showWorkspaceDashboardContent &&
+          isWorkspaceMode &&
+          (effectiveActiveSection === "riscos" || effectiveActiveSection === "plano") ? (
             <section className="space-y-6">
               <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div>
-                    <h2 className="text-xl font-semibold">Riscos da empresa (inventario) e plano de acao</h2>
+                    <h2 className="text-xl font-semibold">
+                      {effectiveActiveSection === "plano"
+                        ? "Plano de Ação"
+                        : "Inventário de riscos"}
+                    </h2>
                     <p className="mt-1 max-w-3xl text-sm text-slate-500">
-                      Revise os riscos encontrados, priorize o que precisa de controle e organize as acoes de melhoria.
+                      {effectiveActiveSection === "plano"
+                        ? "Transforme o risco confirmado em uma ação clara, com responsável, prazo, acompanhamento e evidência."
+                        : "Veja os riscos identificados, revise o risco selecionado e avance somente quando ele representar a realidade do trabalho."}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void refreshRiskActionData(selectedRiskId)}
-                    className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-50"
-                  >
-                    Atualizar riscos
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void refreshRiskActionData(selectedRiskId)}
+                      className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+                    >
+                      Atualizar
+                    </button>
+
+                    {effectiveActiveSection === "riscos" ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowManualRiskForm((current) => !current)}
+                        className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                      >
+                        {showManualRiskForm
+                          ? "Fechar cadastro manual"
+                          : "Outras ações · Adicionar risco manual"}
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
 
                 {riskError ? (
@@ -5792,17 +5880,32 @@ useEffect(() => {
                     <p className="mt-2 text-3xl font-semibold">{actionPlans.length}</p>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-sm text-slate-500">Status</p>
-                    <p className="mt-2 text-lg font-semibold">Risco: {riskStatus} / Plano: {actionPlanStatus}</p>
+                    <p className="text-sm text-slate-500">Situação</p>
+                    <p className="mt-2 text-lg font-semibold">
+                      {selectedGeneratedRiskNeedsHumanReview
+                        ? "Risco aguardando revisão"
+                        : actionPlans.length > 0
+                          ? "Plano de Ação registrado"
+                          : hasRiskReadyForActionPlan
+                            ? "Risco confirmado"
+                            : "Em andamento"}
+                    </p>
                   </div>
                 </div>
               </div>
 
-              <div className="grid gap-6 xl:grid-cols-[1fr_1fr_1fr]">
-                <form onSubmit={handleCreateRisk} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-lg font-semibold">1. Criar risco manual</h3>
+              <div className="grid gap-6">
+                <form
+                  onSubmit={handleCreateRisk}
+                  className={
+                    effectiveActiveSection === "riscos" && showManualRiskForm
+                      ? "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+                      : "hidden"
+                  }
+                >
+                  <h3 className="text-lg font-semibold">Cadastro manual de risco</h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    Preencha os dados principais para registrar o risco com seguranca.
+                    Use somente quando for necessário registrar um risco que não veio do diagnóstico guiado.
                   </p>
 
                   <div className="mt-5 grid gap-3">
@@ -5958,10 +6061,16 @@ useEffect(() => {
                     {riskStatus === "saving" ? "Salvando risco..." : "Criar risco manual"}
                   </button>
                 </form>
-                <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-lg font-semibold">2. Selecionar risco</h3>
+                <div
+                  className={
+                    effectiveActiveSection === "riscos"
+                      ? "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+                      : "hidden"
+                  }
+                >
+                  <h3 className="text-lg font-semibold">Riscos encontrados</h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    O plano de acao sempre precisa nascer vinculado a um risco.
+                    Selecione o risco que deseja revisar. O sistema mostrará primeiro o que é importante para a decisão.
                   </p>
 
                   <select
@@ -6007,7 +6116,9 @@ useEffect(() => {
                             {firstString(item, ["title", "hazard_description"]) || `Risco ${index + 1}`}
                           </p>
                           <p className="mt-1 text-xs text-slate-500">
-                            Categoria: {firstString(item, ["risk_category"]) || "nao informada"} / Nivel: {firstString(item, ["risk_level"]) || "nao informado"}
+                            {formatRiskCategory(firstString(item, ["risk_category"]))}
+                            {" · "}
+                            Nível {formatRiskLevel(firstString(item, ["risk_level"])).toLowerCase()}
                           </p>
                         </button>
                       ))
@@ -6016,9 +6127,15 @@ useEffect(() => {
                 </div>
 
                 <form onSubmit={handleCreateActionPlan} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-lg font-semibold">3. Revisar risco e criar Plano de Ação</h3>
+                  <h3 className="text-lg font-semibold">
+                    {effectiveActiveSection === "plano"
+                      ? "Criar Plano de Ação"
+                      : "Revisar risco selecionado"}
+                  </h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    Antes de criar o plano, revise o risco sugerido e confirme que ele representa a realidade do trabalho.
+                    {effectiveActiveSection === "plano"
+                      ? "Vamos montar o plano em três passos curtos."
+                      : "Confira se o risco representa a realidade do trabalho antes de avançar."}
                   </p>
 
                   {selectedInventoryRisk ? (
@@ -6047,7 +6164,7 @@ useEffect(() => {
                             Categoria
                           </span>
                           <strong className="mt-1 block text-sm">
-                            {firstString(selectedInventoryRisk, ["risk_category"]) || "Não informada"}
+                            {formatRiskCategory(firstString(selectedInventoryRisk, ["risk_category"]))}
                           </strong>
                         </div>
                         <div className="rounded-xl bg-white p-3">
@@ -6055,7 +6172,7 @@ useEffect(() => {
                             Severidade
                           </span>
                           <strong className="mt-1 block text-sm">
-                            {firstString(selectedInventoryRisk, ["severity_level"]) || "Não informada"}
+                            {formatRiskLevel(firstString(selectedInventoryRisk, ["severity_level"]))}
                           </strong>
                         </div>
                         <div className="rounded-xl bg-white p-3">
@@ -6063,7 +6180,7 @@ useEffect(() => {
                             Probabilidade
                           </span>
                           <strong className="mt-1 block text-sm">
-                            {firstString(selectedInventoryRisk, ["probability_level"]) || "Não informada"}
+                            {formatRiskLevel(firstString(selectedInventoryRisk, ["probability_level"]))}
                           </strong>
                         </div>
                       </div>
@@ -6073,7 +6190,7 @@ useEffect(() => {
                           Nível do risco
                         </span>
                         <strong className="mt-1 block text-sm">
-                          {firstString(selectedInventoryRisk, ["risk_level"]) || "Não informado"}
+                          {formatRiskLevel(firstString(selectedInventoryRisk, ["risk_level"]))}
                         </strong>
                       </div>
 
@@ -6137,106 +6254,369 @@ useEffect(() => {
                     </div>
                   ) : null}
 
-                  <div className="mt-5 grid gap-3">
-                    <input
-                      value={actionPlanForm.title}
-                      onChange={(event) => setActionPlanForm((prev) => ({ ...prev, title: event.target.value }))}
-                      placeholder="Titulo do plano de acao"
-                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                    />
+                  {effectiveActiveSection === "plano" ? (
+                    selectedGeneratedRiskNeedsHumanReview ? (
+                      <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                        <p className="font-semibold">Revisão do risco ainda necessária</p>
+                        <p className="mt-1 leading-6">
+                          Plano de Ação bloqueado até a confirmação humana do risco sugerido.
+                        </p>
+                        <a
+                          href="/dashboard/nr1/workspace?section=riscos"
+                          className="mt-3 inline-flex rounded-xl bg-amber-900 px-4 py-2 font-semibold text-white"
+                        >
+                          Voltar para revisar o risco
+                        </a>
+                      </div>
+                    ) : (
+                      <div className="mt-5 space-y-5">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                Plano de Ação guiado
+                              </p>
+                              <p className="mt-1 font-semibold text-slate-950">
+                                Passo {actionPlanGuideStep} de 3
+                              </p>
+                            </div>
 
-                    <textarea
-                      value={actionPlanForm.description}
-                      onChange={(event) => setActionPlanForm((prev) => ({ ...prev, description: event.target.value }))}
-                      placeholder="Descricao da medida a ser adotada"
-                      rows={4}
-                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                    />
+                            <p className="text-sm text-slate-600">
+                              {actionPlanGuideStep === 1
+                                ? "O que vamos fazer?"
+                                : actionPlanGuideStep === 2
+                                  ? "Quem fará e até quando?"
+                                  : "Como vamos acompanhar e comprovar?"}
+                            </p>
+                          </div>
 
-                    <div className="grid gap-3 md:grid-cols-3">
-                      <input
-                        value={actionPlanForm.measure_type}
-                        onChange={(event) => setActionPlanForm((prev) => ({ ...prev, measure_type: event.target.value }))}
-                        placeholder="Tipo da medida"
-                        className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                      />
-                      <input
-                        value={actionPlanForm.priority}
-                        onChange={(event) => setActionPlanForm((prev) => ({ ...prev, priority: event.target.value }))}
-                        placeholder="Prioridade"
-                        className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                      />
-                      <input
-                        value={actionPlanForm.status}
-                        onChange={(event) => setActionPlanForm((prev) => ({ ...prev, status: event.target.value }))}
-                        placeholder="Status"
-                        className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                      />
+                          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+                            <div
+                              className="h-full rounded-full bg-slate-900 transition-all"
+                              style={{ width: `${Math.round((actionPlanGuideStep / 3) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {actionPlans.length > 0 ? (
+                          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                            Este risco já possui {actionPlans.length} Plano{actionPlans.length === 1 ? "" : "s"} de Ação registrado{actionPlans.length === 1 ? "" : "s"}. Você pode revisar os registros abaixo ou adicionar outra ação.
+                          </div>
+                        ) : null}
+
+                        {actionPlanGuideStep === 1 ? (
+                          <div className="space-y-4">
+                            <div>
+                              <label className="text-sm font-semibold text-slate-800">
+                                O que vamos fazer?
+                              </label>
+                              <p className="mt-1 text-xs leading-5 text-slate-500">
+                                Dê um nome curto e objetivo para a ação.
+                              </p>
+                              <input
+                                value={actionPlanForm.title}
+                                onChange={(event) =>
+                                  setActionPlanForm((prev) => ({
+                                    ...prev,
+                                    title: event.target.value,
+                                  }))
+                                }
+                                placeholder="Ex.: Organizar fluxo de demandas e reduzir interrupções"
+                                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-3 text-sm"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-sm font-semibold text-slate-800">
+                                Como isso será feito?
+                              </label>
+                              <p className="mt-1 text-xs leading-5 text-slate-500">
+                                Descreva a medida de forma que qualquer pessoa consiga entender o que precisa ser realizado.
+                              </p>
+                              <textarea
+                                value={actionPlanForm.description}
+                                onChange={(event) =>
+                                  setActionPlanForm((prev) => ({
+                                    ...prev,
+                                    description: event.target.value,
+                                  }))
+                                }
+                                placeholder="Descreva a ação de melhoria..."
+                                rows={5}
+                                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-3 text-sm"
+                              />
+                            </div>
+
+                            <div className="flex justify-end">
+                              <button
+                                type="button"
+                                disabled={
+                                  actionPlanForm.title.trim().length < 3 ||
+                                  actionPlanForm.description.trim().length < 3
+                                }
+                                onClick={() => setActionPlanGuideStep(2)}
+                                className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                Continuar
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {actionPlanGuideStep === 2 ? (
+                          <div className="space-y-4">
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <label className="block">
+                                <span className="text-sm font-semibold text-slate-800">
+                                  Tipo de medida
+                                </span>
+                                <select
+                                  value={actionPlanForm.measure_type}
+                                  onChange={(event) =>
+                                    setActionPlanForm((prev) => ({
+                                      ...prev,
+                                      measure_type: event.target.value,
+                                    }))
+                                  }
+                                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm"
+                                >
+                                  <option value="organizational">Medida organizacional</option>
+                                  <option value="administrative">Medida administrativa</option>
+                                  <option value="collective">Medida coletiva</option>
+                                  <option value="training">Treinamento ou orientação</option>
+                                  <option value="other">Outra medida</option>
+                                </select>
+                              </label>
+
+                              <label className="block">
+                                <span className="text-sm font-semibold text-slate-800">
+                                  Prioridade
+                                </span>
+                                <select
+                                  value={actionPlanForm.priority}
+                                  onChange={(event) =>
+                                    setActionPlanForm((prev) => ({
+                                      ...prev,
+                                      priority: event.target.value,
+                                    }))
+                                  }
+                                  className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm"
+                                >
+                                  <option value="low">Baixa</option>
+                                  <option value="medium">Média</option>
+                                  <option value="high">Alta</option>
+                                </select>
+                              </label>
+                            </div>
+
+                            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+                              <span className="text-slate-500">Situação inicial:</span>{" "}
+                              <strong>Em aberto</strong>
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                              <label className="block">
+                                <span className="text-sm font-semibold text-slate-800">
+                                  Quem ficará responsável?
+                                </span>
+                                <input
+                                  value={actionPlanForm.responsible_name}
+                                  onChange={(event) =>
+                                    setActionPlanForm((prev) => ({
+                                      ...prev,
+                                      responsible_name: event.target.value,
+                                    }))
+                                  }
+                                  placeholder="Ex.: RH, gestor da área, liderança..."
+                                  className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-3 text-sm"
+                                />
+                              </label>
+
+                              <label className="block">
+                                <span className="text-sm font-semibold text-slate-800">
+                                  Até quando?
+                                </span>
+                                <input
+                                  type="date"
+                                  value={actionPlanForm.due_date}
+                                  onChange={(event) =>
+                                    setActionPlanForm((prev) => ({
+                                      ...prev,
+                                      due_date: event.target.value,
+                                    }))
+                                  }
+                                  className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-3 text-sm"
+                                />
+                              </label>
+                            </div>
+
+                            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                              <button
+                                type="button"
+                                onClick={() => setActionPlanGuideStep(1)}
+                                className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold"
+                              >
+                                Voltar
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={
+                                  actionPlanForm.responsible_name.trim().length < 2 ||
+                                  !actionPlanForm.due_date
+                                }
+                                onClick={() => setActionPlanGuideStep(3)}
+                                className="rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                Continuar
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {actionPlanGuideStep === 3 ? (
+                          <div className="space-y-4">
+                            <div>
+                              <label className="text-sm font-semibold text-slate-800">
+                                Como vamos acompanhar?
+                              </label>
+                              <textarea
+                                value={actionPlanForm.monitoring_method}
+                                onChange={(event) =>
+                                  setActionPlanForm((prev) => ({
+                                    ...prev,
+                                    monitoring_method: event.target.value,
+                                  }))
+                                }
+                                placeholder="Ex.: revisão semanal, reunião mensal, checklist..."
+                                rows={3}
+                                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-3 text-sm"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-sm font-semibold text-slate-800">
+                                O que vai comprovar que a ação foi realizada?
+                              </label>
+                              <textarea
+                                value={actionPlanForm.evidence_method}
+                                onChange={(event) =>
+                                  setActionPlanForm((prev) => ({
+                                    ...prev,
+                                    evidence_method: event.target.value,
+                                  }))
+                                }
+                                placeholder="Ex.: ata, checklist, registro, foto, documento..."
+                                rows={3}
+                                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-3 text-sm"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-sm font-semibold text-slate-800">
+                                Como saberemos que esta ação foi concluída?
+                              </label>
+                              <textarea
+                                value={actionPlanForm.completion_indicator}
+                                onChange={(event) =>
+                                  setActionPlanForm((prev) => ({
+                                    ...prev,
+                                    completion_indicator: event.target.value,
+                                  }))
+                                }
+                                placeholder="Descreva um resultado verificável."
+                                rows={3}
+                                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-3 text-sm"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="text-sm font-semibold text-slate-800">
+                                Observações
+                              </label>
+                              <textarea
+                                value={actionPlanForm.notes}
+                                onChange={(event) =>
+                                  setActionPlanForm((prev) => ({
+                                    ...prev,
+                                    notes: event.target.value,
+                                  }))
+                                }
+                                placeholder="Informações adicionais, se necessário."
+                                rows={3}
+                                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-3 text-sm"
+                              />
+                            </div>
+
+                            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+                              <button
+                                type="button"
+                                onClick={() => setActionPlanGuideStep(2)}
+                                className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold"
+                              >
+                                Voltar
+                              </button>
+
+                              <button
+                                type="submit"
+                                disabled={actionPlanStatus === "saving" || selectedGeneratedRiskNeedsHumanReview}
+                                className="rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {actionPlanStatus === "saving"
+                                  ? "Salvando Plano de Ação..."
+                                  : "Criar plano vinculado ao risco"}
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    )
+                  ) : selectedInventoryRisk && !selectedGeneratedRiskNeedsHumanReview ? (
+                    <div className="mt-5 rounded-2xl border border-[#d8c7ae] bg-[#fffaf3] p-5">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8a6b35]">
+                        Próximo passo
+                      </p>
+                      <p className="mt-2 font-semibold text-slate-950">
+                        {actionPlans.length > 0
+                          ? "Este risco já possui Plano de Ação."
+                          : "Risco revisado. Agora transforme a decisão em uma ação acompanhável."}
+                      </p>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">
+                        O Plano de Ação fica em uma etapa própria para evitar mistura entre revisão do risco e definição das medidas.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const riskId =
+                            firstString(selectedInventoryRisk, ["id"]) ||
+                            selectedRiskId ||
+                            "";
+
+                          window.location.href =
+                            "/dashboard/nr1/workspace?section=plano" +
+                            (riskId
+                              ? "&riskId=" + encodeURIComponent(riskId)
+                              : "");
+                        }}
+                        className="mt-4 rounded-xl bg-slate-950 px-5 py-2.5 text-sm font-semibold text-white"
+                      >
+                        {actionPlans.length > 0
+                          ? "Ver Plano de Ação"
+                          : "Criar Plano de Ação"}
+                      </button>
                     </div>
+                  ) : null}
 
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <input
-                        type="date"
-                        value={actionPlanForm.due_date}
-                        onChange={(event) => setActionPlanForm((prev) => ({ ...prev, due_date: event.target.value }))}
-                        className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                      />
-                      <input
-                        value={actionPlanForm.responsible_name}
-                        onChange={(event) => setActionPlanForm((prev) => ({ ...prev, responsible_name: event.target.value }))}
-                        placeholder="Responsavel"
-                        className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                      />
-                    </div>
-
-                    <textarea
-                      value={actionPlanForm.monitoring_method}
-                      onChange={(event) => setActionPlanForm((prev) => ({ ...prev, monitoring_method: event.target.value }))}
-                      placeholder="Como sera monitorado"
-                      rows={3}
-                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                    />
-
-                    <textarea
-                      value={actionPlanForm.evidence_method}
-                      onChange={(event) => setActionPlanForm((prev) => ({ ...prev, evidence_method: event.target.value }))}
-                      placeholder="Qual evidencia comprovara a acao"
-                      rows={3}
-                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                    />
-
-                    <textarea
-                      value={actionPlanForm.completion_indicator}
-                      onChange={(event) => setActionPlanForm((prev) => ({ ...prev, completion_indicator: event.target.value }))}
-                      placeholder="Indicador de conclusao"
-                      rows={3}
-                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                    />
-
-                    <textarea
-                      value={actionPlanForm.notes}
-                      onChange={(event) => setActionPlanForm((prev) => ({ ...prev, notes: event.target.value }))}
-                      placeholder="Observacoes"
-                      rows={3}
-                      className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={actionPlanStatus === "saving" || selectedGeneratedRiskNeedsHumanReview}
-                    className="mt-5 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
-                  >
-                    {selectedGeneratedRiskNeedsHumanReview
-                      ? "Confirme o risco antes de criar o plano"
-                      : actionPlanStatus === "saving"
-                        ? "Salvando plano..."
-                        : "Criar plano vinculado ao risco"}
-                  </button>
                 </form>
               </div>
 
-              <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div
+                className={
+                  effectiveActiveSection === "plano"
+                    ? "rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+                    : "hidden"
+                }
+              >
                 <h3 className="text-lg font-semibold">Planos do risco selecionado</h3>
                 <p className="mt-1 text-sm text-slate-500">
                   Acoes vinculadas ao risco selecionado.
