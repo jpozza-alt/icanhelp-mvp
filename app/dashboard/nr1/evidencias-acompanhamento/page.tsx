@@ -396,7 +396,7 @@ function getPsychosocialFactorStatusClassName(status: string | null | undefined)
 function formatValidationStatus(value: string | null | undefined) {
   switch (String(value || "").trim().toLowerCase()) {
     case "pending_validation":
-      return "pendente de validacao";
+      return "Aguardando validação";
     case "validated":
       return "validado";
     case "rejected":
@@ -458,6 +458,8 @@ function Nr1EvidenciasAcompanhamentoContent() {
   const [info, setInfo] = useState("");
   const [saving, setSaving] = useState(false);
   const [archivingEvidenceId, setArchivingEvidenceId] = useState<string | null>(null);
+  const [lastSavedEvidenceId, setLastSavedEvidenceId] = useState("");
+  const [highlightedEvidenceId, setHighlightedEvidenceId] = useState("");
   const [form, setForm] = useState({
     title: "",
     evidence_type: "document",
@@ -1047,6 +1049,67 @@ const pendingValidationCount = useMemo(() => {
     })();
   }, [jwt, tenantId, selectedEstablishmentId, urlDiagnosisSessionId]);
 
+  useEffect(() => {
+    if (!lastSavedEvidenceId) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      const target = document.getElementById(
+        "evidence-item-" + lastSavedEvidenceId
+      );
+
+      if (!target) {
+        return;
+      }
+
+      setHighlightedEvidenceId(lastSavedEvidenceId);
+
+      target.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 900);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [lastSavedEvidenceId, items.length]);
+
+  useEffect(() => {
+    if (!highlightedEvidenceId) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setHighlightedEvidenceId((current) =>
+        current === highlightedEvidenceId ? "" : current
+      );
+    }, 4500);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [highlightedEvidenceId]);
+
+  function focusLastSavedEvidence() {
+    if (!lastSavedEvidenceId) {
+      return;
+    }
+
+    const target = document.getElementById(
+      "evidence-item-" + lastSavedEvidenceId
+    );
+
+    if (target) {
+      target.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+
+    setHighlightedEvidenceId(lastSavedEvidenceId);
+  }
   function resetEvidenceForm() {
     const singleActionPlanId =
       actionPlans.length === 1
@@ -1141,6 +1204,13 @@ const pendingValidationCount = useMemo(() => {
         throw new Error(getErrorMessage(createPayload, "Falha ao gravar evidência no backend real."));
       }
 
+      const createdEvidenceRecord = asApiRecord(
+        asApiRecord(createPayload).data
+      );
+      const createdEvidenceId = String(
+        createdEvidenceRecord.id ?? ""
+      ).trim();
+
       const refreshResponse = await fetch(
         "/api/nr1/evidence-items?establishmentId=" + encodeURIComponent(selectedEstablishmentId),
         {
@@ -1159,9 +1229,25 @@ const pendingValidationCount = useMemo(() => {
         throw new Error(getErrorMessage(refreshPayload, "A evidência foi criada, mas a releitura da lista falhou."));
       }
 
-      setItems(parseEvidenceItems(refreshPayload));
+      const refreshedItems = parseEvidenceItems(refreshPayload);
+
+      setItems(refreshedItems);
       resetEvidenceForm();
-      setInfo("Evidência gravada com sucesso no backend real.");
+
+      if (
+        createdEvidenceId &&
+        refreshedItems.some((item) => item.id === createdEvidenceId)
+      ) {
+        setLastSavedEvidenceId(createdEvidenceId);
+        setHighlightedEvidenceId("");
+        setInfo("");
+      } else {
+        setLastSavedEvidenceId("");
+        setHighlightedEvidenceId("");
+        setInfo(
+          "Evidência salva com sucesso. Ela já está registrada e aguarda validação."
+        );
+      }
     } catch (e: unknown) {
       setError(getExceptionMessage(e, "Falha ao gravar evidência."));
     } finally {
@@ -1284,28 +1370,28 @@ return (
           <div className="mt-5 grid gap-4 md:grid-cols-4">
             <div className="rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#A36B16]">
-                evidências
+                evidências salvas
               </div>
               <div className="mt-2 text-2xl font-semibold text-[#10243E]">{items.length}</div>
             </div>
 
             <div className="rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#A36B16]">
-                pendentes
+                aguardando validação
               </div>
               <div className="mt-2 text-2xl font-semibold text-[#10243E]">{pendingValidationCount}</div>
             </div>
 
             <div className="rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#A36B16]">
-                ligadas à ação
+                vinculadas a Plano de Ação
               </div>
               <div className="mt-2 text-2xl font-semibold text-[#10243E]">{linkedActionPlanCount}</div>
             </div>
 
             <div className="rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#A36B16]">
-                ligadas ao acompanhamento
+                vinculadas a acompanhamento
               </div>
               <div className="mt-2 text-2xl font-semibold text-[#10243E]">{linkedFollowupCount}</div>
             </div>
@@ -1324,6 +1410,44 @@ return (
           {info ? (
             <div className="mt-4 rounded-2xl border border-[#D6E3EE] bg-[#F2F7FB] px-4 py-3 text-sm text-[#45647F]">
               {info}
+            </div>
+          ) : null}
+          {lastSavedEvidenceId ? (
+            <div className="mt-4 rounded-[22px] border border-[#BFD9C4] bg-[#F2F8F3] p-5">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#4E7355]">
+                    evidência salva
+                  </div>
+
+                  <h3 className="mt-2 text-lg font-semibold text-[#10243E]">
+                    Evidência salva com sucesso.
+                  </h3>
+
+                  <p className="mt-2 text-sm leading-6 text-[#60718A]">
+                    Ela já está registrada e vinculada ao Plano de Ação.
+                    A validação é uma etapa posterior.
+                  </p>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="rounded-full border border-[#BFD9C4] bg-white px-3 py-1.5 text-xs font-semibold text-[#4E7355]">
+                      Registro: Salvo
+                    </span>
+
+                    <span className="rounded-full border border-[#E9D4C4] bg-[#FBF5EF] px-3 py-1.5 text-xs font-semibold text-[#8B5E34]">
+                      Validação: Aguardando validação
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={focusLastSavedEvidence}
+                  className="rounded-xl bg-[#10243E] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(16,36,62,0.14)] transition hover:bg-[#0B1A2D]"
+                >
+                  Ver evidência salva
+                </button>
+              </div>
             </div>
           ) : null}
         </section>
@@ -1742,8 +1866,14 @@ return (
             <div className="mt-4 space-y-4">
               {items.map((item, index) => (
                 <article
+                  id={"evidence-item-" + item.id}
                   key={item.id}
-                  className="rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] p-5"
+                  className={
+                    "rounded-2xl border bg-[#F4ECE2] p-5 transition-all duration-300 " +
+                    (highlightedEvidenceId === item.id
+                      ? "border-[#D6B56C] ring-2 ring-[#D6B56C]/60 ring-offset-4 ring-offset-[#FFFCF7] shadow-[0_14px_32px_rgba(16,36,62,0.14)]"
+                      : "border-[#E2D4BF]")
+                  }
                 >
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
@@ -1764,6 +1894,10 @@ return (
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-3">
+                    <div className="rounded-full border border-[#BFD9C4] bg-[#F2F8F3] px-3 py-2 text-xs font-semibold text-[#4E7355]">
+                      Registro: Salvo
+                    </div>
+
                     <div className={"rounded-full border px-3 py-2 text-xs font-semibold " + getValidationBadgeClass(item.validation_status)}>
                       Validação: {formatValidationStatus(item.validation_status)}
                     </div>
