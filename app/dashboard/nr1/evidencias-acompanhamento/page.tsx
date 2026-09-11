@@ -9,6 +9,9 @@ import {
   getNr1FullJourneyProgress,
   type Nr1FullJourneyProgressState,
 } from "@/lib/nr1-journey";
+import {
+  useNr1WorkspaceContext,
+} from "@/lib/nr1-workspace-context";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -168,54 +171,6 @@ function getErrorMessage(payload: unknown, fallback: string): string {
 
 function getExceptionMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
-}
-
-function workspaceSelectionStorageKey(tenantId: string): string {
-  return "nr1_workspace_selection:" + tenantId;
-}
-
-function getStoredWorkspaceEstablishmentId(tenantId: string): string {
-  if (!tenantId || typeof window === "undefined") {
-    return "";
-  }
-
-  try {
-    const raw = window.localStorage.getItem(workspaceSelectionStorageKey(tenantId));
-    if (!raw) {
-      return "";
-    }
-
-    const parsed = JSON.parse(raw) as unknown;
-    const record = asApiRecord(parsed);
-    return String(record.establishmentId || "").trim();
-  } catch {
-    return "";
-  }
-}
-
-function setStoredWorkspaceEstablishmentId(tenantId: string, establishmentId: string): void {
-  if (!tenantId || !establishmentId || typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    const raw = window.localStorage.getItem(workspaceSelectionStorageKey(tenantId));
-    const parsed = raw ? (JSON.parse(raw) as unknown) : {};
-    const current = asApiRecord(parsed);
-
-    window.localStorage.setItem(
-      workspaceSelectionStorageKey(tenantId),
-      JSON.stringify({
-        ...current,
-        establishmentId,
-      })
-    );
-  } catch {
-    window.localStorage.setItem(
-      workspaceSelectionStorageKey(tenantId),
-      JSON.stringify({ establishmentId })
-    );
-  }
 }
 
 function findValidEstablishmentId(establishments: EstablishmentItem[], establishmentId: string): string {
@@ -432,6 +387,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const workspaceContextState = useNr1WorkspaceContext();
 
   const [jwt, setJwt] = useState("");
   const [tenantId, setTenantId] = useState("");
@@ -484,11 +440,7 @@ function Nr1EvidenciasAcompanhamentoContent() {
   const evidenceJourneyProgressPercent =
     evidenceJourneyProgress.percent;
 
-  const urlEstablishmentId = useMemo(() => {
-    return (searchParams.get("establishmentId") || searchParams.get("establishment_id") || "").trim();
-  }, [searchParams]);
-
-  const urlDiagnosisSessionId = useMemo(() => {
+const urlDiagnosisSessionId = useMemo(() => {
     return (
       searchParams.get("diagnosisSessionId") ||
       searchParams.get("diagnosis_session_id") ||
@@ -542,52 +494,118 @@ const pendingValidationCount = useMemo(() => {
       setInfo("");
 
       try {
-        const { data, error: sessionError } = await supabase.auth.getSession();
+        const { data, error: sessionError } =
+          await supabase.auth.getSession();
 
         if (sessionError) {
           throw sessionError;
         }
 
         const accessToken = data.session?.access_token;
+
         if (!accessToken) {
-          router.replace("/login?next=" + encodeURIComponent(pathname || "/dashboard"));
+          router.replace(
+            "/login?next=" +
+              encodeURIComponent(pathname || "/dashboard")
+          );
           return;
         }
 
         setJwt(accessToken);
-
-        const tenantsResponse = await fetch("/api/tenants", {
-          method: "GET",
-          headers: {
-            Authorization: "Bearer " + accessToken,
-          },
-          cache: "no-store",
-        });
-
-        const tenantsPayload = await readJsonSafe(tenantsResponse);
-
-        if (!tenantsResponse.ok) {
-          throw new Error(getErrorMessage(tenantsPayload, "Falha ao carregar tenants."));
-        }
-
-        const parsedTenants = parseTenants(tenantsPayload);
-        setTenants(parsedTenants);
-
-        if (parsedTenants.length === 0) {
-          throw new Error("Nenhum tenant encontrado para esta sessao.");
-        }
-
-        setTenantId(parsedTenants[0].id);
       } catch (e: unknown) {
-        setError(getExceptionMessage(e, "Falha ao carregar sessão."));
+        setError(
+          getExceptionMessage(e, "Falha ao carregar sessão.")
+        );
       } finally {
         setLoadingSession(false);
       }
     })();
   }, [pathname, router]);
+  useEffect(() => {
+    if (workspaceContextState.status === "loading") {
+      return;
+    }
+
+    if (workspaceContextState.status === "error") {
+      setTenantId("");
+      setSelectedEstablishmentId("");
+      setError(
+        "Não foi possível validar o contexto ativo da empresa. " +
+          workspaceContextState.error
+      );
+      return;
+    }
+
+    setTenantId(workspaceContextState.context.tenantId);
+    setSelectedEstablishmentId(
+      workspaceContextState.context.establishmentId
+    );
+    updateUrlEstablishmentId(
+      workspaceContextState.context.establishmentId
+    );
+  }, [workspaceContextState]);
 
   useEffect(() => {
-    if (!jwt || !tenantId) {
+    if (
+      !jwt ||
+      workspaceContextState.status !== "ready"
+    ) {
+      return;
+    }
+
+    (async () => {
+      try {
+        const tenantsResponse = await fetch("/api/tenants", {
+          method: "GET",
+          headers: {
+            Authorization: "Bearer " + jwt,
+          },
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+
+        const tenantsPayload =
+          await readJsonSafe(tenantsResponse);
+
+        if (!tenantsResponse.ok) {
+          throw new Error(
+            getErrorMessage(
+              tenantsPayload,
+              "Falha ao carregar tenants."
+            )
+          );
+        }
+
+        const parsedTenants = parseTenants(tenantsPayload);
+        const activeTenantExists = parsedTenants.some(
+          (item) =>
+            item.id === workspaceContextState.context.tenantId
+        );
+
+        if (!activeTenantExists) {
+          throw new Error("active_tenant_unavailable");
+        }
+
+        setTenants(parsedTenants);
+      } catch (e: unknown) {
+        setTenants([]);
+        setError(
+          getExceptionMessage(
+            e,
+            "Falha ao carregar o tenant ativo."
+          )
+        );
+      }
+    })();
+  }, [jwt, workspaceContextState]);
+
+
+  useEffect(() => {
+    if (
+      !jwt ||
+      !tenantId ||
+      workspaceContextState.status !== "ready"
+    ) {
       return;
     }
 
@@ -609,31 +627,44 @@ const pendingValidationCount = useMemo(() => {
         const payload = await readJsonSafe(response);
 
         if (!response.ok) {
-          throw new Error(getErrorMessage(payload, "Falha ao carregar estabelecimentos."));
+          throw new Error(
+            getErrorMessage(
+              payload,
+              "Falha ao carregar estabelecimentos."
+            )
+          );
         }
 
-        const parsedEstablishments = parseEstablishments(payload);
+        const parsedEstablishments =
+          parseEstablishments(payload);
         setEstablishments(parsedEstablishments);
 
-        if (parsedEstablishments.length === 0) {
-          setSelectedEstablishmentId("");
-          setInfo("Nenhum estabelecimento encontrado para este tenant.");
-          return;
+        const activeEstablishmentId =
+          findValidEstablishmentId(
+            parsedEstablishments,
+            workspaceContextState.context.establishmentId
+          );
+
+        if (!activeEstablishmentId) {
+          throw new Error("active_establishment_unavailable");
         }
 
-        const nextSelectedEstablishmentId =
-          findValidEstablishmentId(parsedEstablishments, urlEstablishmentId) ||
-          findValidEstablishmentId(parsedEstablishments, getStoredWorkspaceEstablishmentId(tenantId)) ||
-          parsedEstablishments[0].id;
-
-        setSelectedEstablishmentId(nextSelectedEstablishmentId);
+        setSelectedEstablishmentId(activeEstablishmentId);
+        updateUrlEstablishmentId(activeEstablishmentId);
       } catch (e: unknown) {
-        setError(getExceptionMessage(e, "Falha ao carregar estabelecimentos."));
+        setEstablishments([]);
+        setSelectedEstablishmentId("");
+        setError(
+          getExceptionMessage(
+            e,
+            "Falha ao carregar o estabelecimento ativo."
+          )
+        );
       } finally {
         setLoadingEstablishments(false);
       }
     })();
-  }, [jwt, tenantId, urlEstablishmentId]);
+  }, [jwt, tenantId, workspaceContextState]);
 
   useEffect(() => {
     if (!jwt || !tenantId || !selectedEstablishmentId) {
@@ -1145,13 +1176,7 @@ const pendingValidationCount = useMemo(() => {
     }
   }
 
-  function handleSelectedEstablishmentChange(establishmentId: string) {
-    setSelectedEstablishmentId(establishmentId);
-    setStoredWorkspaceEstablishmentId(tenantId, establishmentId);
-    updateUrlEstablishmentId(establishmentId);
-  }
-
-  return (
+return (
     <Nr1WorkspaceV2Shell
       companyName={selectedTenant?.name || "Empresa não selecionada"}
       establishmentName={selectedEstablishment?.name || "Unidade não selecionada"}
@@ -1253,9 +1278,8 @@ const pendingValidationCount = useMemo(() => {
               <label className="text-sm font-semibold text-[#10243E]">Estabelecimento selecionado</label>
               <select
                 value={selectedEstablishmentId}
-                onChange={(e) => handleSelectedEstablishmentChange(e.target.value)}
                 className={inputClassName}
-                disabled={loadingEstablishments || establishments.length === 0}
+                disabled
               >
                 {establishments.length === 0 ? (
                   <option value="">Nenhum estabelecimento</option>
