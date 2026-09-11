@@ -1279,6 +1279,7 @@ export default function Nr1WorkspacePage() {
   const [reviewForm, setReviewForm] = useState<DiagnosisReviewForm>(INITIAL_DIAGNOSIS_REVIEW_FORM);
   const [risks, setRisks] = useState<SimpleEntity[]>([]);
   const [actionPlans, setActionPlans] = useState<SimpleEntity[]>([]);
+  const [allActionPlans, setAllActionPlans] = useState<SimpleEntity[]>([]);
   const [selectedRiskId, setSelectedRiskId] = useState<string>("");
   const [riskForm, setRiskForm] = useState<RiskForm>(INITIAL_RISK_FORM);
   const [riskStatus, setRiskStatus] = useState<FormStatus>("idle");
@@ -1781,6 +1782,28 @@ useEffect(() => {
         !isGeneratedDiagnosisRiskEntity(item) ||
         isGeneratedDiagnosisRiskActionReady(item)
     );
+  const hasAnyActionPlan =
+    allActionPlans.length > 0;
+
+  const journeyFocusStepId =
+    !hasCompany
+      ? "empresa"
+      : !hasEstablishment
+        ? "estabelecimento"
+        : !hasDepartment
+          ? "setores"
+          : !hasActivity
+            ? "atividades"
+            : !officialDiagnosisReady
+              ? "diagnostico-inicial"
+              : hasPendingGeneratedRiskReview
+                ? "riscos"
+                : hasRiskReadyForActionPlan && !hasAnyActionPlan
+                  ? "plano-de-acao"
+                  : hasAnyActionPlan
+                    ? "evidencias"
+                    : "riscos";
+
   const fullJourneyStepItems = NR1_JOURNEY_STEPS.map((step) => {
     const isComplete =
       step.id === "boas-vindas" ||
@@ -1790,26 +1813,10 @@ useEffect(() => {
       (step.id === "atividades" && hasActivity) ||
       (step.id === "diagnostico-inicial" && officialDiagnosisReady) ||
       (step.id === "riscos" && hasRiskReadyForActionPlan) ||
-      (step.id === "plano-de-acao" && actionPlans.length > 0);
+      (step.id === "plano-de-acao" && hasAnyActionPlan);
 
     const isCurrent =
-      (step.id === "empresa" && onboardingCurrentStep.key === "empresa") ||
-      (step.id === "estabelecimento" && onboardingCurrentStep.key === "estabelecimento") ||
-      (step.id === "setores" && onboardingCurrentStep.key === "setor") ||
-      (step.id === "atividades" && onboardingCurrentStep.key === "atividade") ||
-      (step.id === "diagnostico-inicial" && effectiveActiveSection === "diagnostico") ||
-      (
-        step.id === "riscos" &&
-        effectiveActiveSection === "riscos" &&
-        !hasRiskReadyForActionPlan
-      ) ||
-      (
-        step.id === "plano-de-acao" &&
-        (effectiveActiveSection === "riscos" || effectiveActiveSection === "plano") &&
-        hasRiskReadyForActionPlan &&
-        actionPlans.length === 0
-      ) ||
-      (step.id === "revisoes-auditoria" && effectiveActiveSection === "auditoria");
+      step.id === journeyFocusStepId;
 
     const status = isComplete
       ? "Concluído"
@@ -2515,6 +2522,9 @@ useEffect(() => {
       contextRef.current = nextContext;
       setContext(nextContext);
       setSaveStatus("loading");
+      setRisks([]);
+      setActionPlans([]);
+      setAllActionPlans([]);
 
       try {
         const selected = establishments.find((item) => item.id === establishmentId);
@@ -2583,6 +2593,7 @@ useEffect(() => {
       setActivities([]);
       setRisks([]);
       setActionPlans([]);
+      setAllActionPlans([]);
       setAuditEvents([]);
       setDraft(DEFAULT_DRAFT);
       setDiagnosisActivityId("");
@@ -3797,10 +3808,22 @@ useEffect(() => {
 
       try {
         const loadedRisks = await loadRisks(currentContext);
-        const effectiveRiskId = riskId || selectedRiskId || firstString(loadedRisks[0], ["id"]) || "";
-        const loadedActionPlans = await loadActionPlans(currentContext, effectiveRiskId || undefined);
+        const effectiveRiskId =
+          riskId ||
+          selectedRiskId ||
+          firstString(loadedRisks[0], ["id"]) ||
+          "";
+
+        const loadedAllActionPlans =
+          await loadActionPlans(currentContext);
+
+        const loadedActionPlans =
+          effectiveRiskId
+            ? await loadActionPlans(currentContext, effectiveRiskId)
+            : loadedAllActionPlans;
 
         setRisks(loadedRisks);
+        setAllActionPlans(loadedAllActionPlans);
         setActionPlans(loadedActionPlans);
 
         if (effectiveRiskId) {
@@ -4376,133 +4399,177 @@ useEffect(() => {
   );
 
   const workspaceV2ActiveModule =
-    effectiveActiveSection === "cadastros"
-      ? "Base"
-      : effectiveActiveSection === "diagnostico"
-        ? "Mapeamento"
-        : effectiveActiveSection === "riscos"
+    journeyFocusStepId === "evidencias"
+      ? "Evidências"
+      : journeyFocusStepId === "plano-de-acao"
+        ? "Plano"
+        : journeyFocusStepId === "riscos"
           ? "Riscos"
-          : effectiveActiveSection === "plano"
-            ? "Plano"
-            : "Base"
+          : journeyFocusStepId === "diagnostico-inicial"
+            ? "Mapeamento"
+            : "Base";
 
-  const workspaceV2PendingItems = [
-    hasCompany ? "Empresa revisada" : "Revisar empresa",
-    hasEstablishment ? "Local de trabalho selecionado" : "Selecionar local de trabalho",
-    hasDepartment ? "Setores cadastrados" : "Cadastrar setor",
-    hasActivity ? "Atividades cadastradas" : "Cadastrar atividade",
-  ];
+  const workspaceV2PendingItems =
+    journeyFocusStepId === "evidencias"
+      ? [
+          "Registrar evidências da execução",
+          "Acompanhar o resultado da medida",
+          "Manter os registros vinculados ao risco e ao plano",
+        ]
+      : journeyFocusStepId === "plano-de-acao"
+        ? [
+            "Definir a medida de controle",
+            "Definir responsável e prazo",
+            "Definir como acompanhar e comprovar a ação",
+          ]
+        : journeyFocusStepId === "riscos"
+          ? [
+              "Revisar os riscos identificados",
+              "Confirmar o risco aplicável",
+              "Manter coerência com o diagnóstico",
+            ]
+          : journeyFocusStepId === "diagnostico-inicial"
+            ? [
+                "Descrever a rotina real",
+                "Revisar os fatores relacionados ao trabalho",
+                "Concluir o diagnóstico guiado",
+              ]
+            : [
+                hasCompany ? "Empresa revisada" : "Revisar empresa",
+                hasEstablishment ? "Local selecionado" : "Selecionar local de trabalho",
+                hasDepartment ? "Setores cadastrados" : "Cadastrar setor",
+                hasActivity ? "Atividades cadastradas" : "Cadastrar atividade",
+              ];
 
-  const workspaceV2ProgressDescription = !isWorkspaceMode
-    ? "Continue pela base inicial para liberar riscos, plano de ação e PGR."
-    : hasPendingGeneratedRiskReview
-      ? "Diagnóstico concluído. O risco sugerido aguarda revisão humana antes do Plano de Ação."
-      : hasRiskReadyForActionPlan && actionPlans.length === 0
-        ? "Risco confirmado. Próximo foco: definir o Plano de Ação."
-        : actionPlans.length > 0
-          ? "Plano de Ação registrado. Próximo foco: acompanhar a execução e reunir evidências."
-          : officialDiagnosisReady
-          ? "Diagnóstico concluído. Acompanhe riscos, ações e evidências da jornada."
-          : "Base pronta. Próximo foco: mapear a rotina real de trabalho.";
+  const workspaceV2ProgressDescription =
+    !isWorkspaceMode
+      ? "Continue pela base inicial para liberar riscos, plano de ação e PGR."
+      : journeyFocusStepId === "evidencias"
+        ? "Plano de Ação registrado. Próximo foco: acompanhar a execução e reunir evidências."
+        : journeyFocusStepId === "plano-de-acao"
+          ? "Risco confirmado. Próximo foco: definir o Plano de Ação."
+          : journeyFocusStepId === "riscos" && hasPendingGeneratedRiskReview
+            ? "Diagnóstico concluído. O risco sugerido aguarda revisão humana antes do Plano de Ação."
+            : journeyFocusStepId === "riscos"
+              ? "Diagnóstico concluído. Próximo foco: revisar os riscos identificados."
+              : journeyFocusStepId === "diagnostico-inicial"
+                ? "Base pronta. Próximo foco: mapear a rotina real de trabalho."
+                : "Complete a base inicial para continuar a jornada.";
 
-  const workspaceV2NextBestActionTitle = !isWorkspaceMode
-    ? "Concluir a base inicial da empresa"
-    : hasPendingGeneratedRiskReview
-      ? "Revisar e confirmar o risco sugerido"
-      : hasRiskReadyForActionPlan && actionPlans.length === 0
-        ? "Definir Plano de Ação para o risco confirmado"
-        : actionPlans.length > 0
-          ? "Registrar evidências da execução"
-          : officialDiagnosisReady
-          ? "Continuar a jornada a partir dos riscos"
-          : "Mapear a rotina real da atividade principal";
+  const workspaceV2NextBestActionTitle =
+    !isWorkspaceMode
+      ? "Concluir a base inicial da empresa"
+      : journeyFocusStepId === "evidencias"
+        ? "Registrar evidências da execução"
+        : journeyFocusStepId === "plano-de-acao"
+          ? "Definir Plano de Ação para o risco confirmado"
+          : journeyFocusStepId === "riscos" && hasPendingGeneratedRiskReview
+            ? "Revisar e confirmar o risco sugerido"
+            : journeyFocusStepId === "riscos"
+              ? "Revisar os riscos identificados"
+              : journeyFocusStepId === "diagnostico-inicial"
+                ? "Mapear a rotina real da atividade principal"
+                : "Concluir a base inicial da empresa";
 
-  const workspaceV2NextBestActionDescription = !isWorkspaceMode
-    ? "Complete empresa, local de trabalho, setor e atividade principal. Depois disso, a jornada segue para rotina, sinais, riscos e plano de ação."
-    : hasPendingGeneratedRiskReview
-      ? "Revise os dados do risco sugerido, confirme se representam a realidade do trabalho e só então libere o Plano de Ação."
-      : hasRiskReadyForActionPlan && actionPlans.length === 0
-        ? "O risco já passou pela revisão humana. Agora defina a ação, o responsável, o prazo e como a execução será comprovada."
-        : actionPlans.length > 0
-          ? "O Plano de Ação já foi registrado. Agora acompanhe a execução e vincule as evidências que comprovam o que foi realizado."
-          : officialDiagnosisReady
-          ? "Use o Inventário para manter riscos e ações coerentes com o diagnóstico e com as evidências."
-          : "A base inicial está pronta. Agora o sistema deve entender como o trabalho acontece na prática para transformar essa leitura em riscos, prioridades e plano de ação.";
+  const workspaceV2NextBestActionDescription =
+    !isWorkspaceMode
+      ? "Complete empresa, local de trabalho, setor e atividade principal."
+      : journeyFocusStepId === "evidencias"
+        ? "O Plano de Ação já foi registrado. Agora acompanhe a execução e vincule as evidências que comprovam o que foi realizado."
+        : journeyFocusStepId === "plano-de-acao"
+          ? "O risco já passou pela revisão humana. Agora defina a ação, responsável, prazo e acompanhamento."
+          : journeyFocusStepId === "riscos" && hasPendingGeneratedRiskReview
+            ? "Revise o risco sugerido e confirme se representa a realidade do trabalho."
+            : journeyFocusStepId === "riscos"
+              ? "Revise os riscos identificados e mantenha coerência com o diagnóstico."
+              : journeyFocusStepId === "diagnostico-inicial"
+                ? "Descreva como o trabalho acontece na prática para orientar riscos e medidas."
+                : "Complete os dados básicos antes de avançar.";
 
-  const workspaceV2PrimaryLabel = !isWorkspaceMode
-    ? "Continuar base guiada"
-    : hasPendingGeneratedRiskReview
-      ? "Revisar risco sugerido"
-      : hasRiskReadyForActionPlan && actionPlans.length === 0
-        ? "Definir Plano de Ação"
-        : actionPlans.length > 0
-          ? "Ir para Evidências"
-          : officialDiagnosisReady
-          ? "Abrir Inventário de riscos"
-          : "Mapear rotina da atividade";
+  const workspaceV2PrimaryLabel =
+    !isWorkspaceMode
+      ? "Continuar base guiada"
+      : journeyFocusStepId === "evidencias"
+        ? "Ir para Evidências"
+        : journeyFocusStepId === "plano-de-acao"
+          ? "Definir Plano de Ação"
+          : journeyFocusStepId === "riscos" && hasPendingGeneratedRiskReview
+            ? "Revisar risco sugerido"
+            : journeyFocusStepId === "riscos"
+              ? "Abrir Inventário de riscos"
+              : journeyFocusStepId === "diagnostico-inicial"
+                ? "Mapear rotina da atividade"
+                : "Continuar base guiada";
 
-    const shouldShowLegacyBaseForms = showGuidedSetup;
+  const shouldShowLegacyBaseForms = showGuidedSetup;
   const shouldShowPlanResourcesInMainFlow = false;
   const shouldShowLegacyEntityListsInMainFlow = false;
   const shouldShowWorkspaceIntroCardInMainFlow = false;
   const shouldShowWorkspaceContextSelectorsInMainFlow = false;
 
-  const workspaceV2NextBestActionReasons = isWorkspaceMode
-    ? [
-        "Empresa, local de trabalho, setor e atividade já existem.",
-        "A próxima decisão depende da rotina real de trabalho.",
-        "O PGR precisa de riscos priorizados e evidências.",
-      ]
-    : [
-        "A base inicial ainda não está completa.",
-        "O PGR depende da empresa, local de trabalho, setor e atividade.",
-        "A próxima etapa será liberada com a base pronta.",
-      ];
+  const workspaceV2NextBestActionReasons =
+    journeyFocusStepId === "evidencias"
+      ? [
+          "O Plano de Ação já está registrado.",
+          "A próxima etapa é comprovar e acompanhar a execução das medidas.",
+          "As evidências preservam a rastreabilidade entre risco, ação e resultado.",
+        ]
+      : journeyFocusStepId === "plano-de-acao"
+        ? [
+            "O risco já foi confirmado por revisão humana.",
+            "A ação precisa ter responsável, prazo e forma de acompanhamento.",
+            "O Plano de Ação permanece vinculado ao risco.",
+          ]
+        : journeyFocusStepId === "riscos"
+          ? [
+              "O diagnóstico já possui informações para revisão.",
+              "Risco sugerido exige revisão humana antes da consolidação.",
+              "A decisão deve representar a realidade do trabalho.",
+            ]
+          : [
+              "A base sustenta as etapas seguintes.",
+              "A jornada deve avançar de forma guiada.",
+              "O progresso deve refletir os registros oficiais.",
+            ];
 
   const handleWorkspaceV2PrimaryAction = () => {
-      if (!isWorkspaceMode) {
-        openGuidedSetupAtPendingStep();
-        return;
-      }
+    if (!isWorkspaceMode) {
+      openGuidedSetupAtPendingStep();
+      return;
+    }
 
-      if (actionPlans.length > 0) {
-        window.location.href = "/dashboard/nr1/evidencias-acompanhamento";
-        return;
-      }
+    if (journeyFocusStepId === "evidencias") {
+      window.location.href = "/dashboard/nr1/evidencias-acompanhamento";
+      return;
+    }
 
-      const nextSection =
-        hasPendingGeneratedRiskReview
-          ? "riscos"
-          : hasRiskReadyForActionPlan
-            ? "plano"
-            : officialDiagnosisReady
-              ? "riscos"
-              : "diagnostico";
+    if (journeyFocusStepId === "plano-de-acao") {
+      const riskId =
+        firstString(selectedInventoryRisk, ["id"]) ||
+        selectedRiskId ||
+        "";
 
-      if (nextSection === "plano") {
-        const riskId =
-          firstString(selectedInventoryRisk, ["id"]) ||
-          selectedRiskId ||
-          "";
+      window.location.href =
+        "/dashboard/nr1/workspace?section=plano" +
+        (riskId ? "&riskId=" + encodeURIComponent(riskId) : "");
+      return;
+    }
 
-        window.location.href =
-          "/dashboard/nr1/workspace?section=plano" +
-          (riskId ? "&riskId=" + encodeURIComponent(riskId) : "");
-        return;
-      }
+    if (journeyFocusStepId === "riscos") {
+      window.location.href = "/dashboard/nr1/workspace?section=riscos";
+      return;
+    }
 
+    if (journeyFocusStepId === "diagnostico-inicial") {
       patchDraft(
-        { activeSection: nextSection },
+        { activeSection: "diagnostico" },
         "workspace_v2_primary_action"
       );
+      return;
+    }
 
-      window.setTimeout(() => {
-        document.getElementById("nr1-operational-content")?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      }, 0);
-    };
+    openGuidedSetupAtPendingStep();
+  };
 
 
   return (

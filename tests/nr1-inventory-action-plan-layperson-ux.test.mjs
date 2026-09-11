@@ -208,7 +208,7 @@ test("journey orientation remains visible while scrolling", () => {
 
   assert.match(
     shell,
-    /Você está em:/
+    /Foco da jornada:/
   );
 
   assert.match(

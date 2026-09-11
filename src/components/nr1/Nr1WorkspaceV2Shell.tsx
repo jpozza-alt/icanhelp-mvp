@@ -169,7 +169,7 @@ export default function Nr1WorkspaceV2Shell({
                   }`}
                 >
                   <span>{module === "Riscos" ? "Inventário de riscos" : module}</span>
-                  {isActive ? <span className="text-xs">Atual</span> : null}
+                  {isActive ? <span className="text-xs">Foco</span> : null}
                 </a>
               );
             })}
@@ -192,7 +192,7 @@ export default function Nr1WorkspaceV2Shell({
           <div className="sticky top-0 z-40 -mx-2 mb-4 rounded-2xl border border-[#d8c7ae] bg-[#fffdf9]/95 px-4 py-3 shadow-sm backdrop-blur">
             <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <span className="text-[#7c6b56]">Você está em: </span>
+                <span className="text-[#7c6b56]">Foco da jornada: </span>
                 <strong>{activeModuleLabel}</strong>
               </div>
 

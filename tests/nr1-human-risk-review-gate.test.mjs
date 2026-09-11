@@ -221,14 +221,14 @@ test("workspace keeps generated diagnosis risk rehydrated after classification",
 });
 
 test("journey focuses risk review before action plan", () => {
+  assert.match(workspace, /const journeyFocusStepId =/);
   assert.match(
     workspace,
-    /step\.id === "riscos"[\s\S]{0,180}!hasRiskReadyForActionPlan/
+    /hasPendingGeneratedRiskReview[\s\S]{0,180}\? "riscos"/
   );
-
   assert.match(
     workspace,
-    /step\.id === "plano-de-acao"[\s\S]{0,220}hasRiskReadyForActionPlan[\s\S]{0,120}actionPlans\.length === 0/
+    /hasRiskReadyForActionPlan && !hasAnyActionPlan[\s\S]{0,180}\? "plano-de-acao"/
   );
 });
 
