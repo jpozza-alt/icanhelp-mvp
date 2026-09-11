@@ -5,6 +5,9 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import Nr1WorkspaceV2Shell from "@/components/nr1/Nr1WorkspaceV2Shell";
+import Nr1GuidedHelpTour, {
+  type Nr1GuidedHelpStep,
+} from "@/components/nr1/Nr1GuidedHelpTour";
 import {
   getNr1FullJourneyProgress,
   type Nr1FullJourneyProgressState,
@@ -111,6 +114,51 @@ const GENERATED_DIAGNOSIS_RISK_ACTION_READY_STATUSES = new Set([
   "action_defined",
   "controlled",
 ]);
+
+const EVIDENCE_HELP_TOUR_STEPS: Nr1GuidedHelpStep[] = [
+  {
+    targetId: "evidence-help-plan",
+    title: "Qual Plano de Ação esta evidência acompanha?",
+    description:
+      "Escolha a ação que este registro ajuda a comprovar. Se houver apenas um Plano de Ação, o sistema já o deixa selecionado.",
+  },
+  {
+    targetId: "evidence-help-title",
+    title: "Dê um nome fácil de reconhecer",
+    description:
+      "Use um título curto e claro. Exemplo: Checklist de acompanhamento da rotina.",
+  },
+  {
+    targetId: "evidence-help-type",
+    title: "Escolha o tipo da evidência",
+    description:
+      "Informe o formato que melhor representa o registro: documento, imagem, checklist, relatório ou outro.",
+  },
+  {
+    targetId: "evidence-help-date",
+    title: "Informe a data, quando fizer sentido",
+    description:
+      "Use a data em que a evidência foi produzida ou em que a ação ocorreu. Este campo é opcional.",
+  },
+  {
+    targetId: "evidence-help-responsible",
+    title: "Identifique o responsável, se necessário",
+    description:
+      "Informe a pessoa responsável pelo registro ou acompanhamento. Este campo é opcional.",
+  },
+  {
+    targetId: "evidence-help-description",
+    title: "Explique brevemente o que o registro demonstra",
+    description:
+      "Descreva o contexto de forma simples. Não é necessário escrever um relatório técnico.",
+  },
+  {
+    targetId: "evidence-help-save",
+    title: "Revise e salve",
+    description:
+      "Ao salvar, a evidência começa como Pendente de validação e continua sujeita à revisão humana. O sistema não a transforma automaticamente em comprovação definitiva.",
+  },
+];
 
 function isValidEvidenceLinkedEntityType(value: string): boolean {
   return allowedEvidenceLinkedEntityTypes.has(value.trim());
@@ -999,6 +1047,34 @@ const pendingValidationCount = useMemo(() => {
     })();
   }, [jwt, tenantId, selectedEstablishmentId, urlDiagnosisSessionId]);
 
+  function resetEvidenceForm() {
+    const singleActionPlanId =
+      actionPlans.length === 1
+        ? actionPlans[0].id
+        : "";
+
+    setForm({
+      title: "",
+      evidence_type: "document",
+      description: "",
+      linked_entity_type:
+        actionPlans.length > 0
+          ? "action_plan"
+          : urlDiagnosisSessionId
+            ? "diagnosis_session"
+            : "",
+      linked_entity_id:
+        singleActionPlanId ||
+        (actionPlans.length === 0
+          ? urlDiagnosisSessionId
+          : ""),
+      reference_date: "",
+      file_name: "",
+      file_url: "",
+      validation_status: "pending_validation",
+      responsible_name: "",
+    });
+  }
   async function handleCreateEvidence() {
     setError("");
     setInfo("");
@@ -1025,12 +1101,12 @@ const pendingValidationCount = useMemo(() => {
       (linkedEntityType === "diagnosis_session" ? urlDiagnosisSessionId : "");
 
     if (!isValidEvidenceLinkedEntityType(linkedEntityType)) {
-      setError("Selecione um vínculo válido para a evidência.");
+      setError("Aguarde o carregamento do Plano de Ação antes de salvar.");
       return;
     }
 
     if (!linkedEntityId) {
-      setError("Informe o ID vinculado antes de salvar a evidência.");
+      setError("Escolha o Plano de Ação que esta evidência comprova.");
       return;
     }
 
@@ -1084,18 +1160,7 @@ const pendingValidationCount = useMemo(() => {
       }
 
       setItems(parseEvidenceItems(refreshPayload));
-      setForm({
-        title: "",
-        evidence_type: "document",
-        description: "",
-        linked_entity_type: urlDiagnosisSessionId ? "diagnosis_session" : "",
-        linked_entity_id: urlDiagnosisSessionId || "",
-        reference_date: "",
-        file_name: "",
-        file_url: "",
-        validation_status: "pending_validation",
-        responsible_name: "",
-      });
+      resetEvidenceForm();
       setInfo("Evidência gravada com sucesso no backend real.");
     } catch (e: unknown) {
       setError(getExceptionMessage(e, "Falha ao gravar evidência."));
@@ -1314,9 +1379,18 @@ return (
           <div className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[#A36B16]">
             registrar evidência
           </div>
-          <h3 className="mt-3 text-xl font-semibold text-[#10243E]">
-            Registrar evidência do Plano de Ação.
-          </h3>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h3 className="text-xl font-semibold text-[#10243E]">
+              Registrar evidência do Plano de Ação.
+            </h3>
+
+            <Nr1GuidedHelpTour
+              steps={EVIDENCE_HELP_TOUR_STEPS}
+              storageKey="evidencias-v1"
+              title="Como preencher esta evidência"
+              buttonLabel="Como preencher"
+            />
+          </div>
 
           <div className="mt-4 rounded-2xl border border-[#D8C8B2] bg-[#F4ECE2] p-4">
             <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#A36B16]">
@@ -1346,22 +1420,110 @@ return (
             ) : null}
           </div>
 
+          <div className="mt-4 rounded-2xl border border-[#D6E3EE] bg-[#F2F7FB] px-4 py-3 text-sm leading-6 text-[#45647F]">
+            Preencha os campos marcados como <strong>Obrigatório</strong>.
+            Os demais podem ser informados quando ajudarem na rastreabilidade.
+          </div>
+
           <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="text-sm font-semibold text-[#10243E]">Título da evidência</label>
+            <div
+              id="evidence-help-plan"
+              className="md:col-span-2 rounded-2xl"
+            >
+              <label className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[#10243E]">
+                Plano de Ação vinculado
+                <span className="rounded-full bg-[#10243E] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
+                  Obrigatório
+                </span>
+              </label>
+
+              <p className="mt-1 text-xs leading-5 text-[#60718A]">
+                Escolha qual Plano de Ação esta evidência ajuda a comprovar.
+                O vínculo técnico será feito automaticamente.
+              </p>
+
+              <select
+                value={form.linked_entity_id}
+                onChange={(event) =>
+                  setForm((current) => ({
+                    ...current,
+                    linked_entity_type: "action_plan",
+                    linked_entity_id: event.target.value,
+                  }))
+                }
+                className={inputClassName}
+                disabled={
+                  loadingActionPlans ||
+                  actionPlans.length === 0
+                }
+              >
+                <option value="">
+                  {loadingActionPlans
+                    ? "Carregando Planos de Ação..."
+                    : actionPlans.length === 0
+                      ? "Nenhum Plano de Ação disponível"
+                      : "Escolha o Plano de Ação"}
+                </option>
+
+                {actionPlans.map((plan) => (
+                  <option key={plan.id} value={plan.id}>
+                    {plan.title || "Plano de Ação"}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div
+              id="evidence-help-title"
+              className="rounded-2xl"
+            >
+              <label className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[#10243E]">
+                Título da evidência
+                <span className="rounded-full bg-[#10243E] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
+                  Obrigatório
+                </span>
+              </label>
+
+              <p className="mt-1 text-xs leading-5 text-[#60718A]">
+                Dê um nome curto que permita reconhecer este registro depois.
+              </p>
+
               <input
                 value={form.title}
-                onChange={(e) => setForm((current) => ({ ...current, title: e.target.value }))}
+                onChange={(e) =>
+                  setForm((current) => ({
+                    ...current,
+                    title: e.target.value,
+                  }))
+                }
                 className={inputClassName}
-                placeholder="Ex.: Checklist assinado da verificação"
+                placeholder="Ex.: Checklist de acompanhamento da rotina"
               />
             </div>
 
-            <div>
-              <label className="text-sm font-semibold text-[#10243E]">Tipo</label>
+            <div
+              id="evidence-help-type"
+              className="rounded-2xl"
+            >
+              <label className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[#10243E]">
+                Tipo de evidência
+                <span className="rounded-full bg-[#10243E] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-white">
+                  Obrigatório
+                </span>
+              </label>
+
+              <p className="mt-1 text-xs leading-5 text-[#60718A]">
+                Escolha o formato que melhor representa o registro.
+              </p>
+
               <select
                 value={form.evidence_type}
-                onChange={(e) => setForm((current) => ({ ...current, evidence_type: e.target.value }))}
+                onChange={(e) =>
+                  setForm((current) => ({
+                    ...current,
+                    evidence_type: e.target.value,
+                  }))
+                }
                 className={inputClassName}
               >
                 <option value="document">Documento</option>
@@ -1372,152 +1534,106 @@ return (
               </select>
             </div>
 
-            <div>
-              <label className="text-sm font-semibold text-[#10243E]">Data de referência</label>
+            <div
+              id="evidence-help-date"
+              className="rounded-2xl"
+            >
+              <label className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[#10243E]">
+                Data da evidência
+                <span className="rounded-full border border-[#D8C8B2] bg-[#F4ECE2] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#60718A]">
+                  Opcional
+                </span>
+              </label>
+
+              <p className="mt-1 text-xs leading-5 text-[#60718A]">
+                Data em que a evidência foi produzida ou em que a ação ocorreu.
+              </p>
+
               <input
                 type="date"
                 value={form.reference_date}
-                onChange={(e) => setForm((current) => ({ ...current, reference_date: e.target.value }))}
+                onChange={(e) =>
+                  setForm((current) => ({
+                    ...current,
+                    reference_date: e.target.value,
+                  }))
+                }
                 className={inputClassName}
               />
             </div>
 
-            <div>
-              <label className="text-sm font-semibold text-[#10243E]">Responsável</label>
+            <div
+              id="evidence-help-responsible"
+              className="rounded-2xl"
+            >
+              <label className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[#10243E]">
+                Responsável
+                <span className="rounded-full border border-[#D8C8B2] bg-[#F4ECE2] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#60718A]">
+                  Opcional
+                </span>
+              </label>
+
+              <p className="mt-1 text-xs leading-5 text-[#60718A]">
+                Pessoa responsável por este registro ou acompanhamento.
+              </p>
+
               <input
                 value={form.responsible_name}
-                onChange={(e) => setForm((current) => ({ ...current, responsible_name: e.target.value }))}
+                onChange={(e) =>
+                  setForm((current) => ({
+                    ...current,
+                    responsible_name: e.target.value,
+                  }))
+                }
                 className={inputClassName}
                 placeholder="Nome do responsável"
               />
             </div>
 
-            <div>
-              <label className="text-sm font-semibold text-[#10243E]">Entidade vinculada</label>
-              <select
-                    className={inputClassName}
-                    value={form.linked_entity_type}
-                    onChange={(event) => {
-                      const nextType = event.target.value;
-                      setForm({
-                        ...form,
-                        linked_entity_type: nextType,
-                        linked_entity_id:
-                          nextType === "action_plan" && actionPlans.length === 1
-                            ? actionPlans[0].id
-                            : nextType === "diagnosis_session" && urlDiagnosisSessionId
-                              ? urlDiagnosisSessionId
-                              : "",
-                      });
-                    }}
-                  >
-                    <option value="diagnosis_session">Diagnóstico</option>
-                    <option value="risk">Risco</option>
-                    <option value="action_plan">Plano de ação</option>
-                    <option value="review_cycle">Ciclo de revisão</option>
-                    <option value="training_record">Treinamento</option>
-                    <option value="third_party">Terceiro</option>
-                  </select>
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-[#10243E]">
-                {form.linked_entity_type === "action_plan"
-                  ? "Plano de Ação vinculado"
-                  : "Identificador vinculado"}
+            <div
+              id="evidence-help-description"
+              className="md:col-span-2 rounded-2xl"
+            >
+              <label className="flex flex-wrap items-center gap-2 text-sm font-semibold text-[#10243E]">
+                Descrição
+                <span className="rounded-full border border-[#D8C8B2] bg-[#F4ECE2] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#60718A]">
+                  Opcional
+                </span>
               </label>
 
-              {form.linked_entity_type === "action_plan" ? (
-                <select
-                  value={form.linked_entity_id}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      linked_entity_id: event.target.value,
-                    }))
-                  }
-                  className={inputClassName}
-                  disabled={loadingActionPlans || actionPlans.length === 0}
-                >
-                  <option value="">
-                    {loadingActionPlans
-                      ? "Carregando Planos de Ação..."
-                      : actionPlans.length === 0
-                        ? "Nenhum Plano de Ação disponível"
-                        : "Escolha o Plano de Ação"}
-                  </option>
-                  {actionPlans.map((plan) => (
-                    <option key={plan.id} value={plan.id}>
-                      {plan.title || "Plano de Ação"}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  value={form.linked_entity_id}
-                  onChange={(e) =>
-                    setForm((current) => ({
-                      ...current,
-                      linked_entity_id: e.target.value,
-                    }))
-                  }
-                  className={inputClassName}
-                  placeholder={
-                    form.linked_entity_type === "diagnosis_session"
-                      ? "ID da sessão de diagnóstico"
-                      : "ID do item vinculado"
-                  }
-                />
-              )}
-            </div>
+              <p className="mt-1 text-xs leading-5 text-[#60718A]">
+                Explique brevemente o que esta evidência demonstra.
+                Não é necessário escrever um relatório técnico.
+              </p>
 
-            <div>
-              <label className="text-sm font-semibold text-[#10243E]">Nome do arquivo</label>
-              <input
-                value={form.file_name}
-                onChange={(e) => setForm((current) => ({ ...current, file_name: e.target.value }))}
-                className={inputClassName}
-                placeholder="arquivo.pdf"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-[#10243E]">URL do arquivo</label>
-              <input
-                value={form.file_url}
-                onChange={(e) => setForm((current) => ({ ...current, file_url: e.target.value }))}
-                className={inputClassName}
-                placeholder="https://..."
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-semibold text-[#10243E]">Status de validação</label>
-              <select
-                value={form.validation_status}
-                onChange={(e) => setForm((current) => ({ ...current, validation_status: e.target.value }))}
-                className={inputClassName}
-              >
-                <option value="pending_validation">Pendente de validação</option>
-                <option value="validated">Validada</option>
-                <option value="rejected">Rejeitada</option>
-                <option value="archived">Arquivada</option>
-              </select>
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="text-sm font-semibold text-[#10243E]">Descrição</label>
               <textarea
                 value={form.description}
-                onChange={(e) => setForm((current) => ({ ...current, description: e.target.value }))}
-                className={inputClassName + " min-h-[120px]"}
-                placeholder="Descreva a evidência e o contexto do registro"
+                onChange={(e) =>
+                  setForm((current) => ({
+                    ...current,
+                    description: e.target.value,
+                  }))
+                }
+                className={
+                  inputClassName + " min-h-[120px]"
+                }
+                placeholder="Ex.: Registro do acompanhamento realizado após a reorganização do fluxo de trabalho."
               />
+            </div>
+
+            <div className="md:col-span-2 rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] px-4 py-3 text-sm leading-6 text-[#60718A]">
+              <span className="font-semibold text-[#10243E]">
+                Depois de salvar:
+              </span>{" "}
+              o registro ficará como <strong>Pendente de validação</strong>.
+              Ele continua sujeito à revisão humana e não é tratado
+              automaticamente como comprovação definitiva.
             </div>
           </div>
 
           <div className="mt-4 flex flex-wrap gap-3">
             <button
+              id="evidence-help-save"
               type="button"
               onClick={() => void handleCreateEvidence()}
               disabled={saving || !jwt || !tenantId || !selectedEstablishmentId || !form.title.trim() || !form.evidence_type.trim()}
@@ -1528,20 +1644,7 @@ return (
 
             <button
               type="button"
-              onClick={() =>
-                setForm({
-                  title: "",
-                  evidence_type: "document",
-                  description: "",
-                  linked_entity_type: "",
-                  linked_entity_id: "",
-                  reference_date: "",
-                  file_name: "",
-                  file_url: "",
-                  validation_status: "pending_validation",
-                  responsible_name: "",
-                })
-              }
+              onClick={resetEvidenceForm}
               className="rounded-xl border border-[#E2D4BF] bg-[#F4ECE2] px-5 py-3 text-sm font-semibold text-[#10243E]"
             >
               Limpar campos
