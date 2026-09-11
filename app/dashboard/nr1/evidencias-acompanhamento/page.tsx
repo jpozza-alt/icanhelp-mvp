@@ -5,6 +5,10 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import Nr1WorkspaceV2Shell from "@/components/nr1/Nr1WorkspaceV2Shell";
+import {
+  getNr1FullJourneyProgress,
+  type Nr1FullJourneyProgressState,
+} from "@/lib/nr1-journey";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,6 +49,16 @@ type EvidenceItem = {
   deleted_at?: string | null;
 };
 
+type ActionPlanItem = {
+  id: string;
+  risk_id?: string | null;
+  title?: string | null;
+  description?: string | null;
+  status?: string | null;
+  due_date?: string | null;
+  responsible_name?: string | null;
+};
+
 type PsychosocialFactorItem = {
   id: string;
   factor_key?: string | null;
@@ -73,8 +87,52 @@ const allowedEvidenceLinkedEntityTypes = new Set([
   "third_party",
 ]);
 
+const EMPTY_FULL_JOURNEY_PROGRESS_STATE: Nr1FullJourneyProgressState = {
+  hasCompany: false,
+  hasEstablishment: false,
+  hasDepartments: false,
+  hasActivities: false,
+  hasDiagnosis: false,
+  hasRisks: false,
+  hasActionPlans: false,
+};
+
+const GENERATED_DIAGNOSIS_RISK_TITLES = new Set([
+  "Risco sugerido a partir da revisao dos pontos",
+  "Risco preliminar gerado pelo diagnostico guiado",
+  "Risco psicossocial preliminar gerado pelo diagnostico guiado",
+]);
+
+const GENERATED_DIAGNOSIS_RISK_ACTION_READY_STATUSES = new Set([
+  "classified",
+  "action_defined",
+  "controlled",
+]);
+
 function isValidEvidenceLinkedEntityType(value: string): boolean {
   return allowedEvidenceLinkedEntityTypes.has(value.trim());
+}
+
+function isGeneratedDiagnosisRiskRecord(item: ApiRecord): boolean {
+  const title = String(item.title ?? "").trim();
+
+  return Boolean(
+    String(item.diagnosis_session_id ?? "").trim() &&
+      String(item.risk_category ?? "").trim() === "psychosocial" &&
+      GENERATED_DIAGNOSIS_RISK_TITLES.has(title) &&
+      !String(item.deleted_at ?? "").trim()
+  );
+}
+
+function isGeneratedDiagnosisRiskActionReadyRecord(
+  item: ApiRecord,
+): boolean {
+  return Boolean(
+    isGeneratedDiagnosisRiskRecord(item) &&
+      GENERATED_DIAGNOSIS_RISK_ACTION_READY_STATUSES.has(
+        String(item.status ?? "").trim(),
+      )
+  );
 }
 
 async function readJsonSafe(response: Response): Promise<unknown> {
@@ -248,6 +306,24 @@ function parseEvidenceItems(payload: unknown): EvidenceItem[] {
     .filter((item: EvidenceItem) => item.id);
 }
 
+function parseActionPlans(payload: unknown): ActionPlanItem[] {
+  return getPayloadItems(payload)
+    .map((item) => {
+      const record = asApiRecord(item);
+
+      return {
+        id: String(record.id ?? "").trim(),
+        risk_id: nullableString(record.risk_id),
+        title: nullableString(record.title),
+        description: nullableString(record.description),
+        status: nullableString(record.status),
+        due_date: nullableString(record.due_date),
+        responsible_name: nullableString(record.responsible_name),
+      };
+    })
+    .filter((item: ActionPlanItem) => item.id);
+}
+
 const psychosocialFactorLabelDisplayMap: Record<string, string> = {
   has_badly_managed_change: "Mudança mal gerida",
   has_communication_difficulty: "Dificuldade de comunicação",
@@ -363,10 +439,16 @@ function Nr1EvidenciasAcompanhamentoContent() {
   const [establishments, setEstablishments] = useState<EstablishmentItem[]>([]);
   const [selectedEstablishmentId, setSelectedEstablishmentId] = useState("");
   const [items, setItems] = useState<EvidenceItem[]>([]);
+  const [actionPlans, setActionPlans] = useState<ActionPlanItem[]>([]);
+  const [journeyProgressState, setJourneyProgressState] =
+    useState<Nr1FullJourneyProgressState>(
+      EMPTY_FULL_JOURNEY_PROGRESS_STATE
+    );
   const [psychosocialFactors, setPsychosocialFactors] = useState<PsychosocialFactorItem[]>([]);
   const [loadingSession, setLoadingSession] = useState(true);
   const [loadingEstablishments, setLoadingEstablishments] = useState(false);
   const [loadingItems, setLoadingItems] = useState(false);
+  const [loadingActionPlans, setLoadingActionPlans] = useState(false);
   const [loadingPsychosocialFactors, setLoadingPsychosocialFactors] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
@@ -392,6 +474,15 @@ function Nr1EvidenciasAcompanhamentoContent() {
   const selectedTenant = useMemo(() => {
     return tenants.find((item) => item.id === tenantId) || null;
   }, [tenants, tenantId]);
+
+  const selectedActionPlan = useMemo(() => {
+    return actionPlans.find((item) => item.id === form.linked_entity_id) || null;
+  }, [actionPlans, form.linked_entity_id]);
+
+  const evidenceJourneyProgress =
+    getNr1FullJourneyProgress(journeyProgressState);
+  const evidenceJourneyProgressPercent =
+    evidenceJourneyProgress.percent;
 
   const urlEstablishmentId = useMemo(() => {
     return (searchParams.get("establishmentId") || searchParams.get("establishment_id") || "").trim();
@@ -591,6 +682,247 @@ const pendingValidationCount = useMemo(() => {
     })();
   }, [jwt, tenantId, selectedEstablishmentId]);
 
+  useEffect(() => {
+    if (!jwt || !tenantId || !selectedEstablishmentId) {
+      setJourneyProgressState(EMPTY_FULL_JOURNEY_PROGRESS_STATE);
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      setJourneyProgressState(EMPTY_FULL_JOURNEY_PROGRESS_STATE);
+
+      try {
+        const headers = {
+          Authorization: "Bearer " + jwt,
+          "x-icanhelp-tenant": tenantId,
+        };
+
+        async function loadItems(url: string): Promise<unknown[]> {
+          const response = await fetch(url, {
+            method: "GET",
+            headers,
+            cache: "no-store",
+          });
+
+          const payload = await readJsonSafe(response);
+
+          if (!response.ok) {
+            throw new Error(
+              getErrorMessage(payload, "Falha ao carregar estado da jornada."),
+            );
+          }
+
+          return getPayloadItems(payload);
+        }
+
+        const tenantQuery =
+          "tenantId=" + encodeURIComponent(tenantId);
+        const establishmentQuery =
+          tenantQuery +
+          "&establishmentId=" +
+          encodeURIComponent(selectedEstablishmentId);
+
+        const [companyItems, departmentItems, activityItems, riskItems] =
+          await Promise.all([
+            loadItems("/api/nr1/companies?" + tenantQuery),
+            loadItems("/api/nr1/departments?" + establishmentQuery),
+            loadItems("/api/nr1/activities?" + establishmentQuery),
+            loadItems("/api/nr1/risks?" + establishmentQuery),
+          ]);
+
+        const riskRecords = riskItems.map(asApiRecord);
+        const hasPendingGeneratedRiskReview = riskRecords.some(
+          (item) =>
+            isGeneratedDiagnosisRiskRecord(item) &&
+            !isGeneratedDiagnosisRiskActionReadyRecord(item),
+        );
+
+        const hasRiskReadyForActionPlan =
+          !hasPendingGeneratedRiskReview &&
+          riskRecords.some(
+            (item) =>
+              !isGeneratedDiagnosisRiskRecord(item) ||
+              isGeneratedDiagnosisRiskActionReadyRecord(item),
+          );
+
+        let hasDiagnosis = false;
+        const firstActivity = asApiRecord(activityItems[0]);
+        const activityId = String(firstActivity.id ?? "").trim();
+        const departmentId =
+          String(firstActivity.department_id ?? "").trim();
+
+        if (activityId && departmentId) {
+          const sessionsUrl =
+            "/api/nr1/diagnosis-sessions?" +
+            establishmentQuery +
+            "&activityId=" +
+            encodeURIComponent(activityId) +
+            "&departmentId=" +
+            encodeURIComponent(departmentId);
+
+          const sessionItems = await loadItems(sessionsUrl);
+          const session = asApiRecord(sessionItems[0]);
+          const diagnosisSessionId =
+            String(session.id ?? "").trim();
+
+          if (diagnosisSessionId) {
+            const diagnosisQuery =
+              establishmentQuery +
+              "&diagnosisSessionId=" +
+              encodeURIComponent(diagnosisSessionId);
+
+            const [contextResponse, psychosocialResponse] =
+              await Promise.all([
+                fetch("/api/nr1/diagnosis-context?" + diagnosisQuery, {
+                  method: "GET",
+                  headers,
+                  cache: "no-store",
+                }),
+                fetch("/api/nr1/diagnosis-psychosocial?" + diagnosisQuery, {
+                  method: "GET",
+                  headers,
+                  cache: "no-store",
+                }),
+              ]);
+
+            const [contextPayload, psychosocialPayload] =
+              await Promise.all([
+                readJsonSafe(contextResponse),
+                readJsonSafe(psychosocialResponse),
+              ]);
+
+            if (!contextResponse.ok || !psychosocialResponse.ok) {
+              throw new Error("Falha ao carregar estado real do diagnóstico.");
+            }
+
+            const contextItem = asApiRecord(
+              asApiRecord(contextPayload).item,
+            );
+            const psychosocialItem = asApiRecord(
+              asApiRecord(psychosocialPayload).item,
+            );
+
+            hasDiagnosis = Boolean(
+              String(contextItem.tenant_id ?? "").trim() === tenantId &&
+                String(contextItem.diagnosis_session_id ?? "").trim() ===
+                  diagnosisSessionId &&
+                String(psychosocialItem.tenant_id ?? "").trim() === tenantId &&
+                String(psychosocialItem.diagnosis_session_id ?? "").trim() ===
+                  diagnosisSessionId
+            );
+          }
+        }
+
+        if (cancelled) {
+          return;
+        }
+
+        setJourneyProgressState({
+          hasCompany: companyItems.length > 0,
+          hasEstablishment: Boolean(selectedEstablishmentId),
+          hasDepartments: departmentItems.length > 0,
+          hasActivities: activityItems.length > 0,
+          hasDiagnosis,
+          hasRisks: hasRiskReadyForActionPlan,
+          hasActionPlans: actionPlans.length > 0,
+        });
+      } catch (e: unknown) {
+        if (!cancelled) {
+          setJourneyProgressState(EMPTY_FULL_JOURNEY_PROGRESS_STATE);
+          setError(
+            getExceptionMessage(
+              e,
+              "Falha ao carregar o progresso real da jornada.",
+            ),
+          );
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [jwt, tenantId, selectedEstablishmentId, actionPlans.length]);
+  useEffect(() => {
+    if (!jwt || !tenantId || !selectedEstablishmentId) {
+      setActionPlans([]);
+      return;
+    }
+
+    (async () => {
+      setLoadingActionPlans(true);
+
+      try {
+        const response = await fetch(
+          "/api/nr1/action-plans?establishmentId=" +
+            encodeURIComponent(selectedEstablishmentId),
+          {
+            method: "GET",
+            headers: {
+              Authorization: "Bearer " + jwt,
+              "x-icanhelp-tenant": tenantId,
+            },
+            cache: "no-store",
+          }
+        );
+
+        const payload = await readJsonSafe(response);
+
+        if (!response.ok) {
+          throw new Error(
+            getErrorMessage(payload, "Falha ao carregar Planos de Ação.")
+          );
+        }
+
+        const parsedActionPlans = parseActionPlans(payload);
+        setActionPlans(parsedActionPlans);
+
+        setForm((current) => {
+          const currentType = current.linked_entity_type.trim();
+          const currentId = current.linked_entity_id.trim();
+          const currentPlanStillExists =
+            currentType === "action_plan" &&
+            parsedActionPlans.some((item) => item.id === currentId);
+
+          if (currentPlanStillExists) {
+            return current;
+          }
+
+          const automaticDiagnosisLink =
+            currentType === "diagnosis_session" &&
+            Boolean(urlDiagnosisSessionId) &&
+            currentId === urlDiagnosisSessionId;
+
+          if (parsedActionPlans.length > 0 && (!currentType || automaticDiagnosisLink)) {
+            return {
+              ...current,
+              linked_entity_type: "action_plan",
+              linked_entity_id:
+                parsedActionPlans.length === 1
+                  ? parsedActionPlans[0].id
+                  : "",
+            };
+          }
+
+          if (currentType === "action_plan") {
+            return {
+              ...current,
+              linked_entity_id: "",
+            };
+          }
+
+          return current;
+        });
+      } catch (e: unknown) {
+        setActionPlans([]);
+        setError(getExceptionMessage(e, "Falha ao carregar Planos de Ação."));
+      } finally {
+        setLoadingActionPlans(false);
+      }
+    })();
+  }, [jwt, tenantId, selectedEstablishmentId, urlDiagnosisSessionId]);
 
   useEffect(() => {
     if (!jwt || !tenantId || !selectedEstablishmentId || !urlDiagnosisSessionId) {
@@ -824,8 +1156,8 @@ const pendingValidationCount = useMemo(() => {
       companyName={selectedTenant?.name || "Empresa não selecionada"}
       establishmentName={selectedEstablishment?.name || "Unidade não selecionada"}
       pgrStatus="Em construção"
-      progressPercent={75}
-      progressDescription="Evidências e acompanhamento documental em execução."
+      progressPercent={evidenceJourneyProgressPercent}
+      progressDescription="Plano de Ação registrado. Próximo foco: acompanhar a execução e reunir evidências."
       activeModule="Evidências"
       pendingItems={[
         "Validar evidências do estabelecimento",
@@ -833,10 +1165,10 @@ const pendingValidationCount = useMemo(() => {
         "Manter rastreabilidade para o PGR",
       ]}
       nextBestActionLabel="Etapa da jornada"
-      nextBestActionTitle="Validar evidências e fatores psicossociais"
-      nextBestActionDescription="Revise os registros documentais e os fatores organizacionais derivados da sessão de diagnóstico. Esta etapa apoia o GRO/PGR sem fazer diagnóstico clínico individual."
+      nextBestActionTitle="Registrar evidência da execução do Plano de Ação"
+      nextBestActionDescription="Escolha o Plano de Ação que está sendo comprovado e registre a evidência da execução. Os fatores psicossociais permanecem como contexto organizacional, sem diagnóstico clínico individual."
       nextBestActionPrimaryHref="#evidencias-operational-content"
-      nextBestActionPrimaryLabel="Ver evidências"
+      nextBestActionPrimaryLabel="Registrar evidência"
       nextBestActionSecondaryHref="/dashboard/nr1/workspace"
       nextBestActionSecondaryLabel="Voltar ao workspace"
       nextBestActionReasons={[
@@ -959,8 +1291,36 @@ const pendingValidationCount = useMemo(() => {
             registrar evidência
           </div>
           <h3 className="mt-3 text-xl font-semibold text-[#10243E]">
-            Criação manual de evidência documental.
+            Registrar evidência do Plano de Ação.
           </h3>
+
+          <div className="mt-4 rounded-2xl border border-[#D8C8B2] bg-[#F4ECE2] p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#A36B16]">
+              Esta evidência comprova
+            </div>
+            {loadingActionPlans ? (
+              <p className="mt-2 text-sm text-[#60718A]">Carregando Planos de Ação...</p>
+            ) : selectedActionPlan ? (
+              <div className="mt-2">
+                <p className="font-semibold text-[#10243E]">
+                  {selectedActionPlan.title || "Plano de Ação selecionado"}
+                </p>
+                <p className="mt-1 text-sm text-[#60718A]">
+                  {[selectedActionPlan.responsible_name, selectedActionPlan.due_date]
+                    .filter(Boolean)
+                    .join(" · ") || "Plano vinculado ao estabelecimento selecionado."}
+                </p>
+              </div>
+            ) : actionPlans.length > 1 ? (
+              <p className="mt-2 text-sm text-[#60718A]">
+                Existem vários Planos de Ação. Escolha abaixo qual deles esta evidência comprova.
+              </p>
+            ) : actionPlans.length === 0 ? (
+              <p className="mt-2 text-sm text-[#60718A]">
+                Nenhum Plano de Ação disponível para este estabelecimento.
+              </p>
+            ) : null}
+          </div>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <div>
@@ -1019,9 +1379,11 @@ const pendingValidationCount = useMemo(() => {
                         ...form,
                         linked_entity_type: nextType,
                         linked_entity_id:
-                          nextType === "diagnosis_session" && urlDiagnosisSessionId
-                            ? urlDiagnosisSessionId
-                            : "",
+                          nextType === "action_plan" && actionPlans.length === 1
+                            ? actionPlans[0].id
+                            : nextType === "diagnosis_session" && urlDiagnosisSessionId
+                              ? urlDiagnosisSessionId
+                              : "",
                       });
                     }}
                   >
@@ -1035,13 +1397,54 @@ const pendingValidationCount = useMemo(() => {
             </div>
 
             <div>
-              <label className="text-sm font-semibold text-[#10243E]">Identificador vinculado</label>
-              <input
-                value={form.linked_entity_id}
-                onChange={(e) => setForm((current) => ({ ...current, linked_entity_id: e.target.value }))}
-                className={inputClassName}
-                placeholder={form.linked_entity_type === "diagnosis_session" ? "ID da sessão de diagnóstico" : "ID do item vinculado"}
-              />
+              <label className="text-sm font-semibold text-[#10243E]">
+                {form.linked_entity_type === "action_plan"
+                  ? "Plano de Ação vinculado"
+                  : "Identificador vinculado"}
+              </label>
+
+              {form.linked_entity_type === "action_plan" ? (
+                <select
+                  value={form.linked_entity_id}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      linked_entity_id: event.target.value,
+                    }))
+                  }
+                  className={inputClassName}
+                  disabled={loadingActionPlans || actionPlans.length === 0}
+                >
+                  <option value="">
+                    {loadingActionPlans
+                      ? "Carregando Planos de Ação..."
+                      : actionPlans.length === 0
+                        ? "Nenhum Plano de Ação disponível"
+                        : "Escolha o Plano de Ação"}
+                  </option>
+                  {actionPlans.map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.title || "Plano de Ação"}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  value={form.linked_entity_id}
+                  onChange={(e) =>
+                    setForm((current) => ({
+                      ...current,
+                      linked_entity_id: e.target.value,
+                    }))
+                  }
+                  className={inputClassName}
+                  placeholder={
+                    form.linked_entity_type === "diagnosis_session"
+                      ? "ID da sessão de diagnóstico"
+                      : "ID do item vinculado"
+                  }
+                />
+              )}
             </div>
 
             <div>
@@ -1320,7 +1723,7 @@ const pendingValidationCount = useMemo(() => {
 
             <div className="flex flex-wrap gap-3">
               <Link
-                href="/dashboard/nr1/plano-de-acao"
+                href="/dashboard/nr1/workspace?section=plano"
                 className="rounded-xl border border-[#E2D4BF] bg-[#F4ECE2] px-5 py-3 text-sm font-semibold text-[#10243E]"
               >
                 Voltar para plano de ação

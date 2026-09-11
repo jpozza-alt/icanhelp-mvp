@@ -215,6 +215,52 @@ export const NR1_JOURNEY_STEPS = [
   },
 ] satisfies readonly Nr1JourneyStep[];
 
+export type Nr1FullJourneyProgressState = {
+  hasCompany: boolean;
+  hasEstablishment: boolean;
+  hasDepartments: boolean;
+  hasActivities: boolean;
+  hasDiagnosis: boolean;
+  hasRisks: boolean;
+  hasActionPlans: boolean;
+};
+
+export function getNr1FullJourneyCompletedStepIds(
+  state: Nr1FullJourneyProgressState,
+): Nr1JourneyStepId[] {
+  const completed: Nr1JourneyStepId[] = ["boas-vindas"];
+
+  if (state.hasCompany) completed.push("empresa");
+  if (state.hasEstablishment) completed.push("estabelecimento");
+  if (state.hasDepartments) completed.push("setores");
+  if (state.hasActivities) completed.push("atividades");
+  if (state.hasDiagnosis) completed.push("diagnostico-inicial");
+  if (state.hasRisks) completed.push("riscos");
+  if (state.hasActionPlans) completed.push("plano-de-acao");
+
+  return completed;
+}
+
+export function getNr1FullJourneyProgress(
+  state: Nr1FullJourneyProgressState,
+) {
+  const completedStepIds =
+    getNr1FullJourneyCompletedStepIds(state);
+  const completedSteps = completedStepIds.length;
+  const totalSteps = NR1_JOURNEY_STEPS.length;
+  const percent =
+    totalSteps === 0
+      ? 0
+      : Math.round((completedSteps / totalSteps) * 100);
+
+  return {
+    completedStepIds,
+    completedSteps,
+    totalSteps,
+    percent,
+  };
+}
+
 const NR1_PROGRESS_STEPS = NR1_LEGACY_JOURNEY_STEP_IDS.map(
   (stepId) => NR1_JOURNEY_STEPS.find((step) => step.id === stepId)!,
 );

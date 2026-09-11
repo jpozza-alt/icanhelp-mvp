@@ -198,7 +198,7 @@ test("technical values are translated in the layperson UI", () => {
 test("journey orientation remains visible while scrolling", () => {
   assert.match(
     shell,
-    /lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto/
+    /lg:sticky lg:top-0 lg:self-start lg:max-h-screen lg:overflow-y-auto/
   );
 
   assert.match(

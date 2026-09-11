@@ -3,7 +3,7 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { getNr1PlanFeatures, type Nr1PlanFeaturesResponse } from "@/lib/nr1-plan-features-client";
-import { NR1_JOURNEY_STEPS } from "@/lib/nr1-journey";
+import { getNr1FullJourneyProgress, NR1_JOURNEY_STEPS } from "@/lib/nr1-journey";
 import Nr1WorkspaceV2Shell from "@/components/nr1/Nr1WorkspaceV2Shell";
 
 type JsonObject = Record<string, unknown>;
@@ -1831,11 +1831,16 @@ useEffect(() => {
       status,
     };
   });
-  const completedJourneySteps = fullJourneyStepItems.filter((step) => step.status === "Concluído").length;
-  const progressPercent =
-    fullJourneyStepItems.length === 0
-      ? 0
-      : Math.round((completedJourneySteps / fullJourneyStepItems.length) * 100);
+  const fullJourneyProgress = getNr1FullJourneyProgress({
+    hasCompany,
+    hasEstablishment,
+    hasDepartments: hasDepartment,
+    hasActivities: hasActivity,
+    hasDiagnosis: officialDiagnosisReady,
+    hasRisks: hasRiskReadyForActionPlan,
+    hasActionPlans: hasAnyActionPlan,
+  });
+  const progressPercent = fullJourneyProgress.percent;
   const workspaceCurrentJourneyStepIndex = (() => {
     const currentIndex = fullJourneyStepItems.findIndex((step) => step.status === "Agora");
     if (currentIndex >= 0) return currentIndex;
