@@ -928,6 +928,38 @@ const GENERATED_DIAGNOSIS_RISK_TITLES = new Set([
   "Risco preliminar gerado pelo diagnostico guiado",
   "Risco psicossocial preliminar gerado pelo diagnostico guiado",
 ]);
+const GENERATED_DIAGNOSIS_RISK_ACTION_READY_STATUSES = new Set([
+  "classified",
+  "action_defined",
+  "controlled",
+]);
+
+function isGeneratedDiagnosisRiskEntity(
+  item: SimpleEntity | null | undefined
+): boolean {
+  if (!item) return false;
+
+  const itemTitle = firstString(item, ["title"]);
+
+  return Boolean(
+    firstString(item, ["diagnosis_session_id"]) &&
+      firstString(item, ["risk_category"]) === "psychosocial" &&
+      itemTitle &&
+      GENERATED_DIAGNOSIS_RISK_TITLES.has(itemTitle) &&
+      !firstString(item, ["deleted_at"])
+  );
+}
+
+function isGeneratedDiagnosisRiskActionReady(
+  item: SimpleEntity | null | undefined
+): boolean {
+  return Boolean(
+    isGeneratedDiagnosisRiskEntity(item) &&
+      GENERATED_DIAGNOSIS_RISK_ACTION_READY_STATUSES.has(
+        firstString(item, ["status"]) || ""
+      )
+  );
+}
 
 function generatedDiagnosisRiskIdForSession(
   items: SimpleEntity[],
@@ -947,7 +979,14 @@ function generatedDiagnosisRiskIdForSession(
     return (
       itemSessionId === sessionId &&
       itemCategory === "psychosocial" &&
-      itemStatus === "identified" &&
+      (
+        itemStatus === "identified" ||
+        itemStatus === "classified" ||
+        itemStatus === "action_defined" ||
+        itemStatus === "controlled" ||
+        itemStatus === "under_analysis" ||
+        itemStatus === "requires_review"
+      ) &&
       !itemDeletedAt &&
       Boolean(
         itemTitle &&
@@ -1672,6 +1711,37 @@ useEffect(() => {
       ? guidedReviewCurrentStep
       : inferredOnboardingCurrentStep;
 
+  const effectiveSelectedRiskId =
+    selectedRiskId ||
+    firstString(risks[0], ["id"]) ||
+    "";
+
+  const selectedInventoryRisk =
+    risks.find((item) => item.id === effectiveSelectedRiskId) ||
+    risks[0] ||
+    null;
+
+  const pendingGeneratedRiskReview =
+    risks.find(
+      (item) =>
+        isGeneratedDiagnosisRiskEntity(item) &&
+        !isGeneratedDiagnosisRiskActionReady(item)
+    ) || null;
+
+  const hasPendingGeneratedRiskReview =
+    Boolean(pendingGeneratedRiskReview);
+
+  const selectedGeneratedRiskNeedsHumanReview =
+    isGeneratedDiagnosisRiskEntity(selectedInventoryRisk) &&
+    !isGeneratedDiagnosisRiskActionReady(selectedInventoryRisk);
+
+  const hasRiskReadyForActionPlan =
+    !hasPendingGeneratedRiskReview &&
+    risks.some(
+      (item) =>
+        !isGeneratedDiagnosisRiskEntity(item) ||
+        isGeneratedDiagnosisRiskActionReady(item)
+    );
   const fullJourneyStepItems = NR1_JOURNEY_STEPS.map((step) => {
     const isComplete =
       step.id === "boas-vindas" ||
@@ -1680,7 +1750,7 @@ useEffect(() => {
       (step.id === "setores" && hasDepartment) ||
       (step.id === "atividades" && hasActivity) ||
       (step.id === "diagnostico-inicial" && officialDiagnosisReady) ||
-      (step.id === "riscos" && risks.length > 0) ||
+      (step.id === "riscos" && hasRiskReadyForActionPlan) ||
       (step.id === "plano-de-acao" && actionPlans.length > 0);
 
     const isCurrent =
@@ -1689,8 +1759,17 @@ useEffect(() => {
       (step.id === "setores" && onboardingCurrentStep.key === "setor") ||
       (step.id === "atividades" && onboardingCurrentStep.key === "atividade") ||
       (step.id === "diagnostico-inicial" && effectiveActiveSection === "diagnostico") ||
-      (step.id === "riscos" && effectiveActiveSection === "riscos") ||
-      (step.id === "plano-de-acao" && effectiveActiveSection === "riscos") ||
+      (
+        step.id === "riscos" &&
+        effectiveActiveSection === "riscos" &&
+        !hasRiskReadyForActionPlan
+      ) ||
+      (
+        step.id === "plano-de-acao" &&
+        effectiveActiveSection === "riscos" &&
+        hasRiskReadyForActionPlan &&
+        actionPlans.length === 0
+      ) ||
       (step.id === "revisoes-auditoria" && effectiveActiveSection === "auditoria");
 
     const status = isComplete
@@ -3828,6 +3907,93 @@ useEffect(() => {
       setRiskError(error instanceof Error ? error.message : "Erro ao criar risco.");
     }
   }
+  async function handleConfirmSelectedRiskHumanReview(): Promise<void> {
+    setRiskStatus("saving");
+    setRiskError(null);
+    setRiskSuccess(null);
+    setActionPlanError(null);
+    setActionPlanSuccess(null);
+
+    const currentContext = contextRef.current;
+    const riskId =
+      selectedRiskId ||
+      firstString(risks[0], ["id"]) ||
+      "";
+    const selectedRisk =
+      risks.find((item) => item.id === riskId) ||
+      risks[0] ||
+      null;
+
+    if (!currentContext.tenantId || !currentContext.establishmentId) {
+      setRiskStatus("error");
+      setRiskError("Selecione um estabelecimento antes de confirmar o risco.");
+      return;
+    }
+
+    if (!riskId || !selectedRisk) {
+      setRiskStatus("error");
+      setRiskError("Selecione o risco sugerido antes de confirmar.");
+      return;
+    }
+
+    if (!isGeneratedDiagnosisRiskEntity(selectedRisk)) {
+      setRiskStatus("error");
+      setRiskError("Este comando de confirmação é exclusivo para risco sugerido pelo diagnóstico.");
+      return;
+    }
+
+    if (isGeneratedDiagnosisRiskActionReady(selectedRisk)) {
+      setRiskSuccess("Este risco já foi confirmado por revisão humana.");
+      setRiskStatus("saved");
+      return;
+    }
+
+    try {
+      const path = buildUrl("/api/nr1/risks", {
+        tenantId: currentContext.tenantId,
+        establishmentId: currentContext.establishmentId,
+      });
+
+      const response = await fetchJson(
+        path,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            establishment_id: currentContext.establishmentId,
+            risk_id: riskId,
+            action: "confirm_human_review",
+          }),
+        },
+        currentContext
+      );
+
+      const confirmedRisk = extractFirstEntity(response);
+      const confirmedRiskId =
+        firstString(confirmedRisk, ["id"]) ||
+        riskId;
+
+      await refreshRiskActionData(confirmedRiskId);
+      await refreshAuditEvents();
+
+      setSelectedRiskId(confirmedRiskId);
+      setActionPlanForm((prev) => ({
+        ...prev,
+        risk_id: confirmedRiskId,
+      }));
+
+      setRiskSuccess(
+        "Risco confirmado por revisão humana. O Plano de Ação foi liberado."
+      );
+      setRiskStatus("saved");
+    } catch (error) {
+      setRiskStatus("error");
+      setRiskError(
+        error instanceof Error
+          ? error.message
+          : "Erro ao confirmar a revisão humana do risco."
+      );
+    }
+  }
   async function handleCreateActionPlan(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     setActionPlanStatus("saving");
@@ -3836,6 +4002,9 @@ useEffect(() => {
 
     const currentContext = contextRef.current;
     const riskId = actionPlanForm.risk_id || selectedRiskId || firstString(risks[0], ["id"]) || "";
+    const selectedRiskForActionPlan =
+      risks.find((item) => item.id === riskId) ||
+      null;
 
     if (!currentContext.tenantId || !currentContext.establishmentId) {
       setActionPlanStatus("error");
@@ -3846,6 +4015,17 @@ useEffect(() => {
     if (!riskId) {
       setActionPlanStatus("error");
       setActionPlanError("Selecione um risco antes de criar o plano de acao.");
+      return;
+    }
+
+    if (
+      isGeneratedDiagnosisRiskEntity(selectedRiskForActionPlan) &&
+      !isGeneratedDiagnosisRiskActionReady(selectedRiskForActionPlan)
+    ) {
+      setActionPlanStatus("error");
+      setActionPlanError(
+        "Confirme o risco sugerido por revisão humana antes de criar o Plano de Ação."
+      );
       return;
     }
 
@@ -4174,19 +4354,45 @@ useEffect(() => {
     hasActivity ? "Atividades cadastradas" : "Cadastrar atividade",
   ];
 
-  const workspaceV2ProgressDescription = isWorkspaceMode
-    ? "Base pronta. Próximo foco: mapear a rotina real de trabalho."
-    : "Continue pela base inicial para liberar riscos, plano de ação e PGR.";
+  const workspaceV2ProgressDescription = !isWorkspaceMode
+    ? "Continue pela base inicial para liberar riscos, plano de ação e PGR."
+    : hasPendingGeneratedRiskReview
+      ? "Diagnóstico concluído. O risco sugerido aguarda revisão humana antes do Plano de Ação."
+      : hasRiskReadyForActionPlan && actionPlans.length === 0
+        ? "Risco confirmado. Próximo foco: definir o Plano de Ação."
+        : officialDiagnosisReady
+          ? "Diagnóstico concluído. Acompanhe riscos, ações e evidências da jornada."
+          : "Base pronta. Próximo foco: mapear a rotina real de trabalho.";
 
-  const workspaceV2NextBestActionTitle = isWorkspaceMode
-    ? "Mapear a rotina real da atividade principal"
-    : "Concluir a base inicial da empresa";
+  const workspaceV2NextBestActionTitle = !isWorkspaceMode
+    ? "Concluir a base inicial da empresa"
+    : hasPendingGeneratedRiskReview
+      ? "Revisar e confirmar o risco sugerido"
+      : hasRiskReadyForActionPlan && actionPlans.length === 0
+        ? "Definir Plano de Ação para o risco confirmado"
+        : officialDiagnosisReady
+          ? "Continuar a jornada a partir dos riscos"
+          : "Mapear a rotina real da atividade principal";
 
-  const workspaceV2NextBestActionDescription = isWorkspaceMode
-    ? "A base inicial está pronta. Agora o sistema deve entender como o trabalho acontece na prática para transformar essa leitura em riscos, prioridades e plano de ação."
-    : "Complete empresa, local de trabalho, setor e atividade principal. Depois disso, a jornada segue para rotina, sinais, riscos e plano de ação.";
+  const workspaceV2NextBestActionDescription = !isWorkspaceMode
+    ? "Complete empresa, local de trabalho, setor e atividade principal. Depois disso, a jornada segue para rotina, sinais, riscos e plano de ação."
+    : hasPendingGeneratedRiskReview
+      ? "Revise os dados do risco sugerido, confirme se representam a realidade do trabalho e só então libere o Plano de Ação."
+      : hasRiskReadyForActionPlan && actionPlans.length === 0
+        ? "O risco já passou pela revisão humana. Agora defina medida, responsável, prazo, monitoramento e evidência."
+        : officialDiagnosisReady
+          ? "Use o Inventário para manter riscos e ações coerentes com o diagnóstico e com as evidências."
+          : "A base inicial está pronta. Agora o sistema deve entender como o trabalho acontece na prática para transformar essa leitura em riscos, prioridades e plano de ação.";
 
-  const workspaceV2PrimaryLabel = isWorkspaceMode ? "Mapear rotina da atividade" : "Continuar base guiada";
+  const workspaceV2PrimaryLabel = !isWorkspaceMode
+    ? "Continuar base guiada"
+    : hasPendingGeneratedRiskReview
+      ? "Revisar risco sugerido"
+      : hasRiskReadyForActionPlan && actionPlans.length === 0
+        ? "Definir Plano de Ação"
+        : officialDiagnosisReady
+          ? "Abrir Inventário de riscos"
+          : "Mapear rotina da atividade";
 
     const shouldShowLegacyBaseForms = showGuidedSetup;
   const shouldShowPlanResourcesInMainFlow = false;
@@ -4212,7 +4418,17 @@ useEffect(() => {
         return;
       }
 
-      patchDraft({ activeSection: "diagnostico" }, "workspace_v2_primary_action");
+      const nextSection =
+        hasPendingGeneratedRiskReview ||
+        hasRiskReadyForActionPlan ||
+        officialDiagnosisReady
+          ? "riscos"
+          : "diagnostico";
+
+      patchDraft(
+        { activeSection: nextSection },
+        "workspace_v2_primary_action"
+      );
 
       window.setTimeout(() => {
         document.getElementById("nr1-operational-content")?.scrollIntoView({
@@ -5800,10 +6016,126 @@ useEffect(() => {
                 </div>
 
                 <form onSubmit={handleCreateActionPlan} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                  <h3 className="text-lg font-semibold">3. Criar plano de acao</h3>
+                  <h3 className="text-lg font-semibold">3. Revisar risco e criar Plano de Ação</h3>
                   <p className="mt-1 text-sm text-slate-500">
-                    De um nome claro ao plano e mantenha-o vinculado ao risco selecionado.
+                    Antes de criar o plano, revise o risco sugerido e confirme que ele representa a realidade do trabalho.
                   </p>
+
+                  {selectedInventoryRisk ? (
+                    <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                            Revisão humana do risco selecionado
+                          </p>
+                          <p className="mt-1 font-semibold text-slate-950">
+                            {firstString(selectedInventoryRisk, ["title", "hazard_description"]) || "Risco selecionado"}
+                          </p>
+                        </div>
+                        <span className="w-fit rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold text-slate-700">
+                          {firstString(selectedInventoryRisk, ["status"]) === "identified"
+                            ? "Aguardando revisão"
+                            : firstString(selectedInventoryRisk, ["status"]) === "classified"
+                              ? "Confirmado"
+                              : firstString(selectedInventoryRisk, ["status"]) || "Status não informado"}
+                        </span>
+                      </div>
+
+                      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-xl bg-white p-3">
+                          <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                            Categoria
+                          </span>
+                          <strong className="mt-1 block text-sm">
+                            {firstString(selectedInventoryRisk, ["risk_category"]) || "Não informada"}
+                          </strong>
+                        </div>
+                        <div className="rounded-xl bg-white p-3">
+                          <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                            Severidade
+                          </span>
+                          <strong className="mt-1 block text-sm">
+                            {firstString(selectedInventoryRisk, ["severity_level"]) || "Não informada"}
+                          </strong>
+                        </div>
+                        <div className="rounded-xl bg-white p-3">
+                          <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                            Probabilidade
+                          </span>
+                          <strong className="mt-1 block text-sm">
+                            {firstString(selectedInventoryRisk, ["probability_level"]) || "Não informada"}
+                          </strong>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 rounded-xl bg-white p-3">
+                        <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                          Nível do risco
+                        </span>
+                        <strong className="mt-1 block text-sm">
+                          {firstString(selectedInventoryRisk, ["risk_level"]) || "Não informado"}
+                        </strong>
+                      </div>
+
+                      <div className="mt-3 space-y-3">
+                        {[
+                          ["Descrição do perigo", "hazard_description"],
+                          ["Fonte ou circunstância", "source_circumstance"],
+                          ["Grupo exposto", "exposed_group"],
+                          ["Possíveis lesões ou agravos", "possible_harms"],
+                          ["Controles existentes", "existing_controls"],
+                          ["Medida recomendada", "recommended_measure"],
+                        ].map(([label, key]) => (
+                          <div key={key} className="rounded-xl bg-white p-3">
+                            <span className="block text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                              {label}
+                            </span>
+                            <p className="mt-1 text-sm leading-6 text-slate-700">
+                              {firstString(selectedInventoryRisk, [key]) || "Não informado"}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {selectedGeneratedRiskNeedsHumanReview ? (
+                        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                          <p className="font-semibold">
+                            Confirmação humana necessária
+                          </p>
+                          <p className="mt-1 leading-6">
+                            Este risco foi sugerido a partir do diagnóstico. Ele ainda não libera o Plano de Ação até que uma pessoa revise os dados acima e confirme o registro.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void handleConfirmSelectedRiskHumanReview();
+                            }}
+                            disabled={riskStatus === "saving"}
+                            className="mt-3 rounded-xl bg-amber-900 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-950 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {riskStatus === "saving"
+                              ? "Confirmando..."
+                              : "Confirmar risco e liberar Plano de Ação"}
+                          </button>
+                        </div>
+                      ) : isGeneratedDiagnosisRiskEntity(selectedInventoryRisk) ? (
+                        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                          <p className="font-semibold">
+                            Risco confirmado por revisão humana
+                          </p>
+                          <p className="mt-1 leading-6">
+                            O Plano de Ação está liberado para este risco.
+                          </p>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {selectedGeneratedRiskNeedsHumanReview ? (
+                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                      Plano de Ação bloqueado até a confirmação humana do risco sugerido.
+                    </div>
+                  ) : null}
 
                   <div className="mt-5 grid gap-3">
                     <input
@@ -5892,10 +6224,14 @@ useEffect(() => {
 
                   <button
                     type="submit"
-                    disabled={actionPlanStatus === "saving"}
+                    disabled={actionPlanStatus === "saving" || selectedGeneratedRiskNeedsHumanReview}
                     className="mt-5 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
                   >
-                    Criar plano vinculado ao risco
+                    {selectedGeneratedRiskNeedsHumanReview
+                      ? "Confirme o risco antes de criar o plano"
+                      : actionPlanStatus === "saving"
+                        ? "Salvando plano..."
+                        : "Criar plano vinculado ao risco"}
                   </button>
                 </form>
               </div>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import type { Database } from "@/lib/database.types"
-import type { Nr1ActionPlanRow } from "@/lib/nr1-db-types"
+import type { Nr1ActionPlanRow, Nr1RiskRow } from "@/lib/nr1-db-types"
 import {
   createNr1UserClientFromBearer,
   extractBearerToken,
@@ -62,6 +62,29 @@ function cleanText(value: unknown): string | null {
   if (typeof value !== "string") return null
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : null
+}
+const GENERATED_DIAGNOSIS_RISK_TITLES = new Set([
+  "Risco sugerido a partir da revisao dos pontos",
+  "Risco preliminar gerado pelo diagnostico guiado",
+  "Risco psicossocial preliminar gerado pelo diagnostico guiado",
+])
+
+const ACTION_PLAN_ALLOWED_GENERATED_RISK_STATUSES = new Set([
+  "classified",
+  "action_defined",
+  "controlled",
+])
+
+function isGeneratedDiagnosisRiskForActionPlan(row: Nr1RiskRow): boolean {
+  const title = cleanText(row.title)
+
+  return Boolean(
+    row.diagnosis_session_id &&
+      row.risk_category === "psychosocial" &&
+      title &&
+      GENERATED_DIAGNOSIS_RISK_TITLES.has(title) &&
+      !row.deleted_at
+  )
 }
 
 export async function GET(req: NextRequest) {
@@ -242,6 +265,53 @@ export async function POST(req: NextRequest) {
     }
 
     const userClient = createNr1UserClientFromBearer(bearerToken)
+    const riskLookupResult = await userClient
+      .from("nr1_risks")
+      .select("*")
+      .eq("id", riskId)
+      .eq("tenant_id", scope.tenantId)
+      .eq("establishment_id", establishmentId)
+      .is("deleted_at", null)
+
+    if (riskLookupResult.error) {
+      return json(500, {
+        ok: false,
+        error: "nr1_action_plan_risk_lookup_failed",
+        message: riskLookupResult.error.message,
+      })
+    }
+
+    const riskRows = (riskLookupResult.data || []) as Nr1RiskRow[]
+
+    if (riskRows.length === 0) {
+      return json(404, {
+        ok: false,
+        error: "nr1_action_plan_risk_not_found",
+        message: "Risk not found in tenant + establishment scope",
+      })
+    }
+
+    if (riskRows.length > 1) {
+      return json(409, {
+        ok: false,
+        error: "nr1_action_plan_risk_duplicate",
+        message: "Expected one risk row",
+      })
+    }
+
+    const riskRow = riskRows[0]
+    const riskStatus = cleanText(riskRow.status) || ""
+
+    if (
+      isGeneratedDiagnosisRiskForActionPlan(riskRow) &&
+      !ACTION_PLAN_ALLOWED_GENERATED_RISK_STATUSES.has(riskStatus)
+    ) {
+      return json(409, {
+        ok: false,
+        error: "risk_human_review_required",
+        message: "Confirm the diagnosis-generated risk by human review before creating an action plan",
+      })
+    }
 
     const payload: Nr1ActionPlanInsert = {
       tenant_id: scope.tenantId,

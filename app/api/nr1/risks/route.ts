@@ -37,6 +37,11 @@ type CreateRiskBody = {
   status?: string | null
 }
 
+type ConfirmRiskBody = {
+  establishment_id?: string
+  risk_id?: string
+  action?: string
+}
 const ALLOWED_RISK_CATEGORIES = new Set([
   "physical",
   "chemical",
@@ -55,6 +60,23 @@ const ALLOWED_STATUSES = new Set([
   "controlled",
   "requires_review",
 ])
+const GENERATED_DIAGNOSIS_RISK_TITLES = new Set([
+  "Risco sugerido a partir da revisao dos pontos",
+  "Risco preliminar gerado pelo diagnostico guiado",
+  "Risco psicossocial preliminar gerado pelo diagnostico guiado",
+])
+
+function isGeneratedDiagnosisRisk(row: Nr1RiskRow): boolean {
+  const title = cleanText(row.title)
+
+  return Boolean(
+    row.diagnosis_session_id &&
+      row.risk_category === "psychosocial" &&
+      title &&
+      GENERATED_DIAGNOSIS_RISK_TITLES.has(title) &&
+      !row.deleted_at
+  )
+}
 
 function json(status: number, payload: Record<string, unknown>) {
   return NextResponse.json(payload, { status })
@@ -162,6 +184,236 @@ export async function GET(req: NextRequest) {
   }
 }
 
+export async function PATCH(req: NextRequest) {
+  try {
+    const tenantId = getTenantId(req)
+
+    if (!tenantId) {
+      return json(400, {
+        ok: false,
+        error: "missing_tenant_id",
+        message: "Provide tenantId in querystring or x-icanhelp-tenant header",
+      })
+    }
+
+    const body = (await req.json().catch(() => null)) as ConfirmRiskBody | null
+
+    if (!body) {
+      return json(400, {
+        ok: false,
+        error: "invalid_json_body",
+        message: "Invalid JSON body",
+      })
+    }
+
+    const establishmentId =
+      cleanText(body.establishment_id) ||
+      getRequiredEstablishmentId(req)
+    const riskId = cleanText(body.risk_id)
+    const action = cleanText(body.action)
+
+    if (!establishmentId) {
+      return json(400, {
+        ok: false,
+        error: "missing_establishment_id",
+        message: "Provide establishment_id in body or establishmentId in querystring",
+      })
+    }
+
+    if (!riskId) {
+      return json(400, {
+        ok: false,
+        error: "missing_risk_id",
+        message: "risk_id is required",
+      })
+    }
+
+    if (action !== "confirm_human_review") {
+      return json(400, {
+        ok: false,
+        error: "unsupported_risk_action",
+        message: "Only confirm_human_review is supported",
+      })
+    }
+
+    const scope = await resolveNr1Scope({
+      req,
+      tenantId,
+      establishmentId,
+    })
+
+    if (!isTenantAdminRole(scope.role)) {
+      return json(403, {
+        ok: false,
+        error: "nr1_risk_human_review_forbidden",
+        message: "Only owner/admin can confirm human risk review",
+      })
+    }
+
+    const bearerToken = extractBearerToken(req)
+
+    if (!bearerToken) {
+      return json(401, {
+        ok: false,
+        error: "missing_bearer",
+        message: "Missing bearer token",
+      })
+    }
+
+    const userClient = createNr1UserClientFromBearer(bearerToken)
+
+    const existingResult = await userClient
+      .from("nr1_risks")
+      .select("*")
+      .eq("id", riskId)
+      .eq("tenant_id", scope.tenantId)
+      .eq("establishment_id", establishmentId)
+      .is("deleted_at", null)
+
+    if (existingResult.error) {
+      return json(500, {
+        ok: false,
+        error: "nr1_risk_human_review_lookup_failed",
+        message: existingResult.error.message,
+      })
+    }
+
+    const existingRows = (existingResult.data || []) as Nr1RiskRow[]
+
+    if (existingRows.length === 0) {
+      return json(404, {
+        ok: false,
+        error: "nr1_risk_not_found",
+        message: "Risk not found in tenant + establishment scope",
+      })
+    }
+
+    if (existingRows.length > 1) {
+      return json(409, {
+        ok: false,
+        error: "nr1_risk_duplicate",
+        message: "Expected one risk row",
+      })
+    }
+
+    const existingRisk = existingRows[0]
+
+    if (!isGeneratedDiagnosisRisk(existingRisk)) {
+      return json(409, {
+        ok: false,
+        error: "risk_not_generated_from_diagnosis",
+        message: "This confirmation action is only available for a diagnosis-generated risk",
+      })
+    }
+
+    if (existingRisk.status === "classified") {
+      return json(200, {
+        ok: true,
+        alreadyConfirmed: true,
+        tenantId: scope.tenantId,
+        establishmentId,
+        membershipRole: scope.role,
+        item: existingRisk,
+      })
+    }
+
+    if (existingRisk.status !== "identified") {
+      return json(409, {
+        ok: false,
+        error: "risk_status_not_confirmable",
+        message: "Only an identified diagnosis-generated risk can be confirmed",
+      })
+    }
+
+    const updateResult = await userClient
+      .from("nr1_risks")
+      .update({
+        status: "classified",
+        updated_by: scope.membership.user_id,
+      })
+      .eq("id", riskId)
+      .eq("tenant_id", scope.tenantId)
+      .eq("establishment_id", establishmentId)
+      .eq("status", "identified")
+      .select("*")
+      .single()
+
+    if (updateResult.error) {
+      return json(500, {
+        ok: false,
+        error: "nr1_risk_human_review_update_failed",
+        message: updateResult.error.message,
+      })
+    }
+
+    const updatedRisk = updateResult.data as Nr1RiskRow
+    const auditClient = createNr1AdminClient()
+
+    const auditPayload: Nr1AuditEventInsert = {
+      tenant_id: scope.tenantId,
+      establishment_id: establishmentId,
+      module_name: "nr1",
+      screen_key: "nr1_risk_inventory",
+      entity_type: "nr1_risk",
+      entity_id: riskId,
+      event_type: "nr1_risk_human_review_confirmed",
+      old_value_json: {
+        risk_id: riskId,
+        status: existingRisk.status,
+      },
+      new_value_json: {
+        risk_id: riskId,
+        diagnosis_session_id: existingRisk.diagnosis_session_id,
+        status: updatedRisk.status,
+        risk_category: updatedRisk.risk_category,
+        risk_level: updatedRisk.risk_level,
+      },
+      persistence_type: "formal_version",
+      reason: "nr1_risk_human_review_confirm",
+      user_id: scope.membership.user_id,
+    }
+
+    const auditResult = await auditClient
+      .from("nr1_audit_events")
+      .insert(auditPayload)
+
+    if (auditResult.error) {
+      return json(500, {
+        ok: false,
+        error: "nr1_risk_human_review_audit_failed",
+        message: auditResult.error.message,
+      })
+    }
+
+    return json(200, {
+      ok: true,
+      alreadyConfirmed: false,
+      tenantId: scope.tenantId,
+      establishmentId,
+      membershipRole: scope.role,
+      item: updatedRisk,
+    })
+  } catch (error) {
+    if (isNr1TenantMembershipDeniedForRisks(error)) {
+      return json(403, {
+        ok: false,
+        error: "tenant_membership_not_found",
+        message: "User is not a member of the requested tenant",
+      })
+    }
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Unexpected error"
+
+    return json(500, {
+      ok: false,
+      error: "nr1_risk_human_review_unhandled",
+      message,
+    })
+  }
+}
 export async function POST(req: NextRequest) {
   try {
     const tenantId = getTenantId(req)
