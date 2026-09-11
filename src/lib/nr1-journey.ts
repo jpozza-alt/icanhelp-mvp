@@ -35,6 +35,7 @@ export type Nr1JourneyProgressState = {
   hasDepartments: boolean;
   hasRisks: boolean;
   hasActionPlans: boolean;
+  hasEvidence?: boolean;
   isLoading?: boolean;
   error?: string | null;
   refreshedAt?: string | null;
@@ -171,7 +172,7 @@ export const NR1_JOURNEY_STEPS = [
     href: "/dashboard/nr1/evidencias-acompanhamento",
     availability: "available",
     countsTowardProgress: false,
-    isComplete: incompleteUntilSupported,
+    isComplete: (state) => Boolean(state.hasEvidence),
   },
   {
     id: "saude-treinamentos",
@@ -223,6 +224,7 @@ export type Nr1FullJourneyProgressState = {
   hasDiagnosis: boolean;
   hasRisks: boolean;
   hasActionPlans: boolean;
+  hasEvidence?: boolean;
 };
 
 export function getNr1FullJourneyCompletedStepIds(
@@ -237,6 +239,7 @@ export function getNr1FullJourneyCompletedStepIds(
   if (state.hasDiagnosis) completed.push("diagnostico-inicial");
   if (state.hasRisks) completed.push("riscos");
   if (state.hasActionPlans) completed.push("plano-de-acao");
+  if (state.hasEvidence) completed.push("evidencias");
 
   return completed;
 }

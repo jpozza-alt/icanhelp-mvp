@@ -101,6 +101,7 @@ const EMPTY_FULL_JOURNEY_PROGRESS_STATE: Nr1FullJourneyProgressState = {
   hasDiagnosis: false,
   hasRisks: false,
   hasActionPlans: false,
+  hasEvidence: false,
 };
 
 const GENERATED_DIAGNOSIS_RISK_TITLES = new Set([
@@ -537,6 +538,8 @@ const pendingValidationCount = useMemo(() => {
     return items.filter((item) => String(item.linked_entity_type || "").trim().toLowerCase() === "action_followup").length;
   }, [items]);
 
+  const hasEvidence = items.length > 0;
+
   useEffect(() => {
     (async () => {
       setLoadingSession(true);
@@ -908,6 +911,7 @@ const pendingValidationCount = useMemo(() => {
           hasDiagnosis,
           hasRisks: hasRiskReadyForActionPlan,
           hasActionPlans: actionPlans.length > 0,
+          hasEvidence,
         });
       } catch (e: unknown) {
         if (!cancelled) {
@@ -925,7 +929,7 @@ const pendingValidationCount = useMemo(() => {
     return () => {
       cancelled = true;
     };
-  }, [jwt, tenantId, selectedEstablishmentId, actionPlans.length]);
+  }, [jwt, tenantId, selectedEstablishmentId, actionPlans.length, hasEvidence]);
   useEffect(() => {
     if (!jwt || !tenantId || !selectedEstablishmentId) {
       setActionPlans([]);
@@ -1327,33 +1331,82 @@ const pendingValidationCount = useMemo(() => {
     }
   }
 
-return (
+  const evidenceJourneyProgressDescription = hasEvidence
+    ? "Evidência registrada. Próximo foco: Saúde e treinamentos."
+    : "Plano de Ação registrado. Próximo foco: acompanhar a execução e reunir evidências.";
+
+  const evidenceJourneyPendingItems = hasEvidence
+    ? [
+        "Registrar referências ocupacionais quando aplicável",
+        "Registrar treinamentos e capacitações pertinentes",
+        "Manter a evidência registrada na trilha de validação",
+      ]
+    : [
+        "Validar evidências do estabelecimento",
+        "Conferir fatores psicossociais derivados",
+        "Manter rastreabilidade para o PGR",
+      ];
+
+  const evidenceJourneyNextTitle = hasEvidence
+    ? "Avançar para Saúde e treinamentos"
+    : "Registrar evidência da execução do Plano de Ação";
+
+  const evidenceJourneyNextDescription = hasEvidence
+    ? "A etapa de Evidências já possui registro real vinculado ao Plano de Ação. A evidência continua aguardando validação humana, enquanto a jornada segue para Saúde e treinamentos."
+    : "Escolha o Plano de Ação que está sendo comprovado e registre a evidência da execução. Os fatores psicossociais permanecem como contexto organizacional, sem diagnóstico clínico individual.";
+
+  const evidenceJourneyPrimaryHref = hasEvidence
+    ? "/dashboard/nr1/saude-treinamentos"
+    : "#evidencias-operational-content";
+
+  const evidenceJourneyPrimaryLabel = hasEvidence
+    ? "Ir para Saúde e treinamentos"
+    : "Registrar evidência";
+
+  const evidenceJourneyReasons = hasEvidence
+    ? [
+        "Já existe evidência registrada e vinculada ao Plano de Ação.",
+        "A evidência pode continuar aguardando validação sem perder a rastreabilidade.",
+        "A próxima etapa disponível da jornada é Saúde e treinamentos.",
+      ]
+    : [
+        "As evidências sustentam o inventário de riscos.",
+        "Os fatores psicossociais devem permanecer ligados à organização do trabalho.",
+        "A rastreabilidade documental fortalece o PGR.",
+      ];
+
+  const evidenceJourneyModules = hasEvidence
+    ? [
+        "Base",
+        "Mapeamento",
+        "Riscos",
+        "Plano",
+        "Evidências",
+        "Saúde e treinamentos",
+        "PGR",
+      ]
+    : undefined;
+
+  return (
     <Nr1WorkspaceV2Shell
       companyName={selectedTenant?.name || "Empresa não selecionada"}
       establishmentName={selectedEstablishment?.name || "Unidade não selecionada"}
       pgrStatus="Em construção"
       progressPercent={evidenceJourneyProgressPercent}
-      progressDescription="Plano de Ação registrado. Próximo foco: acompanhar a execução e reunir evidências."
-      activeModule="Evidências"
-      pendingItems={[
-        "Validar evidências do estabelecimento",
-        "Conferir fatores psicossociais derivados",
-        "Manter rastreabilidade para o PGR",
-      ]}
-      nextBestActionLabel="Etapa da jornada"
-      nextBestActionTitle="Registrar evidência da execução do Plano de Ação"
-      nextBestActionDescription="Escolha o Plano de Ação que está sendo comprovado e registre a evidência da execução. Os fatores psicossociais permanecem como contexto organizacional, sem diagnóstico clínico individual."
-      nextBestActionPrimaryHref="#evidencias-operational-content"
-      nextBestActionPrimaryLabel="Registrar evidência"
+      progressDescription={evidenceJourneyProgressDescription}
+      activeModule={hasEvidence ? "Saúde e treinamentos" : "Evidências"}
+      modules={evidenceJourneyModules}
+      pendingItems={evidenceJourneyPendingItems}
+      nextBestActionLabel={hasEvidence ? "Próxima etapa da jornada" : "Etapa da jornada"}
+      nextBestActionTitle={evidenceJourneyNextTitle}
+      nextBestActionDescription={evidenceJourneyNextDescription}
+      nextBestActionPrimaryHref={evidenceJourneyPrimaryHref}
+      nextBestActionPrimaryLabel={evidenceJourneyPrimaryLabel}
       nextBestActionSecondaryHref="/dashboard/nr1/workspace"
       nextBestActionSecondaryLabel="Voltar ao workspace"
-      nextBestActionReasons={[
-        "As evidências sustentam o inventário de riscos.",
-        "Os fatores psicossociais devem permanecer ligados à organização do trabalho.",
-        "A rastreabilidade documental fortalece o PGR.",
-      ]}
+      nextBestActionReasons={evidenceJourneyReasons}
       pgrHref="/dashboard/nr1/relatorio-pgr"
-      moduleHref="#evidencias-operational-content"
+      moduleHref={hasEvidence ? "/dashboard/nr1/saude-treinamentos" : "#evidencias-operational-content"}
     >
       <section id="evidencias-operational-content" className="min-w-0 space-y-6">
         <section className={sectionClassName}>

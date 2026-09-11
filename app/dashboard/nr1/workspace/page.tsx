@@ -1240,6 +1240,7 @@ export default function Nr1WorkspacePage() {
   const [establishments, setEstablishments] = useState<SimpleEntity[]>([]);
   const [departments, setDepartments] = useState<SimpleEntity[]>([]);
   const [activities, setActivities] = useState<SimpleEntity[]>([]);
+  const [evidenceItems, setEvidenceItems] = useState<SimpleEntity[]>([]);
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
   const [draft, setDraft] = useState<WorkspaceDraftPayload>(DEFAULT_DRAFT);
 
@@ -1785,6 +1786,9 @@ useEffect(() => {
   const hasAnyActionPlan =
     allActionPlans.length > 0;
 
+  const hasEvidence =
+    evidenceItems.length > 0;
+
   const journeyFocusStepId =
     !hasCompany
       ? "empresa"
@@ -1800,9 +1804,11 @@ useEffect(() => {
                 ? "riscos"
                 : hasRiskReadyForActionPlan && !hasAnyActionPlan
                   ? "plano-de-acao"
-                  : hasAnyActionPlan
+                  : hasAnyActionPlan && !hasEvidence
                     ? "evidencias"
-                    : "riscos";
+                    : hasAnyActionPlan && hasEvidence
+                      ? "saude-treinamentos"
+                      : "riscos";
 
   const fullJourneyStepItems = NR1_JOURNEY_STEPS.map((step) => {
     const isComplete =
@@ -1813,7 +1819,8 @@ useEffect(() => {
       (step.id === "atividades" && hasActivity) ||
       (step.id === "diagnostico-inicial" && officialDiagnosisReady) ||
       (step.id === "riscos" && hasRiskReadyForActionPlan) ||
-      (step.id === "plano-de-acao" && hasAnyActionPlan);
+      (step.id === "plano-de-acao" && hasAnyActionPlan) ||
+      (step.id === "evidencias" && hasEvidence);
 
     const isCurrent =
       step.id === journeyFocusStepId;
@@ -1839,6 +1846,7 @@ useEffect(() => {
     hasDiagnosis: officialDiagnosisReady,
     hasRisks: hasRiskReadyForActionPlan,
     hasActionPlans: hasAnyActionPlan,
+    hasEvidence,
   });
   const progressPercent = fullJourneyProgress.percent;
   const workspaceCurrentJourneyStepIndex = (() => {
@@ -2288,6 +2296,56 @@ useEffect(() => {
     const payload = await fetchJson(path, {}, nextContext);
     return extractArray<SimpleEntity>(payload, ["items", "activities", "work_activities", "data"]);
   }, []);
+
+  const loadEvidenceItems = useCallback(async (nextContext: BackendContext): Promise<SimpleEntity[]> => {
+    if (!nextContext.tenantId || !nextContext.establishmentId) return [];
+
+    const path = buildUrl("/api/nr1/evidence-items", {
+      tenantId: nextContext.tenantId,
+      establishmentId: nextContext.establishmentId,
+    });
+
+    const payload = await fetchJson(path, {}, nextContext);
+    return extractArray<SimpleEntity>(payload, ["items", "evidence_items", "data"]);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refreshEvidenceJourneyState(): Promise<void> {
+      const nextContext: BackendContext = {
+        tenantId: context.tenantId,
+        establishmentId: context.establishmentId,
+      };
+
+      if (!nextContext.tenantId || !nextContext.establishmentId) {
+        setEvidenceItems([]);
+        return;
+      }
+
+      try {
+        const loadedEvidenceItems = await loadEvidenceItems(nextContext);
+
+        if (!cancelled) {
+          setEvidenceItems(loadedEvidenceItems);
+        }
+      } catch {
+        if (!cancelled) {
+          setEvidenceItems([]);
+        }
+      }
+    }
+
+    void refreshEvidenceJourneyState();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    context.tenantId,
+    context.establishmentId,
+    loadEvidenceItems,
+  ]);
 
   const loadDraftState = useCallback(async (nextContext: BackendContext): Promise<WorkspaceDraftPayload> => {
     if (!nextContext.tenantId || !nextContext.establishmentId) return DEFAULT_DRAFT;
@@ -4537,9 +4595,83 @@ useEffect(() => {
               "O progresso deve refletir os registros oficiais.",
             ];
 
+  const workspaceV2JourneyAdvancedToHealth =
+    journeyFocusStepId === "saude-treinamentos";
+
+  const workspaceV2EffectiveActiveModule =
+    workspaceV2JourneyAdvancedToHealth
+      ? "Saúde e treinamentos"
+      : workspaceV2ActiveModule;
+
+  const workspaceV2EffectivePendingItems =
+    workspaceV2JourneyAdvancedToHealth
+      ? [
+          "Registrar referências ocupacionais quando aplicável",
+          "Registrar treinamentos e capacitações pertinentes",
+          "Manter a evidência registrada na trilha de validação",
+        ]
+      : workspaceV2PendingItems;
+
+  const workspaceV2EffectiveProgressDescription =
+    workspaceV2JourneyAdvancedToHealth
+      ? "Evidência registrada. Próximo foco: Saúde e treinamentos."
+      : workspaceV2ProgressDescription;
+
+  const workspaceV2EffectiveNextBestActionTitle =
+    workspaceV2JourneyAdvancedToHealth
+      ? "Avançar para Saúde e treinamentos"
+      : workspaceV2NextBestActionTitle;
+
+  const workspaceV2EffectiveNextBestActionDescription =
+    workspaceV2JourneyAdvancedToHealth
+      ? "A etapa de Evidências já possui registro real. A evidência continua aguardando validação humana, enquanto a jornada avança para Saúde e treinamentos."
+      : workspaceV2NextBestActionDescription;
+
+  const workspaceV2EffectivePrimaryLabel =
+    workspaceV2JourneyAdvancedToHealth
+      ? "Ir para Saúde e treinamentos"
+      : workspaceV2PrimaryLabel;
+
+  const workspaceV2EffectiveNextBestActionReasons =
+    workspaceV2JourneyAdvancedToHealth
+      ? [
+          "Já existe evidência registrada e vinculada ao Plano de Ação.",
+          "A validação humana da evidência permanece preservada.",
+          "A próxima etapa disponível da jornada é Saúde e treinamentos.",
+        ]
+      : workspaceV2NextBestActionReasons;
+
+  const workspaceV2EffectivePrimaryHref =
+    workspaceV2JourneyAdvancedToHealth
+      ? "/dashboard/nr1/saude-treinamentos"
+      : "#nr1-operational-content";
+
+  const workspaceV2EffectiveModuleHref =
+    workspaceV2JourneyAdvancedToHealth
+      ? "/dashboard/nr1/saude-treinamentos"
+      : "#nr1-operational-content";
+
+  const workspaceV2EffectiveModules =
+    workspaceV2JourneyAdvancedToHealth
+      ? [
+          "Base",
+          "Mapeamento",
+          "Riscos",
+          "Plano",
+          "Evidências",
+          "Saúde e treinamentos",
+          "PGR",
+        ]
+      : undefined;
+
   const handleWorkspaceV2PrimaryAction = () => {
     if (!isWorkspaceMode) {
       openGuidedSetupAtPendingStep();
+      return;
+    }
+
+    if (journeyFocusStepId === "saude-treinamentos") {
+      window.location.href = "/dashboard/nr1/saude-treinamentos";
       return;
     }
 
@@ -4692,19 +4824,20 @@ useEffect(() => {
           establishmentName={displayName(selectedEstablishment, "Local de trabalho não selecionado")}
           pgrStatus={isWorkspaceMode ? "Em construção" : "Base em preparação"}
           progressPercent={progressPercent}
-          progressDescription={workspaceV2ProgressDescription}
-          activeModule={workspaceV2ActiveModule}
-          pendingItems={workspaceV2PendingItems}
-          nextBestActionTitle={workspaceV2NextBestActionTitle}
-          nextBestActionDescription={workspaceV2NextBestActionDescription}
-          nextBestActionPrimaryHref="#nr1-operational-content"
-          nextBestActionPrimaryLabel={workspaceV2PrimaryLabel}
+          progressDescription={workspaceV2EffectiveProgressDescription}
+          activeModule={workspaceV2EffectiveActiveModule}
+          modules={workspaceV2EffectiveModules}
+          pendingItems={workspaceV2EffectivePendingItems}
+          nextBestActionTitle={workspaceV2EffectiveNextBestActionTitle}
+          nextBestActionDescription={workspaceV2EffectiveNextBestActionDescription}
+          nextBestActionPrimaryHref={workspaceV2EffectivePrimaryHref}
+          nextBestActionPrimaryLabel={workspaceV2EffectivePrimaryLabel}
           nextBestActionPrimaryOnClick={handleWorkspaceV2PrimaryAction}
           nextBestActionSecondaryHref="#nr1-journey-progress"
           nextBestActionSecondaryLabel="Ver progresso da jornada"
-          nextBestActionReasons={workspaceV2NextBestActionReasons}
+          nextBestActionReasons={workspaceV2EffectiveNextBestActionReasons}
           pgrHref="/dashboard/nr1/relatorio-pgr"
-          moduleHref="#nr1-operational-content"
+          moduleHref={workspaceV2EffectiveModuleHref}
 
               topContextSlot={workspaceV2TopContextSlot}>
         {diagnosisError || diagnosisSuccess ? (
