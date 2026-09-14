@@ -1,9 +1,11 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 import Nr1WorkspaceV2Shell from "@/components/nr1/Nr1WorkspaceV2Shell";
+import { getNr1FullJourneyProgress } from "@/lib/nr1-journey";
+import { useNr1WorkspaceContext } from "@/lib/nr1-workspace-context";
 
 const supabaseBrowserClient = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -126,6 +128,42 @@ function readString(source: unknown, keys: string[]): string {
   return "";
 }
 
+
+const GENERATED_DIAGNOSIS_RISK_TITLES = new Set([
+  "Risco sugerido a partir da revisao dos pontos",
+  "Risco preliminar gerado pelo diagnostico guiado",
+  "Risco psicossocial preliminar gerado pelo diagnostico guiado",
+]);
+
+const GENERATED_DIAGNOSIS_RISK_ACTION_READY_STATUSES = new Set([
+  "classified",
+  "action_defined",
+  "controlled",
+]);
+
+function isGeneratedDiagnosisRiskRecord(
+  item: Record<string, unknown>
+): boolean {
+  const title = readString(item, ["title"]).trim();
+
+  return Boolean(
+    readString(item, ["diagnosis_session_id"]).trim() &&
+      readString(item, ["risk_category"]).trim() === "psychosocial" &&
+      GENERATED_DIAGNOSIS_RISK_TITLES.has(title) &&
+      !readString(item, ["deleted_at"]).trim()
+  );
+}
+
+function isGeneratedDiagnosisRiskActionReadyRecord(
+  item: Record<string, unknown>
+): boolean {
+  return Boolean(
+    isGeneratedDiagnosisRiskRecord(item) &&
+      GENERATED_DIAGNOSIS_RISK_ACTION_READY_STATUSES.has(
+        readString(item, ["status"]).trim()
+      )
+  );
+}
 function readBoolean(source: unknown, keys: string[]): boolean | null {
   if (!isRecord(source)) {
     return null;
@@ -294,44 +332,14 @@ async function getBrowserAccessToken(): Promise<string> {
   return accessToken;
 }
 
-async function resolveContext(): Promise<{ tenantId: string; establishmentId: string }> {
-  let tenantId = "";
-  let establishmentId = "";
-  const accessToken = await getBrowserAccessToken();
-
-  try {
-    const activePayload = await fetchJson("/api/tenants/active", {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    if (isRecord(activePayload)) {
-      tenantId =
-        readString(activePayload, ["tenantId", "tenant_id", "activeTenantId", "active_tenant_id"]) ||
-        readString(activePayload["activeTenant"], ["id", "tenantId", "tenant_id"]);
-      establishmentId =
-        readString(activePayload, ["establishmentId", "establishment_id", "activeEstablishmentId", "active_establishment_id"]) ||
-        readString(activePayload["activeEstablishment"], ["id", "establishmentId", "establishment_id"]) ||
-        readString(activePayload["establishment"], ["id", "establishmentId", "establishment_id"]);
-    }
-  } catch {
-  }
-
-  if (!tenantId) {
-    try {
-      const tenantsPayload = await fetchJson("/api/tenants");
-      const tenants = extractRecords(tenantsPayload, ["tenants", "items", "data"]);
-      if (tenants.length > 0) {
-        tenantId = readString(tenants[0], ["id", "tenantId", "tenant_id"]);
-      }
-    } catch {
-    }
-  }
-
-  return { tenantId, establishmentId };
-}
-
 export default function SaudeTreinamentosPage() {
+  const workspaceContextState = useNr1WorkspaceContext();
+
   const [tenantId, setTenantId] = useState("");
   const [establishmentId, setEstablishmentId] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [establishmentName, setEstablishmentName] = useState("");
+  const [journeyProgressPercent, setJourneyProgressPercent] = useState(0);
 
   const [healthRefs, setHealthRefs] = useState<OccupationalHealthRef[]>([]);
   const [trainingRecords, setTrainingRecords] = useState<TrainingRecord[]>([]);
@@ -351,135 +359,399 @@ export default function SaudeTreinamentosPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  async function loadData(options?: { keepSuccess?: boolean }) {
-    const keepSuccess = options?.keepSuccess ?? false;
+  const loadData = useCallback(
+    async (options?: { keepSuccess?: boolean; initial?: boolean }) => {
+      const keepSuccess = options?.keepSuccess ?? false;
+      const initial = options?.initial ?? false;
 
-    setErrorMessage("");
-    if (!keepSuccess) {
-      setSuccessMessage("");
-    }
+      setErrorMessage("");
 
-    const isFirstLoad = isInitialLoading;
-    if (!isFirstLoad) {
-      setIsRefreshing(true);
-    }
-
-    try {
-      let effectiveTenantId = tenantId.trim();
-      let effectiveEstablishmentId = establishmentId.trim();
-
-      if (!effectiveTenantId || !effectiveEstablishmentId) {
-        const context = await resolveContext();
-        if (!effectiveTenantId) {
-          effectiveTenantId = context.tenantId;
-        }
-        if (!effectiveEstablishmentId) {
-          effectiveEstablishmentId = context.establishmentId;
-        }
+      if (!keepSuccess) {
+        setSuccessMessage("");
       }
 
-      if (!effectiveTenantId) {
-        throw new Error("Nao foi possivel resolver tenantId automaticamente. Preencha manualmente no topo da tela.");
+      if (!initial) {
+        setIsRefreshing(true);
       }
 
-      if (effectiveTenantId !== tenantId) {
+      try {
+        if (workspaceContextState.status !== "ready") {
+          if (workspaceContextState.status === "error") {
+            throw new Error(
+              "Não foi possível validar o contexto ativo da jornada. Volte ao workspace e confirme a empresa e o local de trabalho."
+            );
+          }
+
+          return;
+        }
+
+        const {
+          tenantId: effectiveTenantId,
+          companyId: effectiveCompanyId,
+          establishmentId: effectiveEstablishmentId,
+        } = workspaceContextState.context;
+
         setTenantId(effectiveTenantId);
-      }
+        setEstablishmentId(effectiveEstablishmentId);
 
-      if (!effectiveEstablishmentId) {
-        try {
-          const establishmentsPayload = await fetchJson(
-            `/api/nr1/establishments?tenantId=${encodeURIComponent(effectiveTenantId)}`
+        const accessToken = await getBrowserAccessToken();
+
+        const contextHeaders = {
+          Authorization: `Bearer ${accessToken}`,
+          "x-tenant-id": effectiveTenantId,
+          "x-icanhelp-tenant": effectiveTenantId,
+          "x-establishment-id": effectiveEstablishmentId,
+        };
+
+        const tenantQuery =
+          `tenantId=${encodeURIComponent(effectiveTenantId)}`;
+
+        const establishmentQuery =
+          tenantQuery +
+          `&establishmentId=${encodeURIComponent(effectiveEstablishmentId)}`;
+
+        const companyEstablishmentQuery =
+          tenantQuery +
+          `&companyId=${encodeURIComponent(effectiveCompanyId)}`;
+
+        const [
+          companiesPayload,
+          establishmentsPayload,
+          departmentsPayload,
+          activitiesPayload,
+          risksPayload,
+          actionPlansPayload,
+          evidencePayload,
+          healthPayload,
+          trainingPayload,
+        ] = await Promise.all([
+          fetchJson(
+            `/api/nr1/companies?${tenantQuery}`,
+            { headers: contextHeaders }
+          ),
+          fetchJson(
+            `/api/nr1/establishments?${companyEstablishmentQuery}`,
+            { headers: contextHeaders }
+          ),
+          fetchJson(
+            `/api/nr1/departments?${establishmentQuery}`,
+            { headers: contextHeaders }
+          ),
+          fetchJson(
+            `/api/nr1/activities?${establishmentQuery}`,
+            { headers: contextHeaders }
+          ),
+          fetchJson(
+            `/api/nr1/risks?${establishmentQuery}`,
+            { headers: contextHeaders }
+          ),
+          fetchJson(
+            `/api/nr1/action-plans?establishmentId=${encodeURIComponent(
+              effectiveEstablishmentId
+            )}`,
+            { headers: contextHeaders }
+          ),
+          fetchJson(
+            `/api/nr1/evidence-items?establishmentId=${encodeURIComponent(
+              effectiveEstablishmentId
+            )}`,
+            { headers: contextHeaders }
+          ),
+          fetchJson(
+            `/api/nr1/occupational-health-refs?${establishmentQuery}`,
+            { headers: contextHeaders }
+          ),
+          fetchJson(
+            `/api/nr1/training-records?${establishmentQuery}`,
+            { headers: contextHeaders }
+          ),
+        ]);
+
+        const companyItems = extractRecords(
+          companiesPayload,
+          ["companies", "items", "data"]
+        );
+
+        const establishmentItems = extractRecords(
+          establishmentsPayload,
+          ["establishments", "items", "data"]
+        );
+
+        const departmentItems = extractRecords(
+          departmentsPayload,
+          ["departments", "items", "data"]
+        );
+
+        const activityItems = extractRecords(
+          activitiesPayload,
+          ["activities", "work_activities", "items", "data"]
+        );
+
+        const riskItems = extractRecords(
+          risksPayload,
+          ["risks", "items", "data"]
+        );
+
+        const actionPlanItems = extractRecords(
+          actionPlansPayload,
+          ["actionPlans", "action_plans", "items", "data"]
+        );
+
+        const evidenceItems = extractRecords(
+          evidencePayload,
+          ["evidenceItems", "evidence_items", "items", "data"]
+        );
+
+        const selectedCompany =
+          companyItems.find(
+            (item) =>
+              readString(item, ["id", "company_id"]).trim() ===
+              effectiveCompanyId
+          ) ?? null;
+
+        const selectedEstablishment =
+          establishmentItems.find(
+            (item) =>
+              readString(
+                item,
+                ["id", "establishmentId", "establishment_id"]
+              ).trim() === effectiveEstablishmentId
+          ) ?? null;
+
+        if (!selectedCompany) {
+          throw new Error(
+            "Não foi possível carregar a empresa ativa da jornada."
           );
+        }
 
-          const establishments = extractRecords(establishmentsPayload, [
-            "establishments",
+        if (!selectedEstablishment) {
+          throw new Error(
+            "Não foi possível carregar o local de trabalho ativo da jornada."
+          );
+        }
+
+        const resolvedCompanyName =
+          readString(
+            selectedCompany,
+            ["trade_name", "legal_name", "name", "title"]
+          ).trim();
+
+        const resolvedEstablishmentName =
+          readString(
+            selectedEstablishment,
+            ["name", "trade_name", "legal_name", "title"]
+          ).trim();
+
+        setCompanyName(
+          resolvedCompanyName || "Empresa ativa"
+        );
+
+        setEstablishmentName(
+          resolvedEstablishmentName || "Local de trabalho ativo"
+        );
+
+        const healthItems = extractRecords(
+          healthPayload,
+          [
+            "occupationalHealthRefs",
+            "occupational_health_refs",
+            "references",
             "items",
             "data",
-          ]);
+          ]
+        ) as OccupationalHealthRef[];
 
-          if (establishments.length > 0) {
-            effectiveEstablishmentId = readString(establishments[0], [
-              "id",
-              "establishmentId",
-              "establishment_id",
-            ]);
-          }
-        } catch {
-        }
-      }
+        const trainingItems = extractRecords(
+          trainingPayload,
+          [
+            "trainingRecords",
+            "training_records",
+            "items",
+            "data",
+          ]
+        ) as TrainingRecord[];
 
-      if (!effectiveEstablishmentId) {
-        throw new Error(
-          "Nao foi possivel resolver establishmentId automaticamente. Cadastre ao menos um estabelecimento no tenant ativo ou preencha manualmente no topo da tela."
+        healthItems.sort((a, b) => {
+          const left = readString(a, ["updated_at", "created_at"]);
+          const right = readString(b, ["updated_at", "created_at"]);
+          return right.localeCompare(left);
+        });
+
+        trainingItems.sort((a, b) => {
+          const left = readString(
+            a,
+            ["next_due_date", "updated_at", "created_at"]
+          );
+          const right = readString(
+            b,
+            ["next_due_date", "updated_at", "created_at"]
+          );
+          return right.localeCompare(left);
+        });
+
+        setHealthRefs(healthItems);
+        setTrainingRecords(trainingItems);
+
+        const riskRecords = riskItems.map(
+          (item) => item as Record<string, unknown>
         );
+
+        const hasPendingGeneratedRiskReview =
+          riskRecords.some(
+            (item) =>
+              isGeneratedDiagnosisRiskRecord(item) &&
+              !isGeneratedDiagnosisRiskActionReadyRecord(item)
+          );
+
+        const hasRiskReadyForActionPlan =
+          !hasPendingGeneratedRiskReview &&
+          riskRecords.some(
+            (item) =>
+              !isGeneratedDiagnosisRiskRecord(item) ||
+              isGeneratedDiagnosisRiskActionReadyRecord(item)
+          );
+
+        let hasDiagnosis = false;
+
+        const firstActivity = activityItems[0];
+
+        const activityId =
+          readString(firstActivity, ["id"]).trim();
+
+        const departmentId =
+          readString(
+            firstActivity,
+            ["department_id", "departmentId"]
+          ).trim();
+
+        if (activityId && departmentId) {
+          const sessionsPayload = await fetchJson(
+            `/api/nr1/diagnosis-sessions?${establishmentQuery}` +
+              `&activityId=${encodeURIComponent(activityId)}` +
+              `&departmentId=${encodeURIComponent(departmentId)}`,
+            { headers: contextHeaders }
+          );
+
+          const sessionItems = extractRecords(
+            sessionsPayload,
+            ["sessions", "items", "data"]
+          );
+
+          const diagnosisSessionId =
+            readString(sessionItems[0], ["id"]).trim();
+
+          if (diagnosisSessionId) {
+            const diagnosisQuery =
+              establishmentQuery +
+              `&diagnosisSessionId=${encodeURIComponent(
+                diagnosisSessionId
+              )}`;
+
+            const [
+              diagnosisContextPayload,
+              psychosocialPayload,
+            ] = await Promise.all([
+              fetchJson(
+                `/api/nr1/diagnosis-context?${diagnosisQuery}`,
+                { headers: contextHeaders }
+              ),
+              fetchJson(
+                `/api/nr1/diagnosis-psychosocial?${diagnosisQuery}`,
+                { headers: contextHeaders }
+              ),
+            ]);
+
+            const diagnosisContextItem =
+              isRecord(diagnosisContextPayload) &&
+              isRecord(diagnosisContextPayload.item)
+                ? diagnosisContextPayload.item
+                : {};
+
+            const psychosocialItem =
+              isRecord(psychosocialPayload) &&
+              isRecord(psychosocialPayload.item)
+                ? psychosocialPayload.item
+                : {};
+
+            hasDiagnosis = Boolean(
+              readString(
+                diagnosisContextItem,
+                ["tenant_id", "tenantId"]
+              ).trim() === effectiveTenantId &&
+                readString(
+                  diagnosisContextItem,
+                  ["diagnosis_session_id", "diagnosisSessionId"]
+                ).trim() === diagnosisSessionId &&
+                readString(
+                  psychosocialItem,
+                  ["tenant_id", "tenantId"]
+                ).trim() === effectiveTenantId &&
+                readString(
+                  psychosocialItem,
+                  ["diagnosis_session_id", "diagnosisSessionId"]
+                ).trim() === diagnosisSessionId
+            );
+          }
+        }
+
+        const journeyProgress =
+          getNr1FullJourneyProgress({
+            hasCompany: true,
+            hasEstablishment: true,
+            hasDepartments: departmentItems.length > 0,
+            hasActivities: activityItems.length > 0,
+            hasDiagnosis,
+            hasRisks: hasRiskReadyForActionPlan,
+            hasActionPlans: actionPlanItems.length > 0,
+            hasEvidence: evidenceItems.length > 0,
+          });
+
+        setJourneyProgressPercent(
+          journeyProgress.percent
+        );
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Falha inesperada ao carregar a tela.";
+
+        setErrorMessage(message);
+      } finally {
+        setIsInitialLoading(false);
+        setIsRefreshing(false);
       }
-
-      if (effectiveEstablishmentId !== establishmentId) {
-        setEstablishmentId(effectiveEstablishmentId);
-      }
-
-      const [healthPayload, trainingPayload] = await Promise.all([
-        fetchJson(
-          `/api/nr1/occupational-health-refs?tenantId=${encodeURIComponent(effectiveTenantId)}&establishmentId=${encodeURIComponent(effectiveEstablishmentId)}`
-        ),
-        fetchJson(
-          `/api/nr1/training-records?tenantId=${encodeURIComponent(effectiveTenantId)}&establishmentId=${encodeURIComponent(effectiveEstablishmentId)}`
-        ),
-      ]);
-
-      const healthItems = extractRecords(healthPayload, [
-        "occupationalHealthRefs",
-        "occupational_health_refs",
-        "references",
-        "items",
-        "data",
-      ]) as OccupationalHealthRef[];
-
-      const trainingItems = extractRecords(trainingPayload, [
-        "trainingRecords",
-        "training_records",
-        "items",
-        "data",
-      ]) as TrainingRecord[];
-
-      healthItems.sort((a, b) => {
-        const left = readString(a, ["updated_at", "created_at"]);
-        const right = readString(b, ["updated_at", "created_at"]);
-        return right.localeCompare(left);
-      });
-
-      trainingItems.sort((a, b) => {
-        const left = readString(a, ["next_due_date", "updated_at", "created_at"]);
-        const right = readString(b, ["next_due_date", "updated_at", "created_at"]);
-        return right.localeCompare(left);
-      });
-
-      setHealthRefs(healthItems);
-      setTrainingRecords(trainingItems);
-
-      if (!effectiveEstablishmentId) {
-        effectiveEstablishmentId =
-          readString(trainingItems[0], ["establishment_id"]) ||
-          readString(healthItems[0], ["establishment_id"]);
-      }
-
-      if (effectiveEstablishmentId && effectiveEstablishmentId !== establishmentId) {
-        setEstablishmentId(effectiveEstablishmentId);
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Falha inesperada ao carregar a tela.";
-      setErrorMessage(message);
-    } finally {
-      setIsInitialLoading(false);
-      setIsRefreshing(false);
-    }
-  }
+    },
+    [workspaceContextState]
+  );
 
   useEffect(() => {
-    void loadData();
-  }, []);
+    if (workspaceContextState.status === "loading") {
+      return;
+    }
 
+    if (workspaceContextState.status === "error") {
+      setTenantId("");
+      setEstablishmentId("");
+      setCompanyName("");
+      setEstablishmentName("");
+      setJourneyProgressPercent(0);
+      setErrorMessage(
+        "Não foi possível validar o contexto ativo da jornada. Volte ao workspace e confirme a empresa e o local de trabalho."
+      );
+      setIsInitialLoading(false);
+      return;
+    }
+
+    setTenantId(
+      workspaceContextState.context.tenantId
+    );
+
+    setEstablishmentId(
+      workspaceContextState.context.establishmentId
+    );
+
+    void loadData({ initial: true });
+  }, [workspaceContextState, loadData]);
   function beginTrainingEdit(record: TrainingRecord) {
     setEditingTrainingId(record.id);
     setEditingTrainingForm(normalizeTrainingForm(record));
@@ -501,12 +773,12 @@ export default function SaudeTreinamentosPage() {
     const effectiveEstablishmentId = establishmentId.trim();
 
     if (!effectiveTenantId) {
-      setErrorMessage("tenantId obrigatorio.");
+      setErrorMessage("Não foi possível identificar a empresa ativa. Recarregue a página e tente novamente.");
       return;
     }
 
     if (!effectiveEstablishmentId) {
-      setErrorMessage("establishment_id obrigatorio.");
+      setErrorMessage("Não foi possível identificar o local de trabalho ativo. Recarregue a página e tente novamente.");
       return;
     }
 
@@ -547,7 +819,7 @@ export default function SaudeTreinamentosPage() {
 
     const effectiveTenantId = tenantId.trim();
     if (!effectiveTenantId) {
-      setErrorMessage("tenantId obrigatorio.");
+      setErrorMessage("Não foi possível identificar a empresa ativa. Recarregue a página e tente novamente.");
       return;
     }
 
@@ -557,7 +829,7 @@ export default function SaudeTreinamentosPage() {
       readString(currentRecord, ["establishment_id"]);
 
     if (!effectiveEstablishmentId) {
-      setErrorMessage("establishment_id obrigatorio.");
+      setErrorMessage("Não foi possível identificar o local de trabalho ativo. Recarregue a página e tente novamente.");
       return;
     }
 
@@ -602,12 +874,12 @@ export default function SaudeTreinamentosPage() {
     const effectiveEstablishmentId = establishmentId.trim();
 
     if (!effectiveTenantId) {
-      setErrorMessage("tenantId obrigatorio.");
+      setErrorMessage("Não foi possível identificar a empresa ativa. Recarregue a página e tente novamente.");
       return;
     }
 
     if (!effectiveEstablishmentId) {
-      setErrorMessage("establishment_id obrigatorio.");
+      setErrorMessage("Não foi possível identificar o local de trabalho ativo. Recarregue a página e tente novamente.");
       return;
     }
 
@@ -901,11 +1173,11 @@ export default function SaudeTreinamentosPage() {
 
   return (
     <Nr1WorkspaceV2Shell
-      companyName={tenantId ? "Empresa ativa" : "Empresa não selecionada"}
-      establishmentName={establishmentId ? "Local de trabalho ativo" : "Local de trabalho não selecionado"}
+      companyName={companyName || "Carregando empresa..."}
+      establishmentName={establishmentName || "Carregando local de trabalho..."}
       pgrStatus="Em construção"
-      progressPercent={92}
-      progressDescription="Saúde ocupacional e treinamentos organizados no contexto ativo."
+      progressPercent={journeyProgressPercent}
+      progressDescription="Evidências concluídas. Foco atual: conferir saúde ocupacional e treinamentos."
       activeModule="Saúde e treinamentos"
       modules={["Base", "Mapeamento", "Riscos", "Plano", "Evidências", "Trilha", "Saúde e treinamentos", "PGR"]}
       pendingItems={[
@@ -969,27 +1241,24 @@ export default function SaudeTreinamentosPage() {
           </div>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
-            <label className="grid gap-1 text-sm">
-              <span className="font-medium text-[#40536A]">tenantId</span>
-              <input
-                className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
-                value={tenantId}
-                onChange={(event) => setTenantId(event.target.value)}
-                placeholder="Resolvido automaticamente quando possivel"
-              />
-            </label>
+            <div className="rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] px-4 py-3">
+              <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-[#A36B16]">
+                Empresa
+              </span>
+              <strong className="mt-1 block text-sm text-[#10243E]">
+                {companyName || "Carregando empresa..."}
+              </strong>
+            </div>
 
-            <label className="grid gap-1 text-sm">
-              <span className="font-medium text-[#40536A]">establishment_id</span>
-              <input
-                className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
-                value={establishmentId}
-                onChange={(event) => setEstablishmentId(event.target.value)}
-                placeholder="Inferido a partir dos dados quando possivel"
-              />
-            </label>
+            <div className="rounded-2xl border border-[#E2D4BF] bg-[#F4ECE2] px-4 py-3">
+              <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-[#A36B16]">
+                Local de trabalho
+              </span>
+              <strong className="mt-1 block text-sm text-[#10243E]">
+                {establishmentName || "Carregando local de trabalho..."}
+              </strong>
+            </div>
           </div>
-
           {errorMessage ? (
             <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
               {errorMessage}
