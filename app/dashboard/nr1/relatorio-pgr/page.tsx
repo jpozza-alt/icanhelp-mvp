@@ -1,8 +1,10 @@
 "use client";
 
 import Nr1WorkspaceV2Shell from "@/components/nr1/Nr1WorkspaceV2Shell";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { getNr1FullJourneyProgress } from "@/lib/nr1-journey";
+import { useNr1WorkspaceContext } from "@/lib/nr1-workspace-context";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,12 +12,6 @@ const supabase = createClient(
 );
 
 const FORMAL_PGR_OPERATIONS_ENABLED = false;
-
-type TenantOption = {
-  id: string;
-  name: string;
-  role?: string | null;
-};
 
 type EstablishmentOption = {
   id: string;
@@ -131,24 +127,6 @@ function asRecord(value: unknown): AnyRecord {
   return value && typeof value === "object" ? (value as AnyRecord) : {};
 }
 
-function parseTenants(payload: unknown): TenantOption[] {
-  const raw = Array.isArray(payload)
-    ? payload
-    : Array.isArray((payload as { items?: unknown[] })?.items)
-      ? (payload as { items: unknown[] }).items
-      : [];
-
-  return raw
-    .map((item) => {
-      const record = item as AnyRecord;
-      const id = String(record.id ?? record.tenant_id ?? "").trim();
-      const name = String(record.name ?? record.slug ?? "Empresa").trim();
-      const role = record.role ? String(record.role) : null;
-      return { id, name, role };
-    })
-    .filter((item) => item.id.length > 0);
-}
-
 function parseEstablishments(payload: unknown): EstablishmentOption[] {
   const raw = Array.isArray((payload as { items?: unknown[] })?.items)
     ? (payload as { items: unknown[] }).items
@@ -200,14 +178,89 @@ function parseCompanies(payload: unknown): CompanyOption[] {
     .filter((item) => item.id.length > 0 && item.tenant_id.length > 0 && item.legal_name.length > 0);
 }
 
-function isTechnicalTenantName(value: string): boolean {
-  const normalized = value.trim().toLowerCase();
 
-  return (
-    !normalized ||
-    normalized.startsWith("tenant-") ||
-    normalized.startsWith("tenant_") ||
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(normalized)
+function readStringValue(source: unknown, keys: string[]): string {
+  const record = asRecord(source);
+
+  for (const key of keys) {
+    const candidate = record[key];
+
+    if (typeof candidate === "string") {
+      return candidate;
+    }
+
+    if (typeof candidate === "number") {
+      return String(candidate);
+    }
+  }
+
+  return "";
+}
+
+function extractRecords(
+  payload: unknown,
+  preferredKeys: string[]
+): AnyRecord[] {
+  if (Array.isArray(payload)) {
+    return payload.map((item) => asRecord(item));
+  }
+
+  const record = asRecord(payload);
+
+  for (const key of preferredKeys) {
+    const candidate = record[key];
+
+    if (Array.isArray(candidate)) {
+      return candidate.map((item) => asRecord(item));
+    }
+  }
+
+  for (const candidate of Object.values(record)) {
+    if (Array.isArray(candidate)) {
+      return candidate.map((item) => asRecord(item));
+    }
+  }
+
+  if (readStringValue(record, ["id"])) {
+    return [record];
+  }
+
+  return [];
+}
+
+const GENERATED_DIAGNOSIS_RISK_TITLES = new Set([
+  "Risco sugerido a partir da revisao dos pontos",
+  "Risco preliminar gerado pelo diagnostico guiado",
+  "Risco psicossocial preliminar gerado pelo diagnostico guiado",
+]);
+
+const GENERATED_DIAGNOSIS_RISK_ACTION_READY_STATUSES = new Set([
+  "classified",
+  "action_defined",
+  "controlled",
+]);
+
+function isGeneratedDiagnosisRiskRecord(
+  item: AnyRecord
+): boolean {
+  const title = readStringValue(item, ["title"]).trim();
+
+  return Boolean(
+    readStringValue(item, ["diagnosis_session_id"]).trim() &&
+      readStringValue(item, ["risk_category"]).trim() === "psychosocial" &&
+      GENERATED_DIAGNOSIS_RISK_TITLES.has(title) &&
+      !readStringValue(item, ["deleted_at"]).trim()
+  );
+}
+
+function isGeneratedDiagnosisRiskActionReadyRecord(
+  item: AnyRecord
+): boolean {
+  return Boolean(
+    isGeneratedDiagnosisRiskRecord(item) &&
+      GENERATED_DIAGNOSIS_RISK_ACTION_READY_STATUSES.has(
+        readStringValue(item, ["status"]).trim()
+      )
   );
 }
 
@@ -449,32 +502,42 @@ function PrintFooter() {
 }
 
 export default function Nr1PgrReportPage() {
+  const workspaceContextState = useNr1WorkspaceContext();
+
   const [status, setStatus] = useState<LoadStatus>("idle");
   const [message, setMessage] = useState("");
   const [token, setToken] = useState("");
-  const [tenants, setTenants] = useState<TenantOption[]>([]);
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [establishments, setEstablishments] = useState<EstablishmentOption[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState("");
   const [selectedEstablishmentId, setSelectedEstablishmentId] = useState("");
   const [reportPayload, setReportPayload] = useState<unknown>(null);
   const [snapshotVersions, setSnapshotVersions] = useState<PgrSnapshotVersion[]>([]);
-  const companyRequestSequence = useRef(0);
+  const [journeyProgressPercent, setJourneyProgressPercent] = useState(0);
 
   const report = getReport(reportPayload);
   const latestFormalDocumentVersionId = snapshotVersions[0]?.id ?? "";
-  const selectedTenant = tenants.find((tenantItem) => tenantItem.id === selectedTenantId);
-  const selectedEstablishment = establishments.find((item) => item.id === selectedEstablishmentId);
-  const selectedCompany = companies.find((item) => item.id === selectedEstablishment?.company_id);
-  const topSelectorScopeReady = Boolean(selectedTenantId && selectedEstablishmentId);
-  const safeTenantName = selectedTenant?.name?.trim() || "";
+  const selectedEstablishment = establishments.find(
+    (item) => item.id === selectedEstablishmentId
+  );
+
+  const selectedCompany = companies.find(
+    (item) => item.id === selectedEstablishment?.company_id
+  );
+
+  const topSelectorScopeReady = Boolean(
+    selectedTenantId && selectedEstablishmentId
+  );
+
   const activeCompanyName =
     selectedCompany?.trade_name?.trim() ||
     selectedCompany?.legal_name?.trim() ||
-    (!isTechnicalTenantName(safeTenantName) ? safeTenantName : "") ||
     "Empresa ativa";
-  const activeEstablishmentName = selectedEstablishment?.name || "Local de trabalho não selecionado";
-  const previewProgress = report ? 100 : topSelectorScopeReady ? 50 : 0;
+
+  const activeEstablishmentName =
+    selectedEstablishment?.name ||
+    "Local de trabalho não selecionado";
+  const previewProgress = journeyProgressPercent;
   const previewProgressDescription = report
     ? "Preparação da prévia concluída. Isso não representa formalização do PGR."
     : topSelectorScopeReady
@@ -566,124 +629,6 @@ export default function Nr1PgrReportPage() {
     return accessToken;
   }
 
-  async function loadInitialContext() {
-    setStatus("loading");
-    setMessage("Carregando contexto NR1...");
-
-    try {
-      const accessToken = await getAccessToken();
-
-      const tenantsResponse = await fetch("/api/tenants", {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          Accept: "application/json",
-        },
-      });
-
-      const tenantsPayload = await tenantsResponse.json();
-      const tenantItems = parseTenants(tenantsPayload);
-
-      if (!tenantsResponse.ok || tenantItems.length === 0) {
-        throw new Error("Nenhuma empresa disponível para o usuário.");
-      }
-
-      setTenants(tenantItems);
-
-      const firstTenantId = selectedTenantId || tenantItems[0].id;
-      setSelectedTenantId(firstTenantId);
-
-      await Promise.all([
-        loadCompanies(accessToken, firstTenantId),
-        loadEstablishments(accessToken, firstTenantId),
-      ]);
-      setStatus("idle");
-      setMessage("Selecione o local de trabalho e gere a prévia.");
-    } catch (error) {
-      setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Falha ao carregar contexto NR1.");
-    }
-  }
-
-  async function loadCompanies(accessToken: string, tenantId: string) {
-    const requestSequence = ++companyRequestSequence.current;
-
-    try {
-      const response = await fetch(`/api/nr1/companies?tenantId=${encodeURIComponent(tenantId)}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "x-icanhelp-tenant": tenantId,
-          Accept: "application/json",
-        },
-        cache: "no-store",
-      });
-      const payload = await response.json();
-
-      if (requestSequence !== companyRequestSequence.current) {
-        return;
-      }
-
-      setCompanies(response.ok ? parseCompanies(payload) : []);
-    } catch {
-      if (requestSequence === companyRequestSequence.current) {
-        setCompanies([]);
-      }
-    }
-  }
-
-  async function loadEstablishments(accessToken: string, tenantId: string) {
-    const response = await fetch("/api/nr1/establishments", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "x-icanhelp-tenant": tenantId,
-        Accept: "application/json",
-      },
-    });
-
-    const payload = await response.json();
-    const items = parseEstablishments(payload);
-
-    if (!response.ok) {
-      throw new Error("Falha ao carregar estabelecimentos.");
-    }
-
-    setEstablishments(items);
-
-    const queryParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
-    const queryEstablishmentId =
-      queryParams?.get("establishmentId")?.trim() ||
-      queryParams?.get("establishment_id")?.trim() ||
-      "";
-
-    const nextSelectedEstablishmentId =
-      items.find((item) => item.id === queryEstablishmentId)?.id ?? items[0]?.id ?? "";
-
-    setSelectedEstablishmentId(nextSelectedEstablishmentId);
-  }
-
-  async function handleTenantChange(nextTenantId: string) {
-    setSelectedTenantId(nextTenantId);
-    setSelectedEstablishmentId("");
-    setCompanies([]);
-    setEstablishments([]);
-    setReportPayload(null);
-    setSnapshotVersions([]);
-
-    try {
-      setStatus("loading");
-      setMessage("Carregando empresas e locais de trabalho...");
-      const accessToken = token || (await getAccessToken());
-      await Promise.all([
-        loadCompanies(accessToken, nextTenantId),
-        loadEstablishments(accessToken, nextTenantId),
-      ]);
-      setStatus("idle");
-      setMessage("Contexto carregado.");
-    } catch (error) {
-      setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Falha ao trocar empresa.");
-    }
-  }
   async function loadReport() {
     if (!selectedTenantId) {
       setStatus("error");
@@ -819,8 +764,361 @@ export default function Nr1PgrReportPage() {
   }
 
   useEffect(() => {
-    loadInitialContext();
-  }, []);
+    let cancelled = false;
+
+    async function loadCanonicalWorkspaceContext() {
+      if (workspaceContextState.status === "loading") {
+        setStatus("loading");
+        setMessage("Carregando contexto ativo da jornada...");
+        return;
+      }
+
+      if (workspaceContextState.status === "error") {
+        setSelectedTenantId("");
+        setSelectedEstablishmentId("");
+        setCompanies([]);
+        setEstablishments([]);
+        setJourneyProgressPercent(0);
+        setReportPayload(null);
+        setSnapshotVersions([]);
+        setStatus("error");
+        setMessage(
+          "Não foi possível validar o contexto ativo da jornada. Volte ao workspace e confirme a empresa e o local de trabalho."
+        );
+        return;
+      }
+
+      const {
+        tenantId: effectiveTenantId,
+        companyId: effectiveCompanyId,
+        establishmentId: effectiveEstablishmentId,
+      } = workspaceContextState.context;
+
+      setStatus("loading");
+      setMessage("Carregando contexto ativo da jornada...");
+
+      try {
+        const sessionResult = await supabase.auth.getSession();
+        const accessToken =
+          sessionResult.data.session?.access_token?.trim() ?? "";
+
+        if (!accessToken) {
+          throw new Error("Sessão não encontrada. Faça login novamente.");
+        }
+
+        const contextHeaders = {
+          Authorization: `Bearer ${accessToken}`,
+          "x-tenant-id": effectiveTenantId,
+          "x-icanhelp-tenant": effectiveTenantId,
+          "x-establishment-id": effectiveEstablishmentId,
+          Accept: "application/json",
+        };
+
+        const fetchContextPayload = async (
+          url: string
+        ): Promise<unknown> => {
+          const response = await fetch(url, {
+            method: "GET",
+            credentials: "same-origin",
+            cache: "no-store",
+            headers: contextHeaders,
+          });
+
+          const raw = await response.text();
+          let payload: unknown = null;
+
+          if (raw) {
+            try {
+              payload = JSON.parse(raw) as unknown;
+            } catch {
+              payload = null;
+            }
+          }
+
+          if (!response.ok) {
+            throw new Error(
+              `Falha ao carregar o contexto da jornada (HTTP ${response.status}).`
+            );
+          }
+
+          return payload;
+        };
+
+        const tenantQuery =
+          `tenantId=${encodeURIComponent(effectiveTenantId)}`;
+
+        const establishmentQuery =
+          tenantQuery +
+          `&establishmentId=${encodeURIComponent(
+            effectiveEstablishmentId
+          )}`;
+
+        const companyEstablishmentQuery =
+          tenantQuery +
+          `&companyId=${encodeURIComponent(
+            effectiveCompanyId
+          )}`;
+
+        const [
+          companiesPayload,
+          establishmentsPayload,
+          departmentsPayload,
+          activitiesPayload,
+          risksPayload,
+          actionPlansPayload,
+          evidencePayload,
+        ] = await Promise.all([
+          fetchContextPayload(
+            `/api/nr1/companies?${tenantQuery}`
+          ),
+          fetchContextPayload(
+            `/api/nr1/establishments?${companyEstablishmentQuery}`
+          ),
+          fetchContextPayload(
+            `/api/nr1/departments?${establishmentQuery}`
+          ),
+          fetchContextPayload(
+            `/api/nr1/activities?${establishmentQuery}`
+          ),
+          fetchContextPayload(
+            `/api/nr1/risks?${establishmentQuery}`
+          ),
+          fetchContextPayload(
+            `/api/nr1/action-plans?establishmentId=${encodeURIComponent(
+              effectiveEstablishmentId
+            )}`
+          ),
+          fetchContextPayload(
+            `/api/nr1/evidence-items?establishmentId=${encodeURIComponent(
+              effectiveEstablishmentId
+            )}`
+          ),
+        ]);
+
+        const companyItems = parseCompanies(
+          companiesPayload
+        );
+
+        const establishmentItems = parseEstablishments(
+          establishmentsPayload
+        );
+
+        const departmentItems = extractRecords(
+          departmentsPayload,
+          ["departments", "items", "data"]
+        );
+
+        const activityItems = extractRecords(
+          activitiesPayload,
+          ["activities", "work_activities", "items", "data"]
+        );
+
+        const riskItems = extractRecords(
+          risksPayload,
+          ["risks", "items", "data"]
+        );
+
+        const actionPlanItems = extractRecords(
+          actionPlansPayload,
+          ["actionPlans", "action_plans", "items", "data"]
+        );
+
+        const evidenceItems = extractRecords(
+          evidencePayload,
+          ["evidenceItems", "evidence_items", "items", "data"]
+        );
+
+        const activeCompany = companyItems.find(
+          (item) =>
+            item.id === effectiveCompanyId &&
+            item.tenant_id === effectiveTenantId
+        );
+
+        const activeEstablishment =
+          establishmentItems.find(
+            (item) =>
+              item.id === effectiveEstablishmentId &&
+              item.company_id === effectiveCompanyId
+          );
+
+        if (!activeCompany) {
+          throw new Error(
+            "Não foi possível carregar a empresa ativa da jornada."
+          );
+        }
+
+        if (!activeEstablishment) {
+          throw new Error(
+            "Não foi possível carregar o local de trabalho ativo da jornada."
+          );
+        }
+
+        const riskRecords = riskItems.map(
+          (item) => item as AnyRecord
+        );
+
+        const hasPendingGeneratedRiskReview =
+          riskRecords.some(
+            (item) =>
+              isGeneratedDiagnosisRiskRecord(item) &&
+              !isGeneratedDiagnosisRiskActionReadyRecord(item)
+          );
+
+        const hasRiskReadyForActionPlan =
+          !hasPendingGeneratedRiskReview &&
+          riskRecords.some(
+            (item) =>
+              !isGeneratedDiagnosisRiskRecord(item) ||
+              isGeneratedDiagnosisRiskActionReadyRecord(item)
+          );
+
+        let hasDiagnosis = false;
+
+        const firstActivity = activityItems[0];
+
+        const activityId = readStringValue(
+          firstActivity,
+          ["id"]
+        ).trim();
+
+        const departmentId = readStringValue(
+          firstActivity,
+          ["department_id", "departmentId"]
+        ).trim();
+
+        if (activityId && departmentId) {
+          const sessionsPayload =
+            await fetchContextPayload(
+              `/api/nr1/diagnosis-sessions?${establishmentQuery}` +
+                `&activityId=${encodeURIComponent(activityId)}` +
+                `&departmentId=${encodeURIComponent(departmentId)}`
+            );
+
+          const sessionItems = extractRecords(
+            sessionsPayload,
+            ["sessions", "items", "data"]
+          );
+
+          const diagnosisSessionId =
+            readStringValue(
+              sessionItems[0],
+              ["id"]
+            ).trim();
+
+          if (diagnosisSessionId) {
+            const diagnosisQuery =
+              establishmentQuery +
+              `&diagnosisSessionId=${encodeURIComponent(
+                diagnosisSessionId
+              )}`;
+
+            const [
+              diagnosisContextPayload,
+              psychosocialPayload,
+            ] = await Promise.all([
+              fetchContextPayload(
+                `/api/nr1/diagnosis-context?${diagnosisQuery}`
+              ),
+              fetchContextPayload(
+                `/api/nr1/diagnosis-psychosocial?${diagnosisQuery}`
+              ),
+            ]);
+
+            const diagnosisContextItem =
+              asRecord(
+                asRecord(diagnosisContextPayload).item
+              );
+
+            const psychosocialItem =
+              asRecord(
+                asRecord(psychosocialPayload).item
+              );
+
+            hasDiagnosis = Boolean(
+              readStringValue(
+                diagnosisContextItem,
+                ["tenant_id", "tenantId"]
+              ).trim() === effectiveTenantId &&
+                readStringValue(
+                  diagnosisContextItem,
+                  [
+                    "diagnosis_session_id",
+                    "diagnosisSessionId",
+                  ]
+                ).trim() === diagnosisSessionId &&
+                readStringValue(
+                  psychosocialItem,
+                  ["tenant_id", "tenantId"]
+                ).trim() === effectiveTenantId &&
+                readStringValue(
+                  psychosocialItem,
+                  [
+                    "diagnosis_session_id",
+                    "diagnosisSessionId",
+                  ]
+                ).trim() === diagnosisSessionId
+            );
+          }
+        }
+
+        const journeyProgress =
+          getNr1FullJourneyProgress({
+            hasCompany: true,
+            hasEstablishment: true,
+            hasDepartments:
+              departmentItems.length > 0,
+            hasActivities:
+              activityItems.length > 0,
+            hasDiagnosis,
+            hasRisks:
+              hasRiskReadyForActionPlan,
+            hasActionPlans:
+              actionPlanItems.length > 0,
+            hasEvidence:
+              evidenceItems.length > 0,
+          });
+
+        if (cancelled) {
+          return;
+        }
+
+        setToken(accessToken);
+        setCompanies(companyItems);
+        setEstablishments(establishmentItems);
+        setSelectedTenantId(effectiveTenantId);
+        setSelectedEstablishmentId(
+          effectiveEstablishmentId
+        );
+        setReportPayload(null);
+        setSnapshotVersions([]);
+        setJourneyProgressPercent(
+          journeyProgress.percent
+        );
+        setStatus("idle");
+        setMessage(
+          "Contexto ativo da jornada carregado. Gere a prévia para conferir a consolidação."
+        );
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        setJourneyProgressPercent(0);
+        setStatus("error");
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "Falha ao carregar o contexto ativo da jornada."
+        );
+      }
+    }
+
+    void loadCanonicalWorkspaceContext();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceContextState]);
 
   const pgrTopContextSlot = (
     <section
@@ -840,49 +1138,28 @@ export default function Nr1PgrReportPage() {
       </div>
 
       <div className="mt-5 grid min-w-0 gap-4 md:grid-cols-2">
-        <label className="min-w-0 text-sm font-semibold text-[#10243e]">
-          Empresa
-          <select
-            value={selectedTenantId}
-            onChange={(event) => void handleTenantChange(event.target.value)}
-            className="mt-2 w-full min-w-0 rounded-2xl border border-[#d9c9b8] bg-[#FFFCF7] px-4 py-3 text-sm font-semibold text-[#10243e] outline-none transition focus:border-[#9d7b37]"
-          >
-            {tenants.map((tenantItem, index) => {
-              const tenantName = tenantItem.name.trim();
-              const optionLabel =
-                tenantItem.id === selectedTenantId && selectedCompany
-                  ? activeCompanyName
-                  : !isTechnicalTenantName(tenantName)
-                    ? tenantName
-                    : `Empresa ${index + 1}`;
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-[#10243e]">
+            Empresa
+          </p>
+          <div className="mt-2 min-h-[48px] w-full rounded-2xl border border-[#d9c9b8] bg-[#f7efe6] px-4 py-3 text-sm font-semibold text-[#10243e]">
+            {activeCompanyName}
+          </div>
+        </div>
 
-              return (
-                <option key={tenantItem.id} value={tenantItem.id}>
-                  {optionLabel}
-                </option>
-              );
-            })}
-          </select>
-        </label>
-
-        <label className="min-w-0 text-sm font-semibold text-[#10243e]">
-          Local de trabalho
-          <select
-            value={selectedEstablishmentId}
-            onChange={(event) => {
-              setSelectedEstablishmentId(event.target.value);
-              setReportPayload(null);
-              setSnapshotVersions([]);
-            }}
-            className="mt-2 w-full min-w-0 rounded-2xl border border-[#d9c9b8] bg-[#FFFCF7] px-4 py-3 text-sm font-semibold text-[#10243e] outline-none transition focus:border-[#9d7b37]"
-          >
-            {establishments.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name} {item.city ? `- ${item.city}/${item.state ?? ""}` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-[#10243e]">
+            Local de trabalho
+          </p>
+          <div className="mt-2 min-h-[48px] w-full rounded-2xl border border-[#d9c9b8] bg-[#f7efe6] px-4 py-3 text-sm font-semibold text-[#10243e]">
+            {activeEstablishmentName}
+            {selectedEstablishment?.city ? (
+              <span className="ml-2 font-normal text-[#6f665b]">
+                — {selectedEstablishment.city}/{selectedEstablishment.state ?? ""}
+              </span>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       <dl className="mt-5 grid min-w-0 gap-3 md:grid-cols-2">
