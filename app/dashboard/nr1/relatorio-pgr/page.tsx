@@ -1681,7 +1681,12 @@ export default function Nr1PgrReportPage() {
               <EmptyState text="Pendente: nenhum setor ou processo de trabalho foi encontrado para o estabelecimento." />
             )}
 
-            <h3 className="mt-5 text-base font-semibold text-slate-950">Atividades caracterizadas</h3>
+            <h3
+              className="mt-5 text-base font-semibold text-slate-950"
+              style={{ breakAfter: "avoid-page", pageBreakAfter: "avoid" }}
+            >
+              Atividades caracterizadas
+            </h3>
             {activities.length > 0 ? (
               <div className="mt-3 space-y-3">
                 {activities.map((item, index) => (
