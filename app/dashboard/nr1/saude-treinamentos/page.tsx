@@ -85,16 +85,10 @@ const EMPTY_HEALTH_FORM: HealthFormState = {
 };
 
 const STATUS_SUGGESTIONS = [
-  "planned",
-  "pending",
-  "scheduled",
-  "in_progress",
-  "completed",
-  "overdue",
-  "expired",
-  "cancelled",
-  "not_required",
-];
+  { value: "up_to_date", label: "Em dia" },
+  { value: "due_soon", label: "Vence em breve" },
+  { value: "overdue", label: "Vencido" },
+] as const;
 
 const PERIODICITY_SUGGESTIONS = [
   "once",
@@ -972,8 +966,7 @@ export default function SaudeTreinamentosPage() {
 
             <label className="grid gap-1 text-sm">
               <span className="font-medium text-[#40536A]">Status</span>
-              <input
-                list="training-status-options"
+              <select
                 className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                 value={editingTrainingForm.status}
                 onChange={(event) =>
@@ -981,8 +974,14 @@ export default function SaudeTreinamentosPage() {
                     ...current,
                     status: event.target.value,
                   }))
-                }
-              />
+                }>
+                <option value="">Selecione</option>
+                {STATUS_SUGGESTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className="grid gap-1 text-sm">
@@ -1187,11 +1186,11 @@ export default function SaudeTreinamentosPage() {
       ]}
       nextBestActionLabel="Etapa da jornada"
       nextBestActionTitle="Conferir saúde ocupacional e treinamentos"
-      nextBestActionDescription="Revise as referências de saúde ocupacional e mantenha os treinamentos vinculados ao local de trabalho ativo."
-      nextBestActionPrimaryHref="#nr1-health-training-content"
-      nextBestActionPrimaryLabel="Ver registros"
-      nextBestActionSecondaryHref="/dashboard/nr1/relatorio-pgr"
-      nextBestActionSecondaryLabel="Voltar para o PGR"
+      nextBestActionDescription="Confira os registros quando forem aplicáveis. Esta etapa apoia o acompanhamento, mas não impede continuar para a revisão do PGR."
+      nextBestActionPrimaryHref="/dashboard/nr1/relatorio-pgr"
+      nextBestActionPrimaryLabel="Continuar para o PGR"
+      nextBestActionSecondaryHref="#nr1-health-training-content"
+      nextBestActionSecondaryLabel="Ver registros"
       nextBestActionReasons={[
         "Os registros apoiam o acompanhamento preventivo.",
         "Os vencimentos precisam permanecer atualizados.",
@@ -1201,13 +1200,7 @@ export default function SaudeTreinamentosPage() {
       moduleHref="#nr1-health-training-content"
     >
       <section id="nr1-health-training-content" className="min-w-0 space-y-6 text-[#10243E]">
-      <datalist id="training-status-options">
-        {STATUS_SUGGESTIONS.map((option) => (
-          <option key={option} value={option} />
-        ))}
-      </datalist>
-
-      <datalist id="training-periodicity-options">
+<datalist id="training-periodicity-options">
         {PERIODICITY_SUGGESTIONS.map((option) => (
           <option key={option} value={option} />
         ))}
@@ -1221,7 +1214,7 @@ export default function SaudeTreinamentosPage() {
                 NR1
               </p>
               <h1 className="text-3xl font-bold text-[#10243E]">
-                Saude e Treinamentos
+                Saúde e Treinamentos
               </h1>
               <p className="mt-2 text-sm text-[#60718A]">
                 Leitura real, criacao controlada e edicao inline de treinamento existente.
@@ -1271,6 +1264,16 @@ export default function SaudeTreinamentosPage() {
             </div>
           ) : null}
         </header>
+        <div className="rounded-2xl border border-[#D6B56C] bg-[#FFF8E8] px-5 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#A36B16]">
+            Etapa de apoio ao PGR
+          </p>
+          <p className="mt-2 text-sm leading-6 text-[#40536A]">
+            Preencha saúde ocupacional e treinamentos quando forem aplicáveis ao estabelecimento.
+            A ausência de registro nesta tela não bloqueia a revisão e a geração do PGR.
+            Não crie registros apenas para concluir a jornada.
+          </p>
+        </div>
 
         {isInitialLoading ? (
           <section className="rounded-[24px] border border-[#D6B56C] bg-[#FFFCF7] p-6 shadow-[0_8px_24px_rgba(18,40,70,0.07)]">
@@ -1567,8 +1570,7 @@ export default function SaudeTreinamentosPage() {
 
                   <label className="grid gap-1 text-sm">
                     <span className="font-medium text-[#40536A]">Status</span>
-                    <input
-                      list="training-status-options"
+                    <select
                       className="rounded-xl border border-[#D8C8B2] bg-[#FFFCF7] px-3 py-2 text-[#10243E] outline-none transition focus:border-[#10243E] focus:ring-2 focus:ring-[#D6B56C]/25"
                       value={trainingForm.status}
                       onChange={(event) =>
@@ -1576,8 +1578,14 @@ export default function SaudeTreinamentosPage() {
                           ...current,
                           status: event.target.value,
                         }))
-                      }
-                    />
+                      }>
+                <option value="">Selecione</option>
+                {STATUS_SUGGESTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
                   </label>
 
                   <label className="grid gap-1 text-sm">
