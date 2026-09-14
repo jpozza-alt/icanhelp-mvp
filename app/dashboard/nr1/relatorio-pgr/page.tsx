@@ -1732,7 +1732,7 @@ export default function Nr1PgrReportPage() {
                     );
 
                   return (
-                    <article key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4">
+                    <article key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4" style={{ breakInside: "auto", pageBreakInside: "auto" }}>
                       <h3 className="text-base font-semibold text-slate-950">{index + 1}. {isGeneratedDiagnosisRiskActionReadyRecord(item) ? "Risco psicossocial revisado e confirmado na jornada" : text(item.title, "Risco sem título")}</h3>
 
                       <div className="mt-3 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
