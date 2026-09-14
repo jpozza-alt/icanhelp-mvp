@@ -1264,11 +1264,14 @@ export default function SaudeTreinamentosPage() {
             </div>
           ) : null}
         </header>
-        <div className="rounded-2xl border border-[#D6B56C] bg-[#FFF8E8] px-5 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#A36B16]">
+        <div className="rounded-[24px] border-2 border-[#C79A3B] bg-[#FFF1CC] px-6 py-6 shadow-[0_10px_28px_rgba(163,107,22,0.12)]">
+          <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#8A5A12]">
             Etapa de apoio ao PGR
           </p>
-          <p className="mt-2 text-sm leading-6 text-[#40536A]">
+          <p className="mt-2 text-xl font-bold leading-7 text-[#10243E]">
+            Esta etapa não bloqueia a continuidade para o PGR.
+          </p>
+          <p className="mt-3 max-w-4xl text-sm leading-6 text-[#40536A]">
             Preencha saúde ocupacional e treinamentos quando forem aplicáveis ao estabelecimento.
             A ausência de registro nesta tela não bloqueia a revisão e a geração do PGR.
             Não crie registros apenas para concluir a jornada.
