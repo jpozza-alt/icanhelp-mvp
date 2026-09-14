@@ -534,6 +534,29 @@ function recordLabelById(
   );
 }
 
+function riskDisplayLabelById(
+  records: AnyRecord[],
+  idValue: unknown,
+  fallback = "Não informado"
+): string {
+  const id = text(idValue, "");
+
+  if (!id) {
+    return fallback;
+  }
+
+  const record = records.find(
+    (item) => text(item.id, "") === id
+  );
+
+  if (!record) {
+    return fallback;
+  }
+
+  return isGeneratedDiagnosisRiskActionReadyRecord(record)
+    ? "Risco psicossocial revisado e confirmado na jornada"
+    : text(record.title, fallback);
+}
 function formatCnpj(value: unknown): string {
   const raw = text(value, "");
   const digits = raw.replace(/\D/g, "");
@@ -1812,7 +1835,7 @@ export default function Nr1PgrReportPage() {
                   <article key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4">
                     <h3 className="text-base font-semibold text-slate-950">{index + 1}. {text(item.title, "Ação sem título")}</h3>
                     <div className="mt-3 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
-                      <p className="md:col-span-2"><strong>Risco vinculado:</strong> {recordLabelById(risks, item.risk_id)}</p>
+                      <p className="md:col-span-2"><strong>Risco vinculado:</strong> {riskDisplayLabelById(risks, item.risk_id)}</p>
                       <p><strong>Prioridade:</strong> {humanLabel(item.priority, PRIORITY_LABELS)}</p>
                       <p><strong>Status:</strong> {humanLabel(item.status, ACTION_PLAN_STATUS_LABELS)}</p>
                       <p><strong>Responsável:</strong> {text(item.responsible_name, "Não informado")}</p>
