@@ -1705,7 +1705,7 @@ export default function Nr1PgrReportPage() {
 
                   return (
                     <article key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4">
-                      <h3 className="text-base font-semibold text-slate-950">{index + 1}. {text(item.title, "Risco sem título")}</h3>
+                      <h3 className="text-base font-semibold text-slate-950">{index + 1}. {isGeneratedDiagnosisRiskActionReadyRecord(item) ? "Risco psicossocial revisado e confirmado na jornada" : text(item.title, "Risco sem título")}</h3>
 
                       <div className="mt-3 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
                         <p><strong>Setor:</strong> {recordLabelById(departments, item.department_id)}</p>
@@ -1726,7 +1726,7 @@ export default function Nr1PgrReportPage() {
                         <p className="md:col-span-2"><strong>Grupo de trabalhadores expostos:</strong> {text(item.exposed_group, "Não informado")}</p>
                         <p className="md:col-span-2"><strong>Medidas de prevenção/controles existentes registrados:</strong> {text(item.existing_controls, "Não informado")}</p>
                         <p className="md:col-span-2"><strong>Caracterização da exposição:</strong> {text(item.exposure_characterization, "Não informado")}</p>
-                        <p className="md:col-span-2"><strong>Medida recomendada — sugestão para tratamento:</strong> {text(item.recommended_measure, "Não informado")}</p>
+                        <p className="md:col-span-2"><strong>Medida recomendada — sugestão para tratamento:</strong> {isGeneratedDiagnosisRiskActionReadyRecord(item) ? "Manter o tratamento definido no plano de a\u00e7\u00e3o vinculado e acompanhar sua execu\u00e7\u00e3o." : text(item.recommended_measure, "Não informado")}</p>
                       </div>
 
                       <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-700">
