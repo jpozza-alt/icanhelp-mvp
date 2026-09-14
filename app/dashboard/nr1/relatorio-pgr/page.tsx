@@ -395,6 +395,145 @@ function hasDisplayValue(value: unknown): boolean {
     (typeof value === "number" && Number.isFinite(value));
 }
 
+const HIDDEN_TECHNICAL_KEYS = new Set([
+  "id",
+  "tenant_id",
+  "diagnosis_session_id",
+  "created_at",
+  "created_by",
+  "updated_at",
+  "updated_by",
+]);
+
+function humanizeTechnicalKey(key: string): string {
+  const labels: Readonly<Record<string, string>> = {
+    has_existing_aep: "AEP existente informada",
+    has_forced_posture: "Postura forçada",
+    has_manual_handling: "Movimentação manual",
+    has_prolonged_sitting: "Permanência sentada prolongada",
+    has_prolonged_standing: "Permanência em pé prolongada",
+    has_repetitive_movements: "Movimentos repetitivos",
+    lighting_adequacy: "Adequação da iluminação",
+    thermal_discomfort: "Desconforto térmico",
+    acoustic_discomfort: "Desconforto acústico",
+    has_environmental_monitoring: "Monitoramento ambiental informado",
+    has_noise: "Ruído",
+    has_vibration: "Vibração",
+    has_heat_or_cold: "Calor ou frio",
+    has_chemical_contact: "Contato com agente químico",
+    has_dust_fume_gas_vapor_mist: "Poeira, fumo, gás, vapor ou névoa",
+    has_biological_agent: "Agente biológico",
+    has_existing_control: "Controle existente",
+    notes: "Observações",
+    details_json: "Detalhamento técnico",
+  };
+
+  if (labels[key]) {
+    return labels[key];
+  }
+
+  const readable = key.replace(/[_-]+/g, " ").trim();
+
+  return readable
+    ? readable.charAt(0).toLocaleUpperCase("pt-BR") + readable.slice(1)
+    : key;
+}
+
+function formatTechnicalValue(value: unknown, depth = 0): string {
+  if (value === null || value === undefined || value === "") {
+    return "Não informado";
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "Sim" : "Não";
+  }
+
+  if (typeof value === "string") {
+    return value.trim() || "Não informado";
+  }
+
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    const parts = value
+      .map((item) => formatTechnicalValue(item, depth + 1))
+      .filter((item) => item !== "Não informado");
+
+    return parts.length > 0 ? parts.join("; ") : "Não informado";
+  }
+
+  if (typeof value === "object" && depth < 3) {
+    const parts = Object.entries(value as AnyRecord)
+      .filter(([key, item]) => {
+        if (HIDDEN_TECHNICAL_KEYS.has(key)) {
+          return false;
+        }
+
+        return item !== null && item !== undefined && item !== "";
+      })
+      .map(
+        ([key, item]) =>
+          `${humanizeTechnicalKey(key)}: ${formatTechnicalValue(
+            item,
+            depth + 1
+          )}`
+      );
+
+    return parts.length > 0 ? parts.join("; ") : "Não informado";
+  }
+
+  return "Não informado";
+}
+
+function findByDiagnosisSession(
+  records: AnyRecord[],
+  diagnosisSessionIdValue: unknown
+): AnyRecord | null {
+  const diagnosisSessionId = text(
+    diagnosisSessionIdValue,
+    ""
+  );
+
+  if (!diagnosisSessionId) {
+    return null;
+  }
+
+  return (
+    records.find(
+      (item) =>
+        text(item.diagnosis_session_id, "") ===
+        diagnosisSessionId
+    ) ?? null
+  );
+}
+
+function recordLabelById(
+  records: AnyRecord[],
+  idValue: unknown,
+  fallback = "Não informado"
+): string {
+  const id = text(idValue, "");
+
+  if (!id) {
+    return fallback;
+  }
+
+  const record = records.find(
+    (item) => text(item.id, "") === id
+  );
+
+  if (!record) {
+    return fallback;
+  }
+
+  return text(
+    record.name ?? record.title,
+    fallback
+  );
+}
+
 function formatCnpj(value: unknown): string {
   const raw = text(value, "");
   const digits = raw.replace(/\D/g, "");
@@ -580,6 +719,20 @@ export default function Nr1PgrReportPage() {
   const company = asRecord(report?.company);
   const establishment = asRecord(report?.establishment);
   const scope = asRecord(report?.scope);
+  const departments = readArray(report, "departments");
+  const activities = readArray(report, "activities");
+  const diagnosisErgonomics = readArray(
+    report,
+    "diagnosisErgonomics"
+  );
+  const diagnosisFqb = readArray(
+    report,
+    "diagnosisFqb"
+  );
+  const groCriteria = asRecord(report?.groCriteria);
+  const groCriteriaAvailable = Boolean(
+    text(groCriteria.id, "")
+  );
   const risks = readArray(report, "risks");
   const actionPlans = readArray(report, "actionPlans");
   const actionFollowups = readArray(report, "actionFollowups");
@@ -1455,49 +1608,226 @@ export default function Nr1PgrReportPage() {
               </div>
             ) : null}
 
-            <SectionTitle>3. Inventário de riscos</SectionTitle>
-            {risks.length > 0 ? (
-              <div className="mt-4 space-y-4">
-                {risks.map((item, index) => (
+            <SectionTitle>3. Caracterização dos processos, ambientes e atividades</SectionTitle>
+
+            <article className="nr1-print-avoid mt-4 rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">
+              <h3 className="font-semibold text-slate-950">Estabelecimento e ambiente de trabalho</h3>
+              <div className="mt-3 grid gap-2 md:grid-cols-2">
+                <p><strong>Tipo de estabelecimento:</strong> {text(establishment.establishment_type, "Não informado")}</p>
+                <p><strong>Trabalhadores informados:</strong> {text(establishment.employee_count, "Não informado")}</p>
+                <p><strong>Atividades externas:</strong> {text(establishment.has_external_activities, "Não informado")}</p>
+                <p><strong>Presença de terceiros:</strong> {text(establishment.has_third_parties, "Não informado")}</p>
+                <p className="md:col-span-2">
+                  <strong>Endereço/ambiente cadastrado:</strong>{" "}
+                  {[
+                    text(establishment.address, ""),
+                    text(establishment.number, ""),
+                    text(establishment.complement, ""),
+                    text(establishment.district, ""),
+                    formatCityState(establishment.city, establishment.state),
+                  ]
+                    .filter(Boolean)
+                    .join(", ") || "Não informado"}
+                </p>
+                <p className="md:col-span-2"><strong>Observações do estabelecimento:</strong> {text(establishment.notes, "Não informado")}</p>
+              </div>
+            </article>
+
+            <h3 className="mt-5 text-base font-semibold text-slate-950">Setores e processos de trabalho cadastrados</h3>
+            {departments.length > 0 ? (
+              <div className="mt-3 space-y-3">
+                {departments.map((item, index) => (
                   <article key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4">
-                    <h3 className="text-base font-semibold text-slate-950">{index + 1}. {text(item.title, "Risco sem título")}</h3>
-                    <div className="mt-3 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
-                      <p><strong>Categoria:</strong> {humanLabel(item.risk_category, RISK_CATEGORY_LABELS)}</p>
-                      <p><strong>Nível:</strong> {humanLabel(item.risk_level, RISK_LEVEL_LABELS)}</p>
-                      <p><strong>Classificação:</strong> {humanLabel(item.classification, RISK_LEVEL_LABELS)}</p>
-                      <p><strong>Grupo exposto:</strong> {text(item.exposed_group)}</p>
-                      <p className="md:col-span-2"><strong>Perigo/Fonte:</strong> {text(item.hazard_description ?? item.source_circumstance)}</p>
-                      <p className="md:col-span-2"><strong>Medida recomendada:</strong> {text(item.recommended_measure)}</p>
+                    <p className="font-semibold text-slate-950">{index + 1}. {text(item.name, "Setor sem nome")}</p>
+                    <div className="mt-2 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
+                      <p className="md:col-span-2"><strong>Descrição/processo:</strong> {text(item.description, "Não informado")}</p>
+                      <p><strong>Trabalhadores:</strong> {text(item.employee_count, "Não informado")}</p>
+                      <p><strong>Turno/jornada:</strong> {text(item.shift_pattern, "Não informado")}</p>
+                      <p><strong>Liderança direta:</strong> {text(item.has_direct_leadership, "Não informado")}</p>
+                      <p><strong>Contato com público:</strong> {text(item.has_public_contact, "Não informado")}</p>
+                      <p><strong>Pressão por prazo:</strong> {text(item.has_deadline_pressure, "Não informado")}</p>
+                      <p><strong>Trabalho repetitivo:</strong> {text(item.has_repetitive_work, "Não informado")}</p>
+                      <p><strong>Permanência sentada prolongada:</strong> {text(item.has_prolonged_sitting, "Não informado")}</p>
+                      <p><strong>Esforço físico relevante:</strong> {text(item.has_relevant_physical_effort, "Não informado")}</p>
+                      <p><strong>Deslocamento frequente:</strong> {text(item.has_frequent_displacement, "Não informado")}</p>
                     </div>
                   </article>
                 ))}
               </div>
             ) : (
-              <EmptyState text="Nenhum risco registrado para este estabelecimento." />
+              <EmptyState text="Pendente: nenhum setor ou processo de trabalho foi encontrado para o estabelecimento." />
             )}
 
-            <SectionTitle>4. Plano de ação</SectionTitle>
+            <h3 className="mt-5 text-base font-semibold text-slate-950">Atividades caracterizadas</h3>
+            {activities.length > 0 ? (
+              <div className="mt-3 space-y-3">
+                {activities.map((item, index) => (
+                  <article key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4">
+                    <p className="font-semibold text-slate-950">{index + 1}. {text(item.name, "Atividade sem nome")}</p>
+                    <div className="mt-2 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
+                      <p><strong>Setor:</strong> {recordLabelById(departments, item.department_id)}</p>
+                      <p><strong>Frequência:</strong> {text(item.frequency, "Não informado")}</p>
+                      <p><strong>Trabalhadores expostos:</strong> {text(item.exposed_worker_count, "Não informado")}</p>
+                      <p><strong>Local de execução:</strong> {text(item.execution_location, "Não informado")}</p>
+                      <p className="md:col-span-2"><strong>Descrição real da atividade:</strong> {text(item.real_activity_description, "Não informado")}</p>
+                      <p><strong>Uso de máquina:</strong> {text(item.uses_machine, "Não informado")}</p>
+                      <p><strong>Uso de produto químico:</strong> {text(item.uses_chemical, "Não informado")}</p>
+                      <p><strong>Contato com público:</strong> {text(item.has_public_contact, "Não informado")}</p>
+                      <p><strong>Interação com terceiros:</strong> {text(item.has_third_party_interaction, "Não informado")}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <EmptyState text="Pendente: nenhuma atividade caracterizada foi encontrada para o estabelecimento." />
+            )}
+
+            <SectionTitle>4. Inventário de riscos ocupacionais</SectionTitle>
+            {risks.length > 0 ? (
+              <div className="mt-4 space-y-4">
+                {risks.map((item, index) => {
+                  const diagnosisSessionId = text(
+                    item.diagnosis_session_id,
+                    ""
+                  );
+
+                  const ergonomicsSource =
+                    findByDiagnosisSession(
+                      diagnosisErgonomics,
+                      diagnosisSessionId
+                    );
+
+                  const fqbSource =
+                    findByDiagnosisSession(
+                      diagnosisFqb,
+                      diagnosisSessionId
+                    );
+
+                  return (
+                    <article key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4">
+                      <h3 className="text-base font-semibold text-slate-950">{index + 1}. {text(item.title, "Risco sem título")}</h3>
+
+                      <div className="mt-3 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
+                        <p><strong>Setor:</strong> {recordLabelById(departments, item.department_id)}</p>
+                        <p><strong>Atividade:</strong> {recordLabelById(activities, item.activity_id)}</p>
+
+                        <p><strong>Categoria:</strong> {humanLabel(item.risk_category, RISK_CATEGORY_LABELS)}</p>
+                        <p><strong>Status:</strong> {humanLabel(item.status, {})}</p>
+
+                        <p><strong>Severidade:</strong> {humanLabel(item.severity_level, RISK_LEVEL_LABELS)}</p>
+                        <p><strong>Probabilidade:</strong> {humanLabel(item.probability_level, RISK_LEVEL_LABELS)}</p>
+
+                        <p><strong>Nível de risco:</strong> {humanLabel(item.risk_level, RISK_LEVEL_LABELS)}</p>
+                        <p><strong>Classificação:</strong> {humanLabel(item.classification, RISK_LEVEL_LABELS)}</p>
+
+                        <p className="md:col-span-2"><strong>Descrição do perigo:</strong> {text(item.hazard_description, "Não informado")}</p>
+                        <p className="md:col-span-2"><strong>Fonte e/ou circunstância:</strong> {text(item.source_circumstance, "Não informado")}</p>
+                        <p className="md:col-span-2"><strong>Possíveis lesões ou agravos:</strong> {text(item.possible_harms, "Não informado")}</p>
+                        <p className="md:col-span-2"><strong>Grupo de trabalhadores expostos:</strong> {text(item.exposed_group, "Não informado")}</p>
+                        <p className="md:col-span-2"><strong>Medidas de prevenção/controles existentes registrados:</strong> {text(item.existing_controls, "Não informado")}</p>
+                        <p className="md:col-span-2"><strong>Caracterização da exposição:</strong> {text(item.exposure_characterization, "Não informado")}</p>
+                        <p className="md:col-span-2"><strong>Medida recomendada — sugestão para tratamento:</strong> {text(item.recommended_measure, "Não informado")}</p>
+                      </div>
+
+                      <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-3 text-sm text-slate-700">
+                        <p className="font-semibold text-slate-950">
+                          Dados técnicos de AEP/ergonomia e monitoramento vinculados
+                        </p>
+
+                        {!diagnosisSessionId ? (
+                          <p className="mt-2">
+                            Não informado: este risco não possui sessão de diagnóstico vinculada para consulta das fontes técnicas.
+                          </p>
+                        ) : (
+                          <>
+                            <p className="mt-2">
+                              <strong>AEP/ergonomia:</strong>{" "}
+                              {ergonomicsSource
+                                ? formatTechnicalValue(ergonomicsSource)
+                                : "Não informado no diagnóstico vinculado."}
+                            </p>
+
+                            <p className="mt-2">
+                              <strong>Agentes físicos, químicos e biológicos / monitoramento:</strong>{" "}
+                              {fqbSource
+                                ? formatTechnicalValue(fqbSource)
+                                : "Não informado no diagnóstico vinculado."}
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <EmptyState text="Pendente: nenhum risco registrado para este estabelecimento." />
+            )}
+
+            <SectionTitle>5. Critérios utilizados no GRO/PGR</SectionTitle>
+            {groCriteriaAvailable ? (
+              <article className="nr1-print-avoid mt-4 rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">
+                <div className="grid gap-2 md:grid-cols-2">
+                  <p><strong>Metodologia:</strong> {text(groCriteria.methodology_name, "Não informado")}</p>
+                  <p><strong>Versão:</strong> {text(groCriteria.version, "Não informado")}</p>
+                  <p><strong>Critério ativo:</strong> {text(groCriteria.is_active, "Não informado")}</p>
+                  <p><strong>Aprovado em:</strong> {hasDisplayValue(groCriteria.approved_at) ? dateTimeText(groCriteria.approved_at) : "Não informado"}</p>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <p className="font-semibold text-slate-950">Critérios das gradações de severidade</p>
+                    <p className="mt-1">{formatTechnicalValue(groCriteria.severity_scale_json)}</p>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <p className="font-semibold text-slate-950">Critérios das gradações de probabilidade</p>
+                    <p className="mt-1">{formatTechnicalValue(groCriteria.probability_scale_json)}</p>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <p className="font-semibold text-slate-950">Níveis de risco resultantes da combinação</p>
+                    <p className="mt-1">{formatTechnicalValue(groCriteria.risk_matrix_json)}</p>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <p className="font-semibold text-slate-950">Critérios de classificação dos riscos</p>
+                    <p className="mt-1">{formatTechnicalValue(groCriteria.classification_rules_json)}</p>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    <p className="font-semibold text-slate-950">Critérios para tomada de decisão</p>
+                    <p className="mt-1">{formatTechnicalValue(groCriteria.decision_rules_json)}</p>
+                  </div>
+                </div>
+              </article>
+            ) : (
+              <EmptyState text="Pendente: não há critérios GRO/PGR cadastrados para este estabelecimento. A prévia não preencherá critérios por inferência." />
+            )}
+
+            <SectionTitle>6. Plano de ação</SectionTitle>
             {actionPlans.length > 0 ? (
               <div className="mt-4 space-y-4">
                 {actionPlans.map((item, index) => (
                   <article key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4">
                     <h3 className="text-base font-semibold text-slate-950">{index + 1}. {text(item.title, "Ação sem título")}</h3>
                     <div className="mt-3 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
+                      <p className="md:col-span-2"><strong>Risco vinculado:</strong> {recordLabelById(risks, item.risk_id)}</p>
                       <p><strong>Prioridade:</strong> {humanLabel(item.priority, PRIORITY_LABELS)}</p>
                       <p><strong>Status:</strong> {humanLabel(item.status, ACTION_PLAN_STATUS_LABELS)}</p>
-                      <p><strong>Responsável:</strong> {text(item.responsible_name)}</p>
+                      <p><strong>Responsável:</strong> {text(item.responsible_name, "Não informado")}</p>
                       <p><strong>Prazo:</strong> {dateOnlyText(item.due_date)}</p>
-                      <p className="md:col-span-2"><strong>Descrição:</strong> {text(item.description)}</p>
-                      <p className="md:col-span-2"><strong>Indicador:</strong> {text(item.completion_indicator)}</p>
+                      <p className="md:col-span-2"><strong>Descrição:</strong> {text(item.description, "Não informado")}</p>
+                      <p className="md:col-span-2"><strong>Indicador de conclusão/aferição:</strong> {text(item.completion_indicator, "Não informado")}</p>
                     </div>
                   </article>
                 ))}
               </div>
             ) : (
-              <EmptyState text="Nenhum plano de ação registrado para este estabelecimento." />
+              <EmptyState text="Pendente: nenhum plano de ação registrado para este estabelecimento." />
             )}
 
-            <SectionTitle>5. Acompanhamentos</SectionTitle>
+            <SectionTitle>7. Acompanhamentos</SectionTitle>
             {actionFollowups.length > 0 ? (
               <div className="mt-4 space-y-3">
                 {actionFollowups.map((item, index) => (
@@ -1516,26 +1846,29 @@ export default function Nr1PgrReportPage() {
                 ))}
               </div>
             ) : (
-              <EmptyState text="Nenhum acompanhamento registrado para os planos deste estabelecimento." />
+              <EmptyState text="Pendente: nenhum acompanhamento registrado para os planos deste estabelecimento." />
             )}
 
-            <SectionTitle>6. Evidências</SectionTitle>
+            <SectionTitle>8. Evidências</SectionTitle>
             {evidenceItems.length > 0 ? (
               <div className="mt-4 space-y-3">
                 {evidenceItems.map((item, index) => (
                   <div key={String(item.id ?? index)} className="nr1-print-avoid rounded-2xl border border-slate-200 p-4 text-sm text-slate-700">
-                    <p><strong>{index + 1}. Título:</strong> {text(item.title)}</p>
+                    <p><strong>{index + 1}. Título:</strong> {text(item.title, "Não informado")}</p>
                     <p><strong>Tipo:</strong> {humanLabel(item.evidence_type, EVIDENCE_TYPE_LABELS)}</p>
                     <p><strong>Status:</strong> {humanLabel(item.validation_status, EVIDENCE_STATUS_LABELS)}</p>
                     <p><strong>Referência:</strong> {dateOnlyText(item.reference_date)}</p>
+                    <p><strong>Responsável:</strong> {text(item.responsible_name, "Não informado")}</p>
+                    <p><strong>Descrição:</strong> {text(item.description, "Não informado")}</p>
+                    <p><strong>Vínculo registrado:</strong> {text(item.linked_entity_type, "Não informado")}</p>
                   </div>
                 ))}
               </div>
             ) : (
-              <EmptyState text="Nenhuma evidência registrada para este estabelecimento." />
+              <EmptyState text="Pendente: nenhuma evidência registrada para este estabelecimento." />
             )}
 
-            <SectionTitle>7. Trilha de auditoria</SectionTitle>
+            <SectionTitle>9. Trilha de auditoria</SectionTitle>
             {auditEvents.length > 0 ? (
               <div className="mt-4 space-y-4">
                 <div className="nr1-print-avoid rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
@@ -1572,7 +1905,7 @@ export default function Nr1PgrReportPage() {
                 </details>
               </div>
             ) : (
-              <EmptyState text="Nenhum evento de auditoria registrado para este estabelecimento." />
+              <EmptyState text="Pendente: nenhum evento de auditoria registrado para este estabelecimento." />
             )}
 
             <PrintFooter />

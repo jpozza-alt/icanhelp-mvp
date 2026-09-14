@@ -189,6 +189,24 @@ export async function GET(req: NextRequest) {
       .eq("establishment_id", establishmentId)
       .order("created_at", { ascending: false })
 
+    const groCriteriaResult = await adminClient
+      .from("nr1_gro_criteria")
+      .select("*")
+      .eq("tenant_id", scope.tenantId)
+      .eq("establishment_id", establishmentId)
+      .is("deleted_at", null)
+      .order("is_active", { ascending: false })
+      .order("version", { ascending: false })
+      .limit(1)
+
+    const diagnosisSessionsResult = await adminClient
+      .from("nr1_diagnosis_sessions")
+      .select("*")
+      .eq("tenant_id", scope.tenantId)
+      .eq("establishment_id", establishmentId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+
     const queryErrors = [
       ["departments", departmentsResult.error],
       ["activities", activitiesResult.error],
@@ -199,6 +217,8 @@ export async function GET(req: NextRequest) {
       ["auditEvents", auditResult.error],
       ["occupationalHealthRefs", healthRefsResult.error],
       ["trainingRecords", trainingResult.error],
+      ["groCriteria", groCriteriaResult.error],
+      ["diagnosisSessions", diagnosisSessionsResult.error],
     ].filter((entry) => entry[1])
 
     if (queryErrors.length > 0) {
@@ -232,6 +252,51 @@ export async function GET(req: NextRequest) {
     const auditEvents = auditResult.data ?? []
     const occupationalHealthRefs = healthRefsResult.data ?? []
     const trainingRecords = trainingResult.data ?? []
+    const groCriteriaRows = groCriteriaResult.data ?? []
+    const groCriteria = groCriteriaRows[0] ?? null
+    const diagnosisSessions = diagnosisSessionsResult.data ?? []
+    const diagnosisSessionIds = diagnosisSessions
+      .map((item: unknown) => readString(item, ["id"]))
+      .filter((id: string | null): id is string => Boolean(id))
+
+    let diagnosisErgonomics: unknown[] = []
+    let diagnosisFqb: unknown[] = []
+
+    if (diagnosisSessionIds.length > 0) {
+      const [ergonomicsResult, fqbResult] = await Promise.all([
+        adminClient
+          .from("nr1_diagnosis_ergonomics")
+          .select("*")
+          .eq("tenant_id", scope.tenantId)
+          .in("diagnosis_session_id", diagnosisSessionIds),
+        adminClient
+          .from("nr1_diagnosis_fqb")
+          .select("*")
+          .eq("tenant_id", scope.tenantId)
+          .in("diagnosis_session_id", diagnosisSessionIds),
+      ])
+
+      if (ergonomicsResult.error) {
+        return json(500, {
+          ok: false,
+          error: "pgr_report_query_failed",
+          section: "diagnosisErgonomics",
+          message: ergonomicsResult.error.message,
+        })
+      }
+
+      if (fqbResult.error) {
+        return json(500, {
+          ok: false,
+          error: "pgr_report_query_failed",
+          section: "diagnosisFqb",
+          message: fqbResult.error.message,
+        })
+      }
+
+      diagnosisErgonomics = ergonomicsResult.data ?? []
+      diagnosisFqb = fqbResult.data ?? []
+    }
 
     return json(200, {
       ok: true,
@@ -254,6 +319,10 @@ export async function GET(req: NextRequest) {
         auditEvents,
         occupationalHealthRefs,
         trainingRecords,
+        groCriteria,
+        diagnosisSessions,
+        diagnosisErgonomics,
+        diagnosisFqb,
         counts: {
           departments: departments.length,
           activities: activities.length,
@@ -264,6 +333,10 @@ export async function GET(req: NextRequest) {
           auditEvents: auditEvents.length,
           occupationalHealthRefs: occupationalHealthRefs.length,
           trainingRecords: trainingRecords.length,
+          groCriteria: groCriteria ? 1 : 0,
+          diagnosisSessions: diagnosisSessions.length,
+          diagnosisErgonomics: diagnosisErgonomics.length,
+          diagnosisFqb: diagnosisFqb.length,
         },
       },
     })
