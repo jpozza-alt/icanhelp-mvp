@@ -53,6 +53,29 @@ function isEntity(value: unknown): value is Nr1ApiEntity {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
+function hasActivityForEveryDepartment(
+  departments: Nr1ApiEntity[],
+  activities: Nr1ApiEntity[]
+): boolean {
+  const departmentIds = departments
+    .map((item) => typeof item.id === "string" ? item.id : "")
+    .filter(Boolean);
+
+  if (departmentIds.length === 0) {
+    return false;
+  }
+
+  const coveredDepartmentIds = new Set(
+    activities
+      .map((item) =>
+        typeof item.department_id === "string" ? item.department_id : ""
+      )
+      .filter(Boolean)
+  );
+
+  return departmentIds.every((id) => coveredDepartmentIds.has(id));
+}
+
 async function requestCollection(
   path: string,
   tenantId: string,
@@ -169,7 +192,7 @@ export function useNr1SetoresApiState(contextState: ContextStateLike): Nr1Setore
         setState({
           departments: snapshot.departments,
           activities: snapshot.activities,
-          isComplete: snapshot.departments.length > 0 && snapshot.activities.length > 0,
+          isComplete: hasActivityForEveryDepartment(snapshot.departments, snapshot.activities),
           isLoading: false,
           error: null,
         });

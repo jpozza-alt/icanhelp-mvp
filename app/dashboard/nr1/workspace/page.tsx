@@ -1531,12 +1531,38 @@ useEffect(() => {
     effectiveDiagnosisDepartmentId,
   ]);
 
+  const departmentIds = useMemo(
+    () =>
+      departments
+        .map((item) => firstString(item, ["id"]))
+        .filter((id): id is string => Boolean(id)),
+    [departments]
+  );
+
+  const departmentIdsWithActivity = useMemo(
+    () =>
+      new Set(
+        activities
+          .map((item) => firstString(item, ["department_id"]))
+          .filter((id): id is string => Boolean(id))
+      ),
+    [activities]
+  );
+
+  const departmentsWithoutActivity = useMemo(
+    () => departmentIds.filter((id) => !departmentIdsWithActivity.has(id)),
+    [departmentIds, departmentIdsWithActivity]
+  );
+
   const hasCompany = companies.length > 0;
   const hasEstablishment = Boolean(context.establishmentId) || establishments.length > 0;
-  const hasDepartment = departments.length > 0;
+  const hasDepartment = departmentIds.length > 0;
   const hasActivity = activities.length > 0;
+  const hasActivitiesForAllDepartments =
+    hasDepartment && departmentsWithoutActivity.length === 0;
   const hasAnyTriageBase = hasCompany || hasEstablishment || hasDepartment || hasActivity;
-  const isWorkspaceMode = hasCompany && hasEstablishment && hasDepartment && hasActivity;
+  const isWorkspaceMode =
+    hasCompany && hasEstablishment && hasActivitiesForAllDepartments;
   const showGuidedSetup = guidedSetupOpen;
   const workspaceBooted = saveStatus !== "loading";
   const showExistingBaseResume = workspaceBooted && !showGuidedSetup && !isWorkspaceMode && hasAnyTriageBase && guidedSetupChoice === "undecided";
@@ -1692,7 +1718,7 @@ useEffect(() => {
             question: "Qual setor vamos mapear primeiro?",
             intro: "Escolha uma area real de trabalho. As atividades virao depois.",
             helper: "Mapeie um setor para aproximar a jornada da rotina da empresa.",
-            buttonLabel: "Salvar setor e continuar",
+            buttonLabel: "Salvar setor",
           }
         : {
             index: 4,
@@ -1701,7 +1727,7 @@ useEffect(() => {
             question: "Qual atividade esse setor executa?",
             intro: "Descreva a atividade real para liberar diagnóstico, riscos e documentos.",
             helper: "Essa etapa transforma a base cadastrada em uma jornada operacional.",
-            buttonLabel: "Salvar atividade e liberar workspace",
+            buttonLabel: "Salvar atividade",
           };
 
   const guidedReviewCurrentStep =
@@ -1733,7 +1759,7 @@ useEffect(() => {
               question: "Qual setor vamos mapear primeiro?",
               intro: "Escolha uma area real de trabalho. As atividades virao depois.",
               helper: "Mapeie um setor para aproximar a jornada da rotina da empresa.",
-              buttonLabel: "Salvar setor e continuar",
+              buttonLabel: "Salvar setor",
             }
           : guidedStepKey === "atividade"
             ? {
@@ -1743,7 +1769,7 @@ useEffect(() => {
                 question: "Qual atividade esse setor executa?",
                 intro: "Descreva a atividade real para liberar diagnóstico, riscos e documentos.",
                 helper: "Essa etapa transforma a base cadastrada em uma jornada operacional.",
-                buttonLabel: "Salvar atividade e liberar workspace",
+                buttonLabel: "Salvar atividade",
               }
             : inferredOnboardingCurrentStep;
 
@@ -1796,7 +1822,7 @@ useEffect(() => {
         ? "estabelecimento"
         : !hasDepartment
           ? "setores"
-          : !hasActivity
+          : !hasActivitiesForAllDepartments
             ? "atividades"
             : !officialDiagnosisReady
               ? "diagnostico-inicial"
@@ -1816,7 +1842,7 @@ useEffect(() => {
       (step.id === "empresa" && hasCompany) ||
       (step.id === "estabelecimento" && hasEstablishment) ||
       (step.id === "setores" && hasDepartment) ||
-      (step.id === "atividades" && hasActivity) ||
+      (step.id === "atividades" && hasActivitiesForAllDepartments) ||
       (step.id === "diagnostico-inicial" && officialDiagnosisReady) ||
       (step.id === "riscos" && hasRiskReadyForActionPlan) ||
       (step.id === "plano-de-acao" && hasAnyActionPlan) ||
@@ -3107,9 +3133,11 @@ useEffect(() => {
         preferredCompanyId: activeCompanyIdRef.current || activeCompanyId || undefined,
       });
       if (showGuidedSetup) {
-        setGuidedStepKey("atividade");
+        setGuidedStepKey("setor");
         setOnboardingMicroStepIndex(0);
-        setSuccessMessage("Setor cadastrado. Vamos para o proximo passo.");
+        setSuccessMessage(
+          "Setor cadastrado. Cadastre outro setor ou conclua esta etapa para informar as atividades."
+        );
       } else {
         setSuccessMessage("Setor cadastrado.");
       }
@@ -3127,7 +3155,7 @@ useEffect(() => {
     setSuccessMessage(null);
 
     const currentContext = contextRef.current;
-    const departmentId = activityForm.department_id || firstString(departments[0], ["id"]) || "";
+    const departmentId = activityForm.department_id;
 
     if (!currentContext.tenantId || !currentContext.establishmentId) {
       setFormStatus("error");
@@ -3198,10 +3226,11 @@ useEffect(() => {
         preferredCompanyId: activeCompanyIdRef.current || activeCompanyId || undefined,
       });
       if (showGuidedSetup) {
-        setGuidedSetupChoice("dashboard");
-        setGuidedSetupOpen(false);
-        patchDraft({ activeSection: "diagnostico" }, "guided_setup_activity_completed");
-        setSuccessMessage("Atividade cadastrada. Diagnóstico liberado.");
+        setGuidedStepKey("atividade");
+        setOnboardingMicroStepIndex(0);
+        setSuccessMessage(
+          "Atividade cadastrada. Voce pode cadastrar outra atividade ou concluir quando todos os setores estiverem atendidos."
+        );
       } else {
         setSuccessMessage("Atividade cadastrada.");
       }
@@ -3210,6 +3239,53 @@ useEffect(() => {
       setFormStatus("error");
       setFormError(error instanceof Error ? error.message : "Erro ao cadastrar atividade.");
     }
+  }
+
+  function handleFinishGuidedDepartments(): void {
+    if (departmentIds.length === 0) {
+      setFormError("Cadastre pelo menos um setor antes de continuar.");
+      return;
+    }
+
+    setFormError(null);
+    setSuccessMessage(
+      "Setores cadastrados. Agora informe pelo menos uma atividade para cada setor."
+    );
+    setActivityForm((current) => ({
+      ...INITIAL_ACTIVITY_FORM,
+      department_id: current.department_id || departmentIds[0] || "",
+    }));
+    setGuidedStepKey("atividade");
+    setOnboardingMicroStepIndex(0);
+  }
+
+  function handleFinishGuidedActivities(): void {
+    if (!hasActivitiesForAllDepartments) {
+      const pendingNames = departments
+        .filter((item) => {
+          const id = firstString(item, ["id"]);
+          return Boolean(id && departmentsWithoutActivity.includes(id));
+        })
+        .map((item, index) => displayName(item, `Setor ${index + 1}`));
+
+      setFormError(
+        pendingNames.length > 0
+          ? `Cadastre pelo menos uma atividade nos setores pendentes: ${pendingNames.join(", ")}.`
+          : "Cadastre pelo menos uma atividade para cada setor antes de continuar."
+      );
+      return;
+    }
+
+    setFormError(null);
+    setGuidedSetupChoice("dashboard");
+    setGuidedSetupOpen(false);
+    patchDraft(
+      { activeSection: "diagnostico" },
+      "guided_setup_activities_completed"
+    );
+    setSuccessMessage(
+      "Setores e atividades concluidos. Diagnostico liberado."
+    );
   }
 
   async function ensureDiagnosisSession(): Promise<string> {
@@ -5483,6 +5559,33 @@ useEffect(() => {
                     {showGuidedSetup ? (isLastOnboardingMicroStep ? onboardingCurrentStep.buttonLabel : "Continuar") : "Cadastrar setor"}
                   </button>
                 </div>
+
+                {showGuidedSetup && departments.length > 0 ? (
+                  <div className="mt-5 rounded-2xl border border-[#d9c9b8] bg-[#fffaf3] p-4">
+                    <p className="text-sm font-semibold text-[#10243e]">
+                      {departments.length} setor(es) cadastrado(s)
+                    </p>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {departments.map((item, index) => (
+                        <span
+                          key={item.id || index}
+                          className="rounded-full border border-[#d9c9b8] bg-white px-3 py-1 text-xs font-medium text-[#10243e]"
+                        >
+                          {displayName(item, `Setor ${index + 1}`)}
+                        </span>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleFinishGuidedDepartments}
+                      className="mt-4 w-full rounded-xl border border-[#10243e] bg-white px-4 py-3 text-sm font-semibold text-[#10243e] hover:bg-[#f7f1e8]"
+                    >
+                      Concluir setores e cadastrar atividades
+                    </button>
+                  </div>
+                ) : null}
               </form>
               ) : null}
 
@@ -5493,6 +5596,29 @@ useEffect(() => {
 
                 {showGuidedSetup ? (
                   <div className="mt-5">
+                    <label className="mb-4 block">
+                      <span className="mb-2 block text-sm font-semibold text-[#10243e]">
+                        Setor desta atividade
+                      </span>
+                      <select
+                        value={activityForm.department_id}
+                        onChange={(event) =>
+                          setActivityForm((prev) => ({
+                            ...prev,
+                            department_id: event.target.value,
+                          }))
+                        }
+                        className="w-full rounded-2xl border border-[#d9c9b8] bg-white px-4 py-3 text-base"
+                      >
+                        <option value="">Selecione o setor</option>
+                        {departments.map((item, index) => (
+                          <option key={item.id || index} value={item.id || ""}>
+                            {displayName(item, `Setor ${index + 1}`)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
                     {onboardingMicroStepIndex === 0 ? (
                       <input
                         value={activityForm.name}
@@ -5597,6 +5723,25 @@ useEffect(() => {
                     {showGuidedSetup ? (isLastOnboardingMicroStep ? onboardingCurrentStep.buttonLabel : "Continuar") : "Cadastrar atividade"}
                   </button>
                 </div>
+
+                {showGuidedSetup ? (
+                  <div className="mt-5 rounded-2xl border border-[#d9c9b8] bg-[#fffaf3] p-4">
+                    <p className="text-sm text-[#10243e]">
+                      {hasActivitiesForAllDepartments
+                        ? "Todos os setores possuem pelo menos uma atividade cadastrada."
+                        : `${departmentsWithoutActivity.length} setor(es) ainda precisam de atividade.`}
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={handleFinishGuidedActivities}
+                      disabled={!hasActivitiesForAllDepartments}
+                      className="mt-4 w-full rounded-xl bg-[#0F7B83] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0d6a70] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Concluir atividades e abrir diagnostico
+                    </button>
+                  </div>
+                ) : null}
               </form>
               ) : null}
             </section>
