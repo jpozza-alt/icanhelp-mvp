@@ -1612,6 +1612,18 @@ useEffect(() => {
     setGuidedSetupOpen(true);
   }
 
+  function openGuidedNewCompany(): void {
+    setFormError(null);
+    setSuccessMessage(null);
+    setCnpjLookupStatus("idle");
+    setCnpjLookupMessage(null);
+    setCompanyFinalSubmitAttempted(false);
+    setCompanyForm(INITIAL_COMPANY_FORM);
+    setGuidedSetupChoice("review");
+    setGuidedStepKey("empresa");
+    setOnboardingMicroStepIndex(0);
+    setGuidedSetupOpen(true);
+  }
   function openGuidedSetupAtPendingStep(): void {
     const pendingStep: GuidedStepKey =
       !hasCompany
@@ -4463,7 +4475,7 @@ useEffect(() => {
           </p>
         </div>
 
-        <div className="grid w-full gap-3 xl:max-w-4xl xl:grid-cols-2">
+        <div className="grid w-full gap-3 xl:max-w-5xl xl:grid-cols-3">
           <label className="text-sm font-semibold text-[#10243e]">
             Empresa ativa
             <select
@@ -4484,6 +4496,16 @@ useEffect(() => {
               })}
             </select>
           </label>
+
+          <div className="flex items-end">
+            <button
+              type="button"
+              onClick={openGuidedNewCompany}
+              className="w-full rounded-2xl bg-[#10243e] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1a3152]"
+            >
+              + Nova empresa
+            </button>
+          </div>
 
           <label className="text-sm font-semibold text-[#10243e]">
             Local de trabalho ativo
@@ -7096,7 +7118,3 @@ useEffect(() => {
     </main>
 );
 }
-
-
-
-
