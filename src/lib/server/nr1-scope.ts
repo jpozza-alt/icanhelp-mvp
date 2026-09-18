@@ -197,7 +197,6 @@ export async function resolveNr1Scope(input: {
   }
 
   const userClient = createNr1UserClientFromBearer(bearerToken)
-  const adminClient = createNr1AdminClient()
 
   const user = await requireAuthenticatedUser(userClient)
   const membership = await requireTenantMembership(userClient, input.tenantId, user.id)
@@ -205,6 +204,7 @@ export async function resolveNr1Scope(input: {
   let establishment: Nr1EstablishmentRow | null = null
 
   if (input.establishmentId && input.establishmentId.trim()) {
+    const adminClient = createNr1AdminClient()
     establishment = await requireEstablishmentInTenant(adminClient, input.tenantId, input.establishmentId)
   }
 
