@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database, Json } from "../../../../src/lib/database.types";
 import {
-  createNr1AdminClient,
+  createNr1UserClientFromBearer,
+  extractBearerToken,
   Nr1ScopeError,
   nr1ErrorToResponsePayload,
   resolveNr1Scope,
@@ -459,7 +460,15 @@ export async function POST(request: NextRequest) {
       tenantId,
       establishmentId: bodyEstablishmentId,
     });
-    const adminClient = createNr1AdminClient();
+    const bearerToken = extractBearerToken(request);
+    if (!bearerToken) {
+      return json(401, {
+        ok: false,
+        error: "missing_bearer_token",
+      });
+    }
+
+    const userClient = createNr1UserClientFromBearer(bearerToken);
     const insertPayload: Nr1AuditEventInsert = {
       tenant_id: scope.tenantId,
       establishment_id: scope.establishment?.id ?? bodyEstablishmentId,
@@ -475,7 +484,7 @@ export async function POST(request: NextRequest) {
       user_id: scope.user.id,
     };
 
-    const insertResult = await adminClient
+    const insertResult = await userClient
       .from("nr1_audit_events")
       .insert(insertPayload)
       .select("*")

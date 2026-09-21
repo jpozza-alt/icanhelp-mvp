@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import {
-  createNr1AdminClient,
+  createNr1UserClientFromBearer,
+  extractBearerToken,
   resolveNr1Scope,
   Nr1ScopeError,
 } from "@/lib/server/nr1-scope";
@@ -133,10 +134,22 @@ export async function POST(req: NextRequest) {
       establishmentId,
     });
 
-    const adminClient = createNr1AdminClient();
+    const bearerToken = extractBearerToken(req);
+    if (!bearerToken) {
+      return jsonResponse(
+        {
+          ok: false,
+          error: "missing_bearer",
+          message: "Missing bearer token",
+        },
+        401,
+      );
+    }
+
+    const userClient = createNr1UserClientFromBearer(bearerToken);
     const generatedAt = new Date().toISOString();
 
-    const latestResult = await adminClient
+    const latestResult = await userClient
       .from("nr1_document_versions")
       .select("id, version")
       .eq("tenant_id", scope.tenantId)
@@ -190,7 +203,7 @@ export async function POST(req: NextRequest) {
       supersedes_document_id: previousVersion?.id ?? null,
     };
 
-    const insertResult = await adminClient
+    const insertResult = await userClient
       .from("nr1_document_versions")
       .insert(insertPayload)
       .select("*")
@@ -234,7 +247,7 @@ export async function POST(req: NextRequest) {
       user_id: scope.membership.user_id,
     };
 
-    const auditResult = await adminClient
+    const auditResult = await userClient
       .from("nr1_audit_events")
       .insert(auditPayload)
       .select("*")

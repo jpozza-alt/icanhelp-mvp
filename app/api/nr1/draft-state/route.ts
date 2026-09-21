@@ -5,7 +5,8 @@ import {
   Nr1DraftStateUpdate,
 } from "@/lib/nr1-db-types"
 import {
-  createNr1AdminClient,
+  createNr1UserClientFromBearer,
+  extractBearerToken,
   resolveNr1Scope,
   Nr1ScopeError,
 } from "@/lib/server/nr1-scope"
@@ -101,9 +102,20 @@ export async function GET(req: NextRequest) {
       establishmentId,
     })
 
-    const adminClient = createNr1AdminClient()
+    const bearerToken = extractBearerToken(req)
+    if (!bearerToken) {
+      return jsonResponse(
+        {
+          error: "missing_bearer",
+          message: "Missing bearer token",
+        },
+        401,
+      )
+    }
 
-    let query = adminClient
+    const userClient = createNr1UserClientFromBearer(bearerToken)
+
+    let query = userClient
       .from("nr1_draft_state")
       .select("*")
       .eq("tenant_id", scope.tenantId)
@@ -232,9 +244,20 @@ export async function POST(req: NextRequest) {
       establishmentId,
     })
 
-    const adminClient = createNr1AdminClient()
+    const bearerToken = extractBearerToken(req)
+    if (!bearerToken) {
+      return jsonResponse(
+        {
+          error: "missing_bearer",
+          message: "Missing bearer token",
+        },
+        401,
+      )
+    }
 
-    let existingQuery = adminClient
+    const userClient = createNr1UserClientFromBearer(bearerToken)
+
+    let existingQuery = userClient
       .from("nr1_draft_state")
       .select("*")
       .eq("tenant_id", scope.tenantId)
@@ -282,7 +305,7 @@ export async function POST(req: NextRequest) {
         last_saved_at: basePayload.last_saved_at,
       }
 
-      const updateResult = await adminClient
+      const updateResult = await userClient
         .from("nr1_draft_state")
         .update(updatePayload)
         .eq("id", existingRow.id)
@@ -324,7 +347,7 @@ export async function POST(req: NextRequest) {
       last_saved_at: basePayload.last_saved_at,
     }
 
-    const insertResult = await adminClient
+    const insertResult = await userClient
       .from("nr1_draft_state")
       .insert(insertPayload)
       .select("*")
