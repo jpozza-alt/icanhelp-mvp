@@ -209,7 +209,7 @@ export async function GET(req: NextRequest) {
       return badRequest(ctx.request_id, "Invalid domain.");
     }
 
-    const access = await resolveTenantPlanFeatures(ctx.tenant);
+    const access = await resolveTenantPlanFeatures(ctx.tenant, supabase);
     if (!hasKnowledgeDomainFeature(access, domain)) {
       return deny(ctx.request_id);
     }
@@ -315,7 +315,8 @@ export async function POST(req: NextRequest) {
       return badRequest(ctx.request_id, "Invalid or missing domain.");
     }
 
-    const access = await resolveTenantPlanFeatures(ctx.tenant);
+    const supabase = createUserSupabase(ctx.jwt);
+    const access = await resolveTenantPlanFeatures(ctx.tenant, supabase);
     if (!hasKnowledgeDomainFeature(access, domain)) {
       return deny(ctx.request_id);
     }
@@ -335,8 +336,6 @@ export async function POST(req: NextRequest) {
     if (!isAllowedStatus(status)) {
       return badRequest(ctx.request_id, "Invalid status.");
     }
-
-    const supabase = createUserSupabase(ctx.jwt);
 
     const { data, error } = await supabase
       .from("knowledge_items")

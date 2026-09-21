@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
+  createNr1UserClientFromBearer,
+  extractBearerToken,
   nr1ErrorToResponsePayload,
   resolveNr1Scope,
 } from "@/lib/server/nr1-scope"
@@ -45,6 +47,17 @@ export async function GET(req: NextRequest) {
       tenantId,
     })
 
+    const bearerToken = extractBearerToken(req)
+    if (!bearerToken) {
+      return json(401, {
+        ok: false,
+        error: "missing_bearer_token",
+        message: "Missing bearer token",
+      })
+    }
+
+    const userClient = createNr1UserClientFromBearer(bearerToken)
+
     const {
       subscriptionSource,
       subscription,
@@ -55,7 +68,7 @@ export async function GET(req: NextRequest) {
       featureKeys,
       featureFlags,
       features,
-    } = await resolveTenantPlanFeatures(scope.tenantId)
+    } = await resolveTenantPlanFeatures(scope.tenantId, userClient)
 
     return json(200, {
       ok: true,
