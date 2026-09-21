@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
-  createNr1AdminClient,
+  createNr1UserClientFromBearer,
+  extractBearerToken,
   nr1ErrorToResponsePayload,
   resolveNr1Scope,
 } from "@/lib/server/nr1-scope"
@@ -217,9 +218,18 @@ export async function GET(req: NextRequest) {
       establishmentId,
     })
 
-    const adminClient = asDbClient(createNr1AdminClient() as unknown)
+    const bearerToken = extractBearerToken(req)
+    if (!bearerToken) {
+      return json(401, {
+        ok: false,
+        error: "missing_bearer",
+        message: "Missing bearer token",
+      })
+    }
 
-    const establishmentResult = await adminClient
+    const userClient = asDbClient(createNr1UserClientFromBearer(bearerToken) as unknown)
+
+    const establishmentResult = await userClient
       .from("nr1_establishments")
       .select("*")
       .eq("tenant_id", scope.tenantId)
@@ -240,7 +250,7 @@ export async function GET(req: NextRequest) {
     const companyId = readString(establishment, ["company_id"])
 
     if (companyId) {
-      const companyResult = await adminClient
+      const companyResult = await userClient
         .from("nr1_companies")
         .select("id, tenant_id, legal_name, trade_name, status")
         .eq("tenant_id", scope.tenantId)
@@ -258,7 +268,7 @@ export async function GET(req: NextRequest) {
       company = companyResult.data ?? null
     }
 
-    const snapshotsResult = await adminClient
+    const snapshotsResult = await userClient
       .from("nr1_document_versions")
       .select("id, tenant_id, establishment_id, document_type, status, version, generated_at, generated_by")
       .eq("tenant_id", scope.tenantId)
@@ -278,7 +288,7 @@ export async function GET(req: NextRequest) {
     const latestSnapshot = (snapshotsResult.data ?? [])[0] ?? null
     const effectiveDocumentVersionId = documentVersionId || readString(latestSnapshot, ["id"])
 
-    let approvalQuery = adminClient
+    let approvalQuery = userClient
       .from("nr1_pgr_approvals")
       .select(
         [
@@ -317,7 +327,7 @@ export async function GET(req: NextRequest) {
 
     const latestApproval = (approvalResult.data ?? [])[0] ?? null
 
-    const risksResult = await adminClient
+    const risksResult = await userClient
       .from("nr1_risks")
       .select("id, status", { count: "exact", head: false })
       .eq("tenant_id", scope.tenantId)
@@ -331,7 +341,7 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    const actionPlansResult = await adminClient
+    const actionPlansResult = await userClient
       .from("nr1_action_plans")
       .select("id, status", { count: "exact", head: false })
       .eq("tenant_id", scope.tenantId)
@@ -345,7 +355,7 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    const auditResult = await adminClient
+    const auditResult = await userClient
       .from("nr1_audit_events")
       .select("id, event_type, created_at", { count: "exact", head: false })
       .eq("tenant_id", scope.tenantId)

@@ -1237,6 +1237,7 @@ export default function Nr1WorkspacePage() {
   });
 
   const [companies, setCompanies] = useState<SimpleEntity[]>([]);
+  const [membershipRole, setMembershipRole] = useState<string | null>(null);
   const [establishments, setEstablishments] = useState<SimpleEntity[]>([]);
   const [departments, setDepartments] = useState<SimpleEntity[]>([]);
   const [activities, setActivities] = useState<SimpleEntity[]>([]);
@@ -2286,13 +2287,21 @@ useEffect(() => {
   }, []);
 
   const loadCompanies = useCallback(async (nextContext: BackendContext): Promise<SimpleEntity[]> => {
-    if (!nextContext.tenantId) return [];
+    if (!nextContext.tenantId) {
+      setMembershipRole(null);
+      return [];
+    }
 
     const path = buildUrl("/api/nr1/companies", {
       tenantId: nextContext.tenantId,
     });
 
     const payload = await fetchJson(path, {}, nextContext);
+
+    setMembershipRole(
+      firstString(payload, ["membershipRole", "membership_role", "role"])?.toLowerCase() || null
+    );
+
     return extractArray<SimpleEntity>(payload, ["items", "companies", "data"]);
   }, []);
 
@@ -4475,7 +4484,7 @@ useEffect(() => {
           </p>
         </div>
 
-        <div className="grid w-full gap-3 xl:max-w-5xl xl:grid-cols-3">
+        <div className={`grid w-full gap-3 ${membershipRole === "owner" || membershipRole === "admin" ? "xl:max-w-5xl xl:grid-cols-3" : "xl:max-w-4xl xl:grid-cols-2"}`}>
           <label className="text-sm font-semibold text-[#10243e]">
             Empresa ativa
             <select
@@ -4497,15 +4506,17 @@ useEffect(() => {
             </select>
           </label>
 
-          <div className="flex items-end">
-            <button
-              type="button"
-              onClick={openGuidedNewCompany}
-              className="w-full rounded-2xl bg-[#10243e] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1a3152]"
-            >
-              + Nova empresa
-            </button>
-          </div>
+          {(membershipRole === "owner" || membershipRole === "admin") && (
+            <div className="flex items-end">
+              <button
+                type="button"
+                onClick={openGuidedNewCompany}
+                className="w-full rounded-2xl bg-[#10243e] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1a3152]"
+              >
+                + Nova empresa
+              </button>
+            </div>
+          )}
 
           <label className="text-sm font-semibold text-[#10243e]">
             Local de trabalho ativo

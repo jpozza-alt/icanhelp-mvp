@@ -201,7 +201,7 @@ export async function GET(
       return notFound(ctx.request_id, "knowledge_item_not_found");
     }
 
-    const access = await resolveTenantPlanFeatures(ctx.tenant);
+    const access = await resolveTenantPlanFeatures(ctx.tenant, supabase);
     if (!hasKnowledgeDomainFeature(access, String(data.domain || ""))) {
       return deny(ctx.request_id);
     }
@@ -256,7 +256,7 @@ export async function PATCH(
       return notFound(ctx.request_id, "knowledge_item_not_found");
     }
 
-    const access = await resolveTenantPlanFeatures(ctx.tenant);
+    const access = await resolveTenantPlanFeatures(ctx.tenant, supabase);
     if (!hasKnowledgeDomainFeature(access, String(existing.data.domain || ""))) {
       return deny(ctx.request_id);
     }
@@ -395,7 +395,7 @@ export async function DELETE(
       return notFound(ctx.request_id, "knowledge_item_not_found");
     }
 
-    const access = await resolveTenantPlanFeatures(ctx.tenant);
+    const access = await resolveTenantPlanFeatures(ctx.tenant, supabase);
     if (!hasKnowledgeDomainFeature(access, String(existing.data.domain || ""))) {
       return deny(ctx.request_id);
     }

@@ -136,11 +136,11 @@ export async function requireTenantMembership(
 }
 
 export async function requireEstablishmentInTenant(
-  adminClient: DbClient,
+  userClient: DbClient,
   tenantId: string,
   establishmentId: string,
 ): Promise<Nr1EstablishmentRow> {
-  const establishmentResult = await adminClient
+  const establishmentResult = await userClient
     .from("nr1_establishments")
     .select("*")
     .eq("id", establishmentId)
@@ -197,7 +197,6 @@ export async function resolveNr1Scope(input: {
   }
 
   const userClient = createNr1UserClientFromBearer(bearerToken)
-  const adminClient = createNr1AdminClient()
 
   const user = await requireAuthenticatedUser(userClient)
   const membership = await requireTenantMembership(userClient, input.tenantId, user.id)
@@ -205,7 +204,7 @@ export async function resolveNr1Scope(input: {
   let establishment: Nr1EstablishmentRow | null = null
 
   if (input.establishmentId && input.establishmentId.trim()) {
-    establishment = await requireEstablishmentInTenant(adminClient, input.tenantId, input.establishmentId)
+    establishment = await requireEstablishmentInTenant(userClient, input.tenantId, input.establishmentId)
   }
 
   return {

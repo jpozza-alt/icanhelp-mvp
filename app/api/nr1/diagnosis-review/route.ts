@@ -6,7 +6,6 @@ import type {
 } from "@/lib/nr1-db-types"
 import {
   createNr1UserClientFromBearer,
-  createNr1AdminClient,
   extractBearerToken,
   isTenantAdminRole,
   nr1ErrorToResponsePayload,
@@ -510,7 +509,6 @@ async function maybeGenerateRiskFromReview(params: {
     throw new Error("nr1_generated_risk_missing_id")
   }
 
-  const adminClient = createNr1AdminClient()
 
   const auditPayload: Nr1AuditEventInsert = {
     tenant_id: params.scope.tenantId,
@@ -542,7 +540,7 @@ async function maybeGenerateRiskFromReview(params: {
     user_id: params.scope.membership.user_id,
   }
 
-  const auditResult = await adminClient
+  const auditResult = await params.userClient
     .from("nr1_audit_events")
     .insert(auditPayload)
 

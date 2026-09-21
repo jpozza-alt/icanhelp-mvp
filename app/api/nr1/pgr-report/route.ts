@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
-  createNr1AdminClient,  resolveNr1Scope,
+  createNr1UserClientFromBearer,
+  extractBearerToken,
+  resolveNr1Scope,
 } from "@/lib/server/nr1-scope"
 
 export const dynamic = "force-dynamic"
@@ -78,9 +80,18 @@ export async function GET(req: NextRequest) {
       establishmentId,
     })
 
-    const adminClient = createNr1AdminClient()
+    const bearerToken = extractBearerToken(req)
+    if (!bearerToken) {
+      return json(401, {
+        ok: false,
+        error: "missing_bearer",
+        message: "Missing bearer token",
+      })
+    }
 
-    const establishmentResult = await adminClient
+    const userClient = createNr1UserClientFromBearer(bearerToken)
+
+    const establishmentResult = await userClient
       .from("nr1_establishments")
       .select("*")
       .eq("tenant_id", scope.tenantId)
@@ -108,7 +119,7 @@ export async function GET(req: NextRequest) {
     let company: unknown = null
 
     if (companyId) {
-      const companyResult = await adminClient
+      const companyResult = await userClient
         .from("nr1_companies")
         .select("*")
         .eq("tenant_id", scope.tenantId)
@@ -126,48 +137,48 @@ export async function GET(req: NextRequest) {
       company = companyResult.data ?? null
     }
 
-    const departmentsResult = await adminClient
+    const departmentsResult = await userClient
       .from("nr1_departments")
       .select("*")
       .eq("tenant_id", scope.tenantId)
       .eq("establishment_id", establishmentId)
       .order("name", { ascending: true })
 
-    const activitiesResult = await adminClient
+    const activitiesResult = await userClient
       .from("nr1_activities")
       .select("*")
       .eq("tenant_id", scope.tenantId)
       .eq("establishment_id", establishmentId)
       .order("created_at", { ascending: true })
 
-    const risksResult = await adminClient
+    const risksResult = await userClient
       .from("nr1_risks")
       .select("*")
       .eq("tenant_id", scope.tenantId)
       .eq("establishment_id", establishmentId)
       .order("created_at", { ascending: false })
 
-    const actionPlansResult = await adminClient
+    const actionPlansResult = await userClient
       .from("nr1_action_plans")
       .select("*")
       .eq("tenant_id", scope.tenantId)
       .eq("establishment_id", establishmentId)
       .order("created_at", { ascending: false })
 
-    const actionFollowupsResult = await adminClient
+    const actionFollowupsResult = await userClient
       .from("nr1_action_followups")
       .select("*")
       .eq("tenant_id", scope.tenantId)
       .order("created_at", { ascending: false })
 
-    const evidenceResult = await adminClient
+    const evidenceResult = await userClient
       .from("nr1_evidence_items")
       .select("*")
       .eq("tenant_id", scope.tenantId)
       .eq("establishment_id", establishmentId)
       .order("created_at", { ascending: false })
 
-    const auditResult = await adminClient
+    const auditResult = await userClient
       .from("nr1_audit_events")
       .select("*")
       .eq("tenant_id", scope.tenantId)
@@ -175,21 +186,21 @@ export async function GET(req: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(200)
 
-    const healthRefsResult = await adminClient
+    const healthRefsResult = await userClient
       .from("nr1_occupational_health_refs")
       .select("*")
       .eq("tenant_id", scope.tenantId)
       .eq("establishment_id", establishmentId)
       .order("created_at", { ascending: false })
 
-    const trainingResult = await adminClient
+    const trainingResult = await userClient
       .from("nr1_training_records")
       .select("*")
       .eq("tenant_id", scope.tenantId)
       .eq("establishment_id", establishmentId)
       .order("created_at", { ascending: false })
 
-    const groCriteriaResult = await adminClient
+    const groCriteriaResult = await userClient
       .from("nr1_gro_criteria")
       .select("*")
       .eq("tenant_id", scope.tenantId)
@@ -199,7 +210,7 @@ export async function GET(req: NextRequest) {
       .order("version", { ascending: false })
       .limit(1)
 
-    const diagnosisSessionsResult = await adminClient
+    const diagnosisSessionsResult = await userClient
       .from("nr1_diagnosis_sessions")
       .select("*")
       .eq("tenant_id", scope.tenantId)
@@ -264,12 +275,12 @@ export async function GET(req: NextRequest) {
 
     if (diagnosisSessionIds.length > 0) {
       const [ergonomicsResult, fqbResult] = await Promise.all([
-        adminClient
+        userClient
           .from("nr1_diagnosis_ergonomics")
           .select("*")
           .eq("tenant_id", scope.tenantId)
           .in("diagnosis_session_id", diagnosisSessionIds),
-        adminClient
+        userClient
           .from("nr1_diagnosis_fqb")
           .select("*")
           .eq("tenant_id", scope.tenantId)

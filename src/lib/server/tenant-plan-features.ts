@@ -1,7 +1,5 @@
 import "server-only"
 
-import { createNr1AdminClient } from "@/lib/server/nr1-scope"
-
 type AnyRecord = Record<string, unknown>
 
 type DbError = {
@@ -84,8 +82,8 @@ function buildFeatureFlags(features: AnyRecord[]): Record<string, boolean> {
   return flags
 }
 
-async function getPlanBySlug(adminClient: PlanFeatureDbClient, slug: string) {
-  const result = await adminClient
+async function getPlanBySlug(dbClient: PlanFeatureDbClient, slug: string) {
+  const result = await dbClient
     .from("subscription_plans")
     .select("id, slug, name, description, is_active, sort_order")
     .eq("slug", slug)
@@ -98,8 +96,8 @@ async function getPlanBySlug(adminClient: PlanFeatureDbClient, slug: string) {
   return { ok: true as const, error: null, plan: result.data ?? null }
 }
 
-async function getPlanById(adminClient: PlanFeatureDbClient, planId: string) {
-  const result = await adminClient
+async function getPlanById(dbClient: PlanFeatureDbClient, planId: string) {
+  const result = await dbClient
     .from("subscription_plans")
     .select("id, slug, name, description, is_active, sort_order")
     .eq("id", planId)
@@ -113,10 +111,10 @@ async function getPlanById(adminClient: PlanFeatureDbClient, planId: string) {
 }
 
 async function getEnabledFeatures(
-  adminClient: PlanFeatureDbClient,
+  dbClient: PlanFeatureDbClient,
   planId: string,
 ): Promise<AnyRecord[]> {
-  const planFeaturesResult = await adminClient
+  const planFeaturesResult = await dbClient
     .from("plan_features")
     .select("feature_id, is_enabled")
     .eq("subscription_plan_id", planId)
@@ -132,7 +130,7 @@ async function getEnabledFeatures(
 
   if (featureIds.length === 0) return []
 
-  const featuresResult = await adminClient
+  const featuresResult = await dbClient
     .from("features")
     .select("id, feature_key, name, description, module, is_active")
     .in("id", featureIds)
@@ -150,10 +148,11 @@ async function getEnabledFeatures(
 
 export async function resolveTenantPlanFeatures(
   tenantId: string,
+  client: unknown,
 ): Promise<TenantPlanFeaturesAccess> {
-  const adminClient = asPlanFeatureDbClient(createNr1AdminClient())
+  const dbClient = asPlanFeatureDbClient(client)
 
-  const subscriptionResult = await adminClient
+  const subscriptionResult = await dbClient
     .from("tenant_subscriptions")
     .select("id, tenant_id, subscription_plan_id, status, starts_at, expires_at, trial_ends_at, billing_cycle")
     .eq("tenant_id", tenantId)
@@ -176,8 +175,8 @@ export async function resolveTenantPlanFeatures(
     : ""
 
   const planResult = subscriptionPlanId
-    ? await getPlanById(adminClient, subscriptionPlanId)
-    : await getPlanBySlug(adminClient, "essencial")
+    ? await getPlanById(dbClient, subscriptionPlanId)
+    : await getPlanBySlug(dbClient, "essencial")
 
   if (!planResult.ok) {
     throw new TenantPlanFeaturesError(
@@ -198,7 +197,7 @@ export async function resolveTenantPlanFeatures(
   const plan = planResult.plan
   const planIsActive = readBoolean(plan, "is_active")
   const features = isEntitled && planIsActive
-    ? await getEnabledFeatures(adminClient, readString(plan, "id"))
+    ? await getEnabledFeatures(dbClient, readString(plan, "id"))
     : []
   const featureKeys = features
     .map((feature) => readString(feature, "feature_key"))

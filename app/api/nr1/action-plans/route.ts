@@ -7,7 +7,6 @@ import {
   isTenantAdminRole,
   nr1ErrorToResponsePayload,
   resolveNr1Scope,
-  createNr1AdminClient,
 } from "@/lib/server/nr1-scope"
 
 export const dynamic = "force-dynamic"
@@ -355,7 +354,6 @@ export async function POST(req: NextRequest) {
     }
 
     const row = rows[0]
-    const auditClient = createNr1AdminClient()
 
     const auditPayload: Nr1AuditEventInsert = {
       tenant_id: scope.tenantId,
@@ -378,7 +376,7 @@ export async function POST(req: NextRequest) {
       user_id: scope.membership.user_id,
     }
 
-    const auditResult = await auditClient
+    const auditResult = await userClient
       .from("nr1_audit_events")
       .insert(auditPayload)
 
