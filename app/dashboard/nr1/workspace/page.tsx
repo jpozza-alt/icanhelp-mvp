@@ -5,6 +5,11 @@ import { createClient } from "@supabase/supabase-js";
 import { getNr1PlanFeatures, type Nr1PlanFeaturesResponse } from "@/lib/nr1-plan-features-client";
 import { getNr1FullJourneyProgress, NR1_JOURNEY_STEPS } from "@/lib/nr1-journey";
 import Nr1WorkspaceV2Shell from "@/components/nr1/Nr1WorkspaceV2Shell";
+import {
+  TRIGGER_INVESTIGATION_MATRIX,
+  TRIGGER_INVESTIGATION_OFFICIAL_MESSAGE,
+  type TriggerInvestigationType,
+} from "@/lib/nr1-trigger-investigation-matrix";
 
 type JsonObject = Record<string, unknown>;
 
@@ -63,6 +68,16 @@ type AuditEvent = {
   reason?: string;
   [key: string]: unknown;
 };
+
+type TriggerInvestigationUiItem = {
+  id: string;
+  trigger_type: TriggerInvestigationType;
+  trigger_label?: string | null;
+  investigation_status?: string | null;
+};
+
+type TriggerInvestigationAnswerState =
+  Record<string, string>;
 
 type WorkspaceDraftPayload = {
   activeSection: string;
@@ -1272,6 +1287,16 @@ export default function Nr1WorkspacePage() {
   const [diagnosisSuccess, setDiagnosisSuccess] = useState<string | null>(null);
   const [diagnosisContextSaved, setDiagnosisContextSaved] = useState(false);
   const [psychosocialDiagnosisSaved, setPsychosocialDiagnosisSaved] = useState(false);
+  const [activeTriggerInvestigationType, setActiveTriggerInvestigationType] =
+    useState<TriggerInvestigationType | null>(null);
+  const [triggerInvestigations, setTriggerInvestigations] =
+    useState<Partial<Record<TriggerInvestigationType, TriggerInvestigationUiItem>>>({});
+  const [triggerInvestigationAnswers, setTriggerInvestigationAnswers] =
+    useState<Record<string, TriggerInvestigationAnswerState>>({});
+  const [triggerInvestigationSaving, setTriggerInvestigationSaving] =
+    useState(false);
+  const [triggerInvestigationError, setTriggerInvestigationError] =
+    useState<string | null>(null);
   const [diagnosisContextForm, setDiagnosisContextForm] = useState<DiagnosisContextForm>(INITIAL_DIAGNOSIS_CONTEXT_FORM);
   const [psychosocialForm, setPsychosocialForm] = useState<PsychosocialForm>(INITIAL_PSYCHOSOCIAL_FORM);
   const [fqbForm, setFqbForm] = useState<DiagnosisFqbForm>(INITIAL_DIAGNOSIS_FQB_FORM);
@@ -1434,7 +1459,284 @@ useEffect(() => {
     diagnosisHydrationCoordinatorRef.current.markEdited();
     setPsychosocialForm((current) => ({ ...current, ...patch }));
   }
+  async function handleOpenTriggerInvestigation(
+    triggerType: TriggerInvestigationType,
+  ): Promise<TriggerInvestigationUiItem | null> {
+    const currentContext = contextRef.current;
+    const definition = TRIGGER_INVESTIGATION_MATRIX[triggerType];
 
+    setTriggerInvestigationSaving(true);
+    setTriggerInvestigationError(null);
+
+    try {
+      if (!currentContext.tenantId || !currentContext.establishmentId) {
+        throw new Error(
+          "Selecione a empresa e o local de trabalho antes de investigar este ponto.",
+        );
+      }
+
+      const sessionId = await ensureDiagnosisSession();
+
+      const path = buildUrl("/api/nr1/trigger-investigations", {
+        tenantId: currentContext.tenantId,
+      });
+
+      const response = await fetchJson(
+        path,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            establishment_id: currentContext.establishmentId,
+            diagnosis_session_id: sessionId,
+            trigger_type: triggerType,
+            trigger_label: definition.label,
+          }),
+        },
+        currentContext,
+      );
+
+      const responseItem =
+        isRecord(response) && isRecord(response.item)
+          ? response.item
+          : null;
+
+      const investigationId = firstString(responseItem, ["id"]);
+
+      if (!investigationId) {
+        throw new Error(
+          "A investigação foi aberta, mas a API não retornou seu identificador.",
+        );
+      }
+
+      const item: TriggerInvestigationUiItem = {
+        id: investigationId,
+        trigger_type: triggerType,
+        trigger_label:
+          firstString(responseItem, ["trigger_label"]) || definition.label,
+        investigation_status:
+          firstString(responseItem, ["investigation_status"]) ||
+          "in_investigation",
+      };
+
+      setTriggerInvestigations((current) => ({
+        ...current,
+        [triggerType]: item,
+      }));
+
+      setActiveTriggerInvestigationType(triggerType);
+      setDiagnosisSuccess(TRIGGER_INVESTIGATION_OFFICIAL_MESSAGE);
+
+      return item;
+    } catch (error) {
+      setTriggerInvestigationError(
+        error instanceof Error
+          ? error.message
+          : "Erro ao abrir investigação do gatilho.",
+      );
+
+      return null;
+    } finally {
+      setTriggerInvestigationSaving(false);
+    }
+  }
+
+
+
+  async function handleSaveTriggerInvestigationAnswer(
+    triggerType: TriggerInvestigationType,
+    questionIndex: number,
+    answerValue: string,
+  ): Promise<boolean> {
+    const currentContext = contextRef.current;
+    const definition = TRIGGER_INVESTIGATION_MATRIX[triggerType];
+    const question = definition.questions[questionIndex];
+
+    if (!question) {
+      setTriggerInvestigationError(
+        "Pergunta de aprofundamento não encontrada.",
+      );
+      return false;
+    }
+
+    if (!currentContext.tenantId || !currentContext.establishmentId) {
+      setTriggerInvestigationError(
+        "Selecione a empresa e o local de trabalho antes de salvar a resposta.",
+      );
+      return false;
+    }
+
+    setTriggerInvestigationSaving(true);
+    setTriggerInvestigationError(null);
+
+    try {
+      let investigation = triggerInvestigations[triggerType] || null;
+
+      if (!investigation) {
+        investigation = await handleOpenTriggerInvestigation(triggerType);
+      }
+
+      if (!investigation) {
+        return false;
+      }
+
+      const path = buildUrl(
+        `/api/nr1/trigger-investigations/${investigation.id}/answers`,
+        {
+          tenantId: currentContext.tenantId,
+        },
+      );
+
+      await fetchJson(
+        path,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            establishment_id: currentContext.establishmentId,
+            question_key: question.key,
+            question_label: question.label,
+            answer_value: answerValue,
+            answer_json: {},
+            answer_order: questionIndex + 1,
+            is_required: question.required,
+          }),
+        },
+        currentContext,
+      );
+
+      setTriggerInvestigationAnswers((current) => ({
+        ...current,
+        [investigation.id]: {
+          ...(current[investigation.id] || {}),
+          [question.key]: answerValue,
+        },
+      }));
+
+      setTriggerInvestigations((current) => ({
+        ...current,
+        [triggerType]: {
+          ...investigation,
+          investigation_status: "saved_draft",
+        },
+      }));
+
+      setActiveTriggerInvestigationType(triggerType);
+
+      return true;
+    } catch (error) {
+      setTriggerInvestigationError(
+        error instanceof Error
+          ? error.message
+          : "Erro ao salvar resposta da investigação.",
+      );
+
+      return false;
+    } finally {
+      setTriggerInvestigationSaving(false);
+    }
+  }
+  async function loadTriggerInvestigationsForSession(
+    sessionId: string,
+  ): Promise<void> {
+    const currentContext = contextRef.current;
+
+    if (
+      !currentContext.tenantId ||
+      !currentContext.establishmentId ||
+      !sessionId
+    ) {
+      setTriggerInvestigations({});
+      setTriggerInvestigationAnswers({});
+      setActiveTriggerInvestigationType(null);
+      return;
+    }
+
+    const path = buildUrl("/api/nr1/trigger-investigations", {
+      tenantId: currentContext.tenantId,
+      establishmentId: currentContext.establishmentId,
+      diagnosisSessionId: sessionId,
+    });
+
+    const payload = await fetchJson(
+      path,
+      { method: "GET" },
+      currentContext,
+    );
+
+    const rawItems =
+      isRecord(payload) && Array.isArray(payload.items)
+        ? payload.items
+        : [];
+
+    const nextInvestigations: Partial<
+      Record<TriggerInvestigationType, TriggerInvestigationUiItem>
+    > = {};
+
+    const nextAnswers: Record<string, TriggerInvestigationAnswerState> = {};
+
+    for (const rawItem of rawItems) {
+      if (!isRecord(rawItem)) continue;
+
+      const investigationId = firstString(rawItem, ["id"]);
+      const rawTriggerType = firstString(rawItem, ["trigger_type"]);
+
+      if (
+        !investigationId ||
+        !rawTriggerType ||
+        !(rawTriggerType in TRIGGER_INVESTIGATION_MATRIX)
+      ) {
+        continue;
+      }
+
+      const triggerType = rawTriggerType as TriggerInvestigationType;
+
+      nextInvestigations[triggerType] = {
+        id: investigationId,
+        trigger_type: triggerType,
+        trigger_label:
+          firstString(rawItem, ["trigger_label"]) ||
+          TRIGGER_INVESTIGATION_MATRIX[triggerType].label,
+        investigation_status:
+          firstString(rawItem, ["investigation_status"]) || null,
+      };
+
+      const answerPath = buildUrl(
+        `/api/nr1/trigger-investigations/${investigationId}/answers`,
+        {
+          tenantId: currentContext.tenantId,
+          establishmentId: currentContext.establishmentId,
+        },
+      );
+
+      const answerPayload = await fetchJson(
+        answerPath,
+        { method: "GET" },
+        currentContext,
+      );
+
+      const rawAnswers =
+        isRecord(answerPayload) && Array.isArray(answerPayload.items)
+          ? answerPayload.items
+          : [];
+
+      const answerState: TriggerInvestigationAnswerState = {};
+
+      for (const rawAnswer of rawAnswers) {
+        if (!isRecord(rawAnswer)) continue;
+
+        const questionKey = firstString(rawAnswer, ["question_key"]);
+        const answerValue = firstString(rawAnswer, ["answer_value"]);
+
+        if (questionKey && answerValue !== null) {
+          answerState[questionKey] = answerValue;
+        }
+      }
+
+      nextAnswers[investigationId] = answerState;
+    }
+
+    setTriggerInvestigations(nextInvestigations);
+    setTriggerInvestigationAnswers(nextAnswers);
+  }
   useEffect(() => {
     const coordinator = diagnosisHydrationCoordinatorRef.current;
     const token = coordinator.begin();
@@ -1478,6 +1780,19 @@ useEffect(() => {
 
       setDiagnosisActivityId(hydratedDiagnosis.activityId);
       setDiagnosisSessionId(hydratedDiagnosis.sessionId);
+      if (hydratedDiagnosis.sessionId) {
+        void loadTriggerInvestigationsForSession(
+          hydratedDiagnosis.sessionId,
+        ).catch((error) => {
+          if (!coordinator.canApply(token)) return;
+
+          setTriggerInvestigationError(
+            error instanceof Error
+              ? error.message
+              : "Erro ao carregar investigações salvas.",
+          );
+        });
+      }
       setDiagnosisContextForm(hydratedDiagnosis.form);
       setDiagnosisContextSaved(hydratedDiagnosis.contextSaved);
       setDiagnosisStatus(hydratedDiagnosis.contextSaved ? "saved" : "idle");
@@ -6021,7 +6336,180 @@ useEffect(() => {
                   </span>
                 </div>
 
-                  <div className="mt-6 grid gap-3 text-sm text-[#4f463c] md:grid-cols-2">
+                                    <div className="mt-6 rounded-2xl border border-[#d8bd78] bg-[#fffaf3] p-5">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#9d7b37]">
+                          Aprofundamento dos pontos identificados
+                        </p>
+                        <h4 className="mt-2 text-lg font-semibold text-[#10243e]">
+                          Antes de classificar qualquer risco
+                        </h4>
+                        <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
+                          Responda “Sim, investigar” apenas quando a situação estiver presente na atividade analisada.
+                          O gatilho abre uma investigação; ele não cria risco automaticamente.
+                        </p>
+                      </div>
+                    </div>
+
+                    {triggerInvestigationError ? (
+                      <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {triggerInvestigationError}
+                      </div>
+                    ) : null}
+
+                    <div className="mt-5 grid gap-3">
+                      {Object.values(TRIGGER_INVESTIGATION_MATRIX).map((definition) => {
+                        const investigation =
+                          triggerInvestigations[definition.type] || null;
+
+                        const isActive =
+                          activeTriggerInvestigationType === definition.type;
+
+                        const answers = investigation
+                          ? triggerInvestigationAnswers[investigation.id] || {}
+                          : {};
+
+                        return (
+                          <div
+                            key={definition.type}
+                            className="rounded-2xl border border-[#eadfce] bg-white p-4"
+                          >
+                            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-[#10243e]">
+                                  {definition.initialQuestion}
+                                </p>
+                                <p className="mt-1 text-xs text-[#6f665b]">
+                                  {definition.label}
+                                </p>
+                              </div>
+
+                              {!investigation ? (
+                                <button
+                                  type="button"
+                                  disabled={triggerInvestigationSaving}
+                                  onClick={() =>
+                                    void handleOpenTriggerInvestigation(
+                                      definition.type,
+                                    )
+                                  }
+                                  className="shrink-0 rounded-xl bg-[#10243e] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0b1729] disabled:opacity-60"
+                                >
+                                  Sim, investigar
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setActiveTriggerInvestigationType(
+                                      isActive ? null : definition.type,
+                                    )
+                                  }
+                                  className="shrink-0 rounded-xl border border-[#d8bd78] bg-[#fffaf3] px-4 py-2 text-xs font-semibold text-[#6f4f17]"
+                                >
+                                  {isActive
+                                    ? "Fechar perguntas"
+                                    : "Continuar investigação"}
+                                </button>
+                              )}
+                            </div>
+
+                            {investigation ? (
+                              <div className="mt-3 rounded-xl border border-[#eadfce] bg-[#fffaf6] px-4 py-3">
+                                <p className="text-xs font-semibold text-[#9d7b37]">
+                                  {TRIGGER_INVESTIGATION_OFFICIAL_MESSAGE}
+                                </p>
+                              </div>
+                            ) : null}
+
+                            {definition.critical && investigation ? (
+                              <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs leading-5 text-amber-900">
+                                Este é um ponto sensível. O sistema deve preservar o registro,
+                                sinalizar necessidade de validação técnica e não concluir automaticamente
+                                a situação como resolvida.
+                              </div>
+                            ) : null}
+
+                            {isActive && investigation ? (
+                              <div className="mt-5 space-y-4 border-t border-[#eadfce] pt-5">
+                                <div>
+                                  <p className="text-sm font-semibold text-[#10243e]">
+                                    Perguntas de aprofundamento
+                                  </p>
+                                  <p className="mt-1 text-xs leading-5 text-[#6f665b]">
+                                    As respostas ficam vinculadas a esta investigação e podem ser retomadas depois.
+                                  </p>
+                                </div>
+
+                                {definition.questions.map((question, questionIndex) => (
+                                  <div
+                                    key={question.key}
+                                    className="rounded-xl border border-[#eadfce] bg-[#fffaf6] p-4"
+                                  >
+                                    <label className="text-sm font-medium leading-6 text-[#10243e]">
+                                      {questionIndex + 1}. {question.label}
+                                    </label>
+
+                                    {question.kind === "yes_no" ? (
+                                      <select
+                                        value={answers[question.key] || ""}
+                                        disabled={triggerInvestigationSaving}
+                                        onChange={(event) =>
+                                          void handleSaveTriggerInvestigationAnswer(
+                                            definition.type,
+                                            questionIndex,
+                                            event.target.value,
+                                          )
+                                        }
+                                        className="mt-3 w-full rounded-xl border border-[#d9c9b8] bg-white px-3 py-2 text-sm"
+                                      >
+                                        <option value="">Selecione</option>
+                                        <option value="yes">Sim</option>
+                                        <option value="no">Não</option>
+                                        <option value="unknown">
+                                          Não sei / precisa verificar
+                                        </option>
+                                      </select>
+                                    ) : (
+                                      <textarea
+                                        key={`${investigation.id}-${question.key}-${answers[question.key] || ""}`}
+                                        defaultValue={answers[question.key] || ""}
+                                        disabled={triggerInvestigationSaving}
+                                        rows={3}
+                                        placeholder="Descreva de forma objetiva."
+                                        onBlur={(event) => {
+                                          const value = event.target.value.trim();
+
+                                          if (
+                                            value &&
+                                            value !== (answers[question.key] || "")
+                                          ) {
+                                            void handleSaveTriggerInvestigationAnswer(
+                                              definition.type,
+                                              questionIndex,
+                                              value,
+                                            );
+                                          }
+                                        }}
+                                        className="mt-3 w-full rounded-xl border border-[#d9c9b8] bg-white px-3 py-2 text-sm"
+                                      />
+                                    )}
+                                  </div>
+                                ))}
+
+                                <div className="rounded-xl bg-[#10243e] px-4 py-3 text-xs leading-5 text-white">
+                                  Nesta etapa o sistema apenas registra e aprofunda o ponto observado.
+                                  Nenhum risco ou plano de ação é criado automaticamente.
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+<div className="mt-6 grid gap-3 text-sm text-[#4f463c] md:grid-cols-2">
                     {[
                       [
                         "has_work_overload",
@@ -7129,3 +7617,11 @@ useEffect(() => {
     </main>
 );
 }
+
+
+
+
+
+
+
+
