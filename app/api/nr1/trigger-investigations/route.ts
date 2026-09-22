@@ -11,6 +11,7 @@ import {
   nr1ErrorToResponsePayload,
   resolveNr1Scope,
 } from "@/lib/server/nr1-scope"
+import { insertNr1AuditEvents } from "@/lib/server/nr1-audit-events"
 
 export const dynamic = "force-dynamic"
 
@@ -338,6 +339,58 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    const createdInvestigation =
+      insertResult.data as Nr1TriggerInvestigationRow
+
+    const auditResult = await insertNr1AuditEvents(userClient, [
+      {
+        tenantId: scope.tenantId,
+        establishmentId,
+        entityType: "nr1_trigger_investigation",
+        entityId: createdInvestigation.id,
+        eventType: "trigger_marked_yes",
+        userId: scope.user.id,
+        newValueJson: {
+          trigger_type: triggerType,
+          trigger_label: triggerLabel,
+          initial_answer: "yes",
+        },
+      },
+      {
+        tenantId: scope.tenantId,
+        establishmentId,
+        entityType: "nr1_trigger_investigation",
+        entityId: createdInvestigation.id,
+        eventType: "official_message_shown",
+        userId: scope.user.id,
+        newValueJson: {
+          official_message_shown: true,
+        },
+      },
+      {
+        tenantId: scope.tenantId,
+        establishmentId,
+        entityType: "nr1_trigger_investigation",
+        entityId: createdInvestigation.id,
+        eventType: "trigger_investigation_started",
+        userId: scope.user.id,
+        newValueJson: {
+          investigation_status: "in_investigation",
+          diagnosis_session_id: diagnosisSessionId,
+        },
+      },
+    ])
+
+    if (!auditResult.ok) {
+      return json(500, {
+        ok: false,
+        error: "nr1_trigger_investigation_audit_failed",
+        message: auditResult.error,
+        investigationCreated: true,
+        investigationId: createdInvestigation.id,
+      })
+    }
+
     return json(201, {
       ok: true,
       opened: "created",
@@ -347,10 +400,11 @@ export async function POST(req: NextRequest) {
       membershipRole: scope.role,
       officialMessage:
         "Este ponto nao e automaticamente um risco. Vamos entender melhor a situacao antes de classificar.",
-      item: insertResult.data,
+      item: createdInvestigation,
     })
   } catch (error) {
     const response = nr1ErrorToResponsePayload(error)
     return json(response.status, response.body)
   }
 }
+

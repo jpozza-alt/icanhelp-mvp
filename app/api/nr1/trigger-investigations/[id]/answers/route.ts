@@ -12,6 +12,7 @@ import {
   nr1ErrorToResponsePayload,
   resolveNr1Scope,
 } from "@/lib/server/nr1-scope"
+import { insertNr1AuditEvents } from "@/lib/server/nr1-audit-events"
 
 export const dynamic = "force-dynamic"
 
@@ -439,6 +440,68 @@ export async function POST(
       }
     }
 
+    const resultingInvestigationStatus =
+      investigationCheck.row.investigation_status === "in_investigation" ||
+      investigationCheck.row.investigation_status === "saved_draft"
+        ? "saved_draft"
+        : investigationCheck.row.investigation_status
+
+    const previousAnswer =
+      existingRows.length === 1
+        ? {
+            question_key: existingRows[0].question_key,
+            answer_value: existingRows[0].answer_value,
+            answer_json: existingRows[0].answer_json,
+            answer_order: existingRows[0].answer_order,
+            is_required: existingRows[0].is_required,
+          }
+        : null
+
+    const auditResult = await insertNr1AuditEvents(userClient, [
+      {
+        tenantId: scope.tenantId,
+        establishmentId,
+        entityType: "nr1_trigger_investigation_answer",
+        entityId: saved.id,
+        eventType: "trigger_question_answered",
+        userId: scope.user.id,
+        oldValueJson: previousAnswer,
+        newValueJson: {
+          question_key: saved.question_key,
+          answer_value: saved.answer_value,
+          answer_json: saved.answer_json,
+          answer_order: saved.answer_order,
+          is_required: saved.is_required,
+          save_mode: mode,
+        },
+      },
+      {
+        tenantId: scope.tenantId,
+        establishmentId,
+        entityType: "nr1_trigger_investigation",
+        entityId: investigationId,
+        eventType: "trigger_investigation_saved",
+        userId: scope.user.id,
+        oldValueJson: {
+          investigation_status: investigationCheck.row.investigation_status,
+        },
+        newValueJson: {
+          investigation_status: resultingInvestigationStatus,
+          answered_question_key: questionKey,
+        },
+      },
+    ])
+
+    if (!auditResult.ok) {
+      return json(500, {
+        ok: false,
+        error: "nr1_trigger_investigation_answer_audit_failed",
+        message: auditResult.error,
+        answerSaved: true,
+        answerId: saved.id,
+      })
+    }
+
     return json(mode === "created" ? 201 : 200, {
       ok: true,
       saved: mode,
@@ -446,11 +509,7 @@ export async function POST(
       establishmentId,
       investigationId,
       membershipRole: scope.role,
-      investigationStatus:
-        investigationCheck.row.investigation_status === "in_investigation" ||
-        investigationCheck.row.investigation_status === "saved_draft"
-          ? "saved_draft"
-          : investigationCheck.row.investigation_status,
+      investigationStatus: resultingInvestigationStatus,
       item: saved,
     })
   } catch (error) {
@@ -458,3 +517,4 @@ export async function POST(
     return json(response.status, response.body)
   }
 }
+
