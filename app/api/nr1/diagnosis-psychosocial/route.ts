@@ -75,11 +75,15 @@ async function upsertPsychosocialFactors(
     diagnosis_session_id: row.diagnosis_session_id,
     factor_key: factor.key,
     factor_label: factor.label,
-    status: row[factor.key] === true ? "evidence_found" : "not_observed",
+    status: row[factor.key] === true ? "needs_investigation" : "not_observed",
     confidence_level: "low",
     sources: [],
     justification: row[factor.key] === true ? row.notes : null,
-    investigation_pending: false,
+    investigation_pending: row[factor.key] === true,
+    pending_action:
+      row[factor.key] === true
+        ? "Aprofundar este ponto antes de classificar como fator de risco."
+        : null,
   }))
 
   return userClient
@@ -614,3 +618,5 @@ export async function POST(req: NextRequest) {
     return json(response.status, response.body)
   }
 }
+
+

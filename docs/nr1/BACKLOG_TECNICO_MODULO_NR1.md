@@ -2,6 +2,44 @@
 
 Este documento registra itens tecnicos, regras de implementacao, entidades, eventos, estados e validacoes do modulo NR-1 do icanHelp.
 
+## Decisao arquitetural vigente - estabilizacao do fluxo de gatilhos
+
+Para toda implementacao relacionada a gatilhos, investigacao, classificacao, conversao em risco, inventario e plano de acao, observar obrigatoriamente:
+
+docs/nr1/DECISAO_ARQUITETURAL_ESTABILIZACAO_GATILHOS_2026-09-23.md
+
+### Ordem vigente de implementacao
+
+Fase 1 - Estabilizacao:
+
+1. simplificar contratos das APIs;
+2. tornar o servidor a fonte canonica;
+3. bloquear geracao de risco com investigacao obrigatoria incompleta;
+4. eliminar caminhos paralelos entre gatilhos e fatores;
+5. extrair progressivamente a logica de investigacao do workspace principal.
+
+Enquanto esta fase nao estiver concluida:
+
+- nao implementar classificacao automatica completa;
+- nao permitir conversao em risco contornando investigacao;
+- nao criar plano de acao automaticamente;
+- nao criar novo caminho paralelo de diagnostico;
+- nao aumentar desnecessariamente a logica em workspace/page.tsx.
+
+Fluxo oficial:
+
+GATILHO
+→ INVESTIGACAO
+→ RESPOSTAS
+→ RESULTADO SUGERIDO
+→ VALIDACAO HUMANA
+→ VALIDACAO TECNICA, QUANDO OBRIGATORIA
+→ RISCO
+→ INVENTARIO
+→ PLANO DE ACAO.
+
+---
+
 <!-- BEGIN BACKLOG_REGRA_GATILHO_NAO_E_RISCO -->
 
 ## Backlog tecnico - Regra gatilho nao e risco automatico
@@ -402,3 +440,4 @@ Esta frente estara pronta para implementacao quando:
 - nenhum gatilho criar risco automaticamente.
 
 <!-- END BACKLOG_MODELAGEM_TECNICA_INVESTIGACAO_GATILHOS -->
+

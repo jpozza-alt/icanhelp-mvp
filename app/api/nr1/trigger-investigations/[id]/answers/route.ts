@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import type { Json } from "@/lib/database.types"
+import {
+  TRIGGER_INVESTIGATION_MATRIX,
+  type TriggerInvestigationType,
+} from "@/lib/nr1-trigger-investigation-matrix"
 import type {
   Nr1TriggerInvestigationAnswerInsert,
   Nr1TriggerInvestigationAnswerRow,
@@ -19,11 +23,8 @@ export const dynamic = "force-dynamic"
 type SaveAnswerBody = {
   establishment_id?: string
   question_key?: string
-  question_label?: string
   answer_value?: string | null
   answer_json?: Json
-  answer_order?: number
-  is_required?: boolean
 }
 
 function json(status: number, payload: Record<string, unknown>) {
@@ -50,6 +51,15 @@ function getEstablishmentId(req: NextRequest): string | null {
 
 function isQuestionKey(value: string) {
   return /^[a-z0-9][a-z0-9_-]{0,119}$/i.test(value)
+}
+
+function isTriggerInvestigationType(
+  value: string,
+): value is TriggerInvestigationType {
+  return Object.prototype.hasOwnProperty.call(
+    TRIGGER_INVESTIGATION_MATRIX,
+    value,
+  )
 }
 
 function isJson(value: unknown, depth = 0): value is Json {
@@ -239,7 +249,6 @@ export async function POST(
 
     const establishmentId = cleanText(body.establishment_id, 36)
     const questionKey = cleanText(body.question_key, 120)
-    const questionLabel = cleanText(body.question_label, 500)
 
     if (!establishmentId) {
       return json(400, { ok: false, error: "missing_establishment_id" })
@@ -247,10 +256,6 @@ export async function POST(
 
     if (!questionKey || !isQuestionKey(questionKey)) {
       return json(400, { ok: false, error: "invalid_question_key" })
-    }
-
-    if (!questionLabel) {
-      return json(400, { ok: false, error: "missing_question_label" })
     }
 
     const answerValue =
@@ -267,21 +272,6 @@ export async function POST(
     if (!isJson(answerJson)) {
       return json(400, { ok: false, error: "invalid_answer_json" })
     }
-
-    const answerOrder =
-      typeof body.answer_order === "number" &&
-      Number.isInteger(body.answer_order) &&
-      body.answer_order >= 0 &&
-      body.answer_order <= 100
-        ? body.answer_order
-        : null
-
-    if (answerOrder === null) {
-      return json(400, { ok: false, error: "invalid_answer_order" })
-    }
-
-    const isRequired =
-      typeof body.is_required === "boolean" ? body.is_required : false
 
     const scope = await resolveNr1Scope({
       req,
@@ -320,6 +310,64 @@ export async function POST(
       })
     }
 
+    const investigationTriggerType = cleanText(
+      investigationCheck.row.trigger_type,
+      120,
+    )
+
+    if (
+      !investigationTriggerType ||
+      !isTriggerInvestigationType(investigationTriggerType)
+    ) {
+      return json(409, {
+        ok: false,
+        error: "nr1_trigger_investigation_invalid_trigger_type",
+      })
+    }
+
+    const triggerDefinition =
+      TRIGGER_INVESTIGATION_MATRIX[investigationTriggerType]
+
+    const canonicalQuestionIndex =
+      triggerDefinition.questions.findIndex(
+        (question) => question.key === questionKey,
+      )
+
+    if (canonicalQuestionIndex < 0) {
+      return json(400, {
+        ok: false,
+        error: "invalid_question_for_trigger",
+        triggerType: investigationTriggerType,
+        questionKey,
+      })
+    }
+
+    const canonicalQuestion =
+      triggerDefinition.questions[canonicalQuestionIndex]
+
+    const canonicalAnswerOrder = canonicalQuestionIndex + 1
+
+    if (
+      canonicalQuestion.kind === "yes_no" &&
+      answerValue !== "yes" &&
+      answerValue !== "no" &&
+      answerValue !== "unknown"
+    ) {
+      return json(400, {
+        ok: false,
+        error: "invalid_answer_for_trigger_question",
+      })
+    }
+
+    if (
+      canonicalQuestion.kind === "text" &&
+      !answerValue
+    ) {
+      return json(400, {
+        ok: false,
+        error: "invalid_answer_for_trigger_question",
+      })
+    }
     if (
       investigationCheck.row.investigation_status === "archived" ||
       investigationCheck.row.investigation_status === "converted_to_risk"
@@ -365,11 +413,11 @@ export async function POST(
         tenant_id: scope.tenantId,
         trigger_investigation_id: investigationId,
         question_key: questionKey,
-        question_label: questionLabel,
+        question_label: canonicalQuestion.label,
         answer_value: answerValue,
         answer_json: answerJson,
-        answer_order: answerOrder,
-        is_required: isRequired,
+        answer_order: canonicalAnswerOrder,
+        is_required: canonicalQuestion.required,
         created_by: scope.user.id,
         updated_by: scope.user.id,
       }
@@ -394,11 +442,11 @@ export async function POST(
       const updateResult = await userClient
         .from("nr1_trigger_investigation_answers")
         .update({
-          question_label: questionLabel,
+          question_label: canonicalQuestion.label,
           answer_value: answerValue,
           answer_json: answerJson,
-          answer_order: answerOrder,
-          is_required: isRequired,
+          answer_order: canonicalAnswerOrder,
+          is_required: canonicalQuestion.required,
           updated_by: scope.user.id,
         })
         .eq("id", existingRows[0].id)
@@ -517,4 +565,6 @@ export async function POST(
     return json(response.status, response.body)
   }
 }
+
+
 

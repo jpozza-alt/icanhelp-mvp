@@ -198,6 +198,40 @@ async function maybeGenerateRiskFromReview(params: {
     }
   }
 
+  // trigger_investigation_gate:
+  // o fluxo antigo de revisao nao pode contornar uma investigacao de gatilho.
+  const triggerInvestigationResult = await params.userClient
+    .from("nr1_trigger_investigations")
+    .select("id,investigation_status,trigger_type")
+    .eq("tenant_id", params.scope.tenantId)
+    .eq("establishment_id", params.establishmentId)
+    .eq("diagnosis_session_id", params.diagnosisSessionId)
+    .is("deleted_at", null)
+
+  if (triggerInvestigationResult.error) {
+    throw new Error(
+      "nr1_generated_risk_trigger_investigation_lookup_failed: " +
+        triggerInvestigationResult.error.message,
+    )
+  }
+
+  const unresolvedTriggerInvestigations =
+    (triggerInvestigationResult.data || []).filter((investigation) => {
+      const status = cleanText(investigation.investigation_status)
+
+      return (
+        status !== "archived" &&
+        status !== "converted_to_risk"
+      )
+    })
+
+  if (unresolvedTriggerInvestigations.length > 0) {
+    return {
+      generated: false,
+      riskId: null,
+      reason: "investigation_required",
+    }
+  }
   const existingRiskResult = await params.userClient
     .from("nr1_risks")
     .select("id,status,title,risk_category,diagnosis_session_id,deleted_at")
@@ -1062,3 +1096,4 @@ export async function POST(req: NextRequest) {
     return json(response.status, response.body)
   }
 }
+

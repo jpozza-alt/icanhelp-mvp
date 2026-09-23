@@ -63,3 +63,31 @@ test("salvar resposta nao cria risco nem plano de acao", () => {
   assert.doesNotMatch(route, /\.from\("nr1_action_plans"\)/);
   assert.match(route, /investigation_status: "saved_draft"/);
 });
+
+test("servidor controla os metadados da pergunta oficial", () => {
+  const route = read(routePath);
+
+  assert.match(route, /TRIGGER_INVESTIGATION_MATRIX/);
+  assert.match(route, /invalid_question_for_trigger/);
+  assert.match(route, /invalid_answer_for_trigger_question/);
+
+  assert.doesNotMatch(route, /body\.question_label/);
+  assert.doesNotMatch(route, /body\.answer_order/);
+  assert.doesNotMatch(route, /body\.is_required/);
+
+  assert.match(
+    route,
+    /question_label: canonicalQuestion\.label/
+  );
+
+  assert.match(
+    route,
+    /answer_order: canonicalAnswerOrder/
+  );
+
+  assert.match(
+    route,
+    /is_required: canonicalQuestion\.required/
+  );
+});
+

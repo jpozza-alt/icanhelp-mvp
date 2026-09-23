@@ -10,6 +10,13 @@ import {
   TRIGGER_INVESTIGATION_OFFICIAL_MESSAGE,
   type TriggerInvestigationType,
 } from "@/lib/nr1-trigger-investigation-matrix";
+import {
+  loadTriggerInvestigationsClient,
+  openTriggerInvestigationClient,
+  saveTriggerInvestigationAnswerClient,
+  type TriggerInvestigationAnswerState,
+  type TriggerInvestigationUiItem,
+} from "@/lib/nr1-trigger-investigation-client";
 
 type JsonObject = Record<string, unknown>;
 
@@ -69,15 +76,6 @@ type AuditEvent = {
   [key: string]: unknown;
 };
 
-type TriggerInvestigationUiItem = {
-  id: string;
-  trigger_type: TriggerInvestigationType;
-  trigger_label?: string | null;
-  investigation_status?: string | null;
-};
-
-type TriggerInvestigationAnswerState =
-  Record<string, string>;
 
 type WorkspaceDraftPayload = {
   activeSection: string;
@@ -1297,8 +1295,35 @@ export default function Nr1WorkspacePage() {
     useState(false);
   const [triggerInvestigationError, setTriggerInvestigationError] =
     useState<string | null>(null);
+
+  const hasPendingTriggerInvestigation = Object.values(
+    triggerInvestigations,
+  ).some((investigation) => {
+    const status = investigation?.investigation_status;
+
+    return Boolean(
+      investigation &&
+        status !== "archived" &&
+        status !== "converted_to_risk",
+    );
+  });
+
   const [diagnosisContextForm, setDiagnosisContextForm] = useState<DiagnosisContextForm>(INITIAL_DIAGNOSIS_CONTEXT_FORM);
   const [psychosocialForm, setPsychosocialForm] = useState<PsychosocialForm>(INITIAL_PSYCHOSOCIAL_FORM);
+
+  const hasPendingPsychosocialSignal = Object.entries(
+    psychosocialForm,
+  ).some(([key, value]) => {
+    return (
+      key !== "has_report_channel" &&
+      key !== "notes" &&
+      value === true
+    );
+  });
+
+  const hasPendingDiagnosisInvestigation =
+    hasPendingTriggerInvestigation ||
+    hasPendingPsychosocialSignal;
   const [fqbForm, setFqbForm] = useState<DiagnosisFqbForm>(INITIAL_DIAGNOSIS_FQB_FORM);
   const [accidentsForm, setAccidentsForm] = useState<DiagnosisAccidentsForm>(INITIAL_DIAGNOSIS_ACCIDENTS_FORM);
   const [ergonomicsForm, setErgonomicsForm] = useState<DiagnosisErgonomicsForm>(INITIAL_DIAGNOSIS_ERGONOMICS_FORM);
@@ -1463,60 +1488,20 @@ useEffect(() => {
     triggerType: TriggerInvestigationType,
   ): Promise<TriggerInvestigationUiItem | null> {
     const currentContext = contextRef.current;
-    const definition = TRIGGER_INVESTIGATION_MATRIX[triggerType];
 
     setTriggerInvestigationSaving(true);
     setTriggerInvestigationError(null);
 
     try {
-      if (!currentContext.tenantId || !currentContext.establishmentId) {
-        throw new Error(
-          "Selecione a empresa e o local de trabalho antes de investigar este ponto.",
-        );
-      }
-
       const sessionId = await ensureDiagnosisSession();
 
-      const path = buildUrl("/api/nr1/trigger-investigations", {
-        tenantId: currentContext.tenantId,
+      const item = await openTriggerInvestigationClient({
+        request: fetchJson,
+        buildUrl,
+        context: currentContext,
+        diagnosisSessionId: sessionId,
+        triggerType,
       });
-
-      const response = await fetchJson(
-        path,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            establishment_id: currentContext.establishmentId,
-            diagnosis_session_id: sessionId,
-            trigger_type: triggerType,
-            trigger_label: definition.label,
-          }),
-        },
-        currentContext,
-      );
-
-      const responseItem =
-        isRecord(response) && isRecord(response.item)
-          ? response.item
-          : null;
-
-      const investigationId = firstString(responseItem, ["id"]);
-
-      if (!investigationId) {
-        throw new Error(
-          "A investigação foi aberta, mas a API não retornou seu identificador.",
-        );
-      }
-
-      const item: TriggerInvestigationUiItem = {
-        id: investigationId,
-        trigger_type: triggerType,
-        trigger_label:
-          firstString(responseItem, ["trigger_label"]) || definition.label,
-        investigation_status:
-          firstString(responseItem, ["investigation_status"]) ||
-          "in_investigation",
-      };
 
       setTriggerInvestigations((current) => ({
         ...current,
@@ -1540,8 +1525,6 @@ useEffect(() => {
     }
   }
 
-
-
   async function handleSaveTriggerInvestigationAnswer(
     triggerType: TriggerInvestigationType,
     questionIndex: number,
@@ -1558,50 +1541,30 @@ useEffect(() => {
       return false;
     }
 
-    if (!currentContext.tenantId || !currentContext.establishmentId) {
-      setTriggerInvestigationError(
-        "Selecione a empresa e o local de trabalho antes de salvar a resposta.",
-      );
-      return false;
-    }
-
     setTriggerInvestigationSaving(true);
     setTriggerInvestigationError(null);
 
     try {
-      let investigation = triggerInvestigations[triggerType] || null;
+      let investigation =
+        triggerInvestigations[triggerType] || null;
 
       if (!investigation) {
-        investigation = await handleOpenTriggerInvestigation(triggerType);
+        investigation =
+          await handleOpenTriggerInvestigation(triggerType);
       }
 
       if (!investigation) {
         return false;
       }
 
-      const path = buildUrl(
-        `/api/nr1/trigger-investigations/${investigation.id}/answers`,
-        {
-          tenantId: currentContext.tenantId,
-        },
-      );
-
-      await fetchJson(
-        path,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            establishment_id: currentContext.establishmentId,
-            question_key: question.key,
-            question_label: question.label,
-            answer_value: answerValue,
-            answer_json: {},
-            answer_order: questionIndex + 1,
-            is_required: question.required,
-          }),
-        },
-        currentContext,
-      );
+      await saveTriggerInvestigationAnswerClient({
+        request: fetchJson,
+        buildUrl,
+        context: currentContext,
+        investigationId: investigation.id,
+        questionKey: question.key,
+        answerValue,
+      });
 
       setTriggerInvestigationAnswers((current) => ({
         ...current,
@@ -1634,108 +1597,29 @@ useEffect(() => {
       setTriggerInvestigationSaving(false);
     }
   }
+
   async function loadTriggerInvestigationsForSession(
     sessionId: string,
   ): Promise<void> {
     const currentContext = contextRef.current;
 
-    if (
-      !currentContext.tenantId ||
-      !currentContext.establishmentId ||
-      !sessionId
-    ) {
-      setTriggerInvestigations({});
-      setTriggerInvestigationAnswers({});
-      setActiveTriggerInvestigationType(null);
-      return;
-    }
-
-    const path = buildUrl("/api/nr1/trigger-investigations", {
-      tenantId: currentContext.tenantId,
-      establishmentId: currentContext.establishmentId,
+    const result = await loadTriggerInvestigationsClient({
+      request: fetchJson,
+      buildUrl,
+      context: currentContext,
       diagnosisSessionId: sessionId,
     });
 
-    const payload = await fetchJson(
-      path,
-      { method: "GET" },
-      currentContext,
-    );
+    setTriggerInvestigations(result.investigations);
+    setTriggerInvestigationAnswers(result.answers);
 
-    const rawItems =
-      isRecord(payload) && Array.isArray(payload.items)
-        ? payload.items
-        : [];
+    setActiveTriggerInvestigationType((current) => {
+      if (!current) return null;
 
-    const nextInvestigations: Partial<
-      Record<TriggerInvestigationType, TriggerInvestigationUiItem>
-    > = {};
-
-    const nextAnswers: Record<string, TriggerInvestigationAnswerState> = {};
-
-    for (const rawItem of rawItems) {
-      if (!isRecord(rawItem)) continue;
-
-      const investigationId = firstString(rawItem, ["id"]);
-      const rawTriggerType = firstString(rawItem, ["trigger_type"]);
-
-      if (
-        !investigationId ||
-        !rawTriggerType ||
-        !(rawTriggerType in TRIGGER_INVESTIGATION_MATRIX)
-      ) {
-        continue;
-      }
-
-      const triggerType = rawTriggerType as TriggerInvestigationType;
-
-      nextInvestigations[triggerType] = {
-        id: investigationId,
-        trigger_type: triggerType,
-        trigger_label:
-          firstString(rawItem, ["trigger_label"]) ||
-          TRIGGER_INVESTIGATION_MATRIX[triggerType].label,
-        investigation_status:
-          firstString(rawItem, ["investigation_status"]) || null,
-      };
-
-      const answerPath = buildUrl(
-        `/api/nr1/trigger-investigations/${investigationId}/answers`,
-        {
-          tenantId: currentContext.tenantId,
-          establishmentId: currentContext.establishmentId,
-        },
-      );
-
-      const answerPayload = await fetchJson(
-        answerPath,
-        { method: "GET" },
-        currentContext,
-      );
-
-      const rawAnswers =
-        isRecord(answerPayload) && Array.isArray(answerPayload.items)
-          ? answerPayload.items
-          : [];
-
-      const answerState: TriggerInvestigationAnswerState = {};
-
-      for (const rawAnswer of rawAnswers) {
-        if (!isRecord(rawAnswer)) continue;
-
-        const questionKey = firstString(rawAnswer, ["question_key"]);
-        const answerValue = firstString(rawAnswer, ["answer_value"]);
-
-        if (questionKey && answerValue !== null) {
-          answerState[questionKey] = answerValue;
-        }
-      }
-
-      nextAnswers[investigationId] = answerState;
-    }
-
-    setTriggerInvestigations(nextInvestigations);
-    setTriggerInvestigationAnswers(nextAnswers);
+      return result.investigations[current]
+        ? current
+        : null;
+    });
   }
   useEffect(() => {
     const coordinator = diagnosisHydrationCoordinatorRef.current;
@@ -6307,7 +6191,7 @@ useEffect(() => {
                           Etapa 02
                         </p>
                         <h3 className="mt-2 text-2xl font-semibold text-[#10243e]">
-                          Verificar fatores da organização do trabalho
+                          Investigar características da organização do trabalho
                         </h3>
                         <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
                           Salve primeiro como o trabalho acontece. Depois o sistema libera a identificação dos sinais observáveis da rotina.
@@ -6326,9 +6210,9 @@ useEffect(() => {
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
                       Etapa 02
                     </p>
-                    <h3 className="mt-2 text-2xl font-semibold text-[#10243e]">Verificar fatores da organização do trabalho</h3>
+                    <h3 className="mt-2 text-2xl font-semibold text-[#10243e]">Investigar características da organização do trabalho</h3>
                     <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
-                      Marque apenas situações observáveis na rotina da atividade. Esta etapa não avalia saúde mental, sintomas ou pessoas. Ela identifica fatores do trabalho que podem gerar risco ocupacional.
+                      Primeiro identifique as características presentes na atividade e aprofunde os pontos aplicáveis. Um gatilho não é automaticamente um risco: ele abre uma investigação antes de qualquer classificação.
                     </p>
                   </div>
                   <span className="w-fit rounded-full bg-[#f0e7d8] px-3 py-1 text-xs font-semibold text-[#6f4f17]">
@@ -6509,7 +6393,18 @@ useEffect(() => {
                       })}
                     </div>
                   </div>
-<div className="mt-6 grid gap-3 text-sm text-[#4f463c] md:grid-cols-2">
+<div className="mt-6 rounded-2xl border border-[#eadfce] bg-[#fffaf6] p-4">
+  <p className="text-sm font-semibold text-[#10243e]">
+    Sinais complementares observados
+  </p>
+  <p className="mt-2 text-xs leading-5 text-[#6f665b]">
+    Use estes itens apenas para registrar sinais percebidos na rotina.
+    Marcar um item não confirma risco e não substitui a investigação acima.
+    O sistema tratará o sinal como ponto que precisa de aprofundamento.
+  </p>
+</div>
+
+<div className="mt-4 grid gap-3 text-sm text-[#4f463c] md:grid-cols-2">
                     {[
                       [
                         "has_work_overload",
@@ -6610,7 +6505,7 @@ useEffect(() => {
                   disabled={diagnosisStatus === "saving"}
                   className="mt-6 rounded-xl bg-[#10243e] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0b1729] disabled:opacity-60"
                 >
-                  Salvar sinais observados
+                  Salvar sinais complementares
                 </button>
               </form>
 
@@ -6657,7 +6552,7 @@ useEffect(() => {
                     <button
                       type="button"
                       onClick={() => void handleGeneratePreliminaryRiskFromDiagnosis()}
-                      disabled={diagnosisStatus === "saving"}
+                      disabled={diagnosisStatus === "saving" || hasPendingDiagnosisInvestigation}
                       className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
                     >
                       Gerar risco sugerido
@@ -6668,7 +6563,9 @@ useEffect(() => {
                 <div className="mt-5 rounded-2xl border border-emerald-200 bg-white/70 p-4 text-sm text-emerald-950">
                   {diagnosisRiskId
                     ? "O risco sugerido foi gerado e precisa de revisão humana antes de qualquer consolidação."
-                    : "Depois da revisão, o sistema gera um risco sugerido para conferência antes de adicionar ao inventário e revisar o plano de ação."}
+                    : hasPendingDiagnosisInvestigation
+                      ? "Ainda existem pontos que precisam de aprofundamento. Conclua as investigações antes de gerar qualquer risco sugerido."
+                      : "Depois da revisão, o sistema pode gerar um risco sugerido para conferência humana antes de adicionar ao inventário e revisar o plano de ação."}
                 </div>
 
                 {diagnosisRiskId ? (
@@ -7617,6 +7514,14 @@ useEffect(() => {
     </main>
 );
 }
+
+
+
+
+
+
+
+
 
 
 

@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
+import {
+  TRIGGER_INVESTIGATION_MATRIX,
+  TRIGGER_INVESTIGATION_TYPES,
+  type TriggerInvestigationType,
+} from "@/lib/nr1-trigger-investigation-matrix"
 import type {
   Nr1DiagnosisSessionRow,
   Nr1TriggerInvestigationInsert,
@@ -15,27 +20,11 @@ import { insertNr1AuditEvents } from "@/lib/server/nr1-audit-events"
 
 export const dynamic = "force-dynamic"
 
-const TRIGGER_TYPES = [
-  "deadline_pressure",
-  "public_service",
-  "remote_or_hybrid_work",
-  "third_parties",
-  "repetitive_work",
-  "prolonged_sitting",
-  "intermediate_leadership",
-  "frequent_changes",
-  "task_accumulation",
-  "frequent_conflicts",
-  "harassment_or_violence",
-] as const
-
-type TriggerType = (typeof TRIGGER_TYPES)[number]
 
 type OpenTriggerInvestigationBody = {
   establishment_id?: string
   diagnosis_session_id?: string
   trigger_type?: string
-  trigger_label?: string
 }
 
 function json(status: number, payload: Record<string, unknown>) {
@@ -63,8 +52,10 @@ function getRequiredDiagnosisSessionId(req: NextRequest): string | null {
   return cleanText(req.nextUrl.searchParams.get("diagnosisSessionId"))
 }
 
-function isTriggerType(value: string): value is TriggerType {
-  return (TRIGGER_TYPES as readonly string[]).includes(value)
+function isTriggerType(
+  value: string,
+): value is TriggerInvestigationType {
+  return (TRIGGER_INVESTIGATION_TYPES as readonly string[]).includes(value)
 }
 
 async function requireDiagnosisSessionInScope(
@@ -213,7 +204,6 @@ export async function POST(req: NextRequest) {
     const establishmentId = cleanText(body.establishment_id)
     const diagnosisSessionId = cleanText(body.diagnosis_session_id)
     const triggerType = cleanText(body.trigger_type)
-    const triggerLabel = cleanText(body.trigger_label)
 
     if (!establishmentId) {
       return json(400, { ok: false, error: "missing_establishment_id" })
@@ -227,13 +217,12 @@ export async function POST(req: NextRequest) {
       return json(400, {
         ok: false,
         error: "invalid_trigger_type",
-        allowed: TRIGGER_TYPES,
+        allowed: TRIGGER_INVESTIGATION_TYPES,
       })
     }
 
-    if (!triggerLabel) {
-      return json(400, { ok: false, error: "missing_trigger_label" })
-    }
+    const triggerLabel =
+      TRIGGER_INVESTIGATION_MATRIX[triggerType].label
 
     const scope = await resolveNr1Scope({
       req,
@@ -407,4 +396,5 @@ export async function POST(req: NextRequest) {
     return json(response.status, response.body)
   }
 }
+
 

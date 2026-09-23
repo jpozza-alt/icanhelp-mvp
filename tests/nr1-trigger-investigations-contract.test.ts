@@ -52,3 +52,17 @@ test("investigacao inicia sem classificacao automatica de risco", () => {
     /Este ponto nao e automaticamente um risco\. Vamos entender melhor a situacao antes de classificar\./
   );
 });
+
+test("servidor define o rotulo oficial do gatilho", () => {
+  const route = read(routePath);
+
+  assert.match(route, /TRIGGER_INVESTIGATION_MATRIX/);
+  assert.match(route, /TRIGGER_INVESTIGATION_TYPES/);
+
+  assert.doesNotMatch(route, /body\.trigger_label/);
+
+  assert.match(
+    route,
+    /TRIGGER_INVESTIGATION_MATRIX\[triggerType\]\.label/
+  );
+});
