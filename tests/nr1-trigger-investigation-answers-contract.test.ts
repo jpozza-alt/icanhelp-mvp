@@ -51,6 +51,7 @@ test("mesma pergunta e atualizada em vez de duplicada", () => {
 test("investigacao encerrada nao aceita novas respostas", () => {
   const route = read(routePath);
 
+  assert.match(route, /investigation_status === "completed"/);
   assert.match(route, /investigation_status === "archived"/);
   assert.match(route, /investigation_status === "converted_to_risk"/);
   assert.match(route, /nr1_trigger_investigation_not_editable/);
@@ -90,4 +91,5 @@ test("servidor controla os metadados da pergunta oficial", () => {
     /is_required: canonicalQuestion\.required/
   );
 });
+
 

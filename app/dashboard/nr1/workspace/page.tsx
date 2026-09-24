@@ -11,12 +11,22 @@ import {
   type TriggerInvestigationType,
 } from "@/lib/nr1-trigger-investigation-matrix";
 import {
+  completeTriggerInvestigationClient,
   loadTriggerInvestigationsClient,
   openTriggerInvestigationClient,
   saveTriggerInvestigationAnswerClient,
   type TriggerInvestigationAnswerState,
   type TriggerInvestigationUiItem,
 } from "@/lib/nr1-trigger-investigation-client";
+
+const TRIGGER_INVESTIGATION_RESULT_LABELS: Record<string, string> = {
+  no_relevant_indication: "Sem indício relevante no momento",
+  attention_point: "Ponto de atenção",
+  possible_risk_factor: "Possível fator de risco",
+  suggested_risk: "Risco sugerido",
+  pending_technical_validation: "Pendente de validação técnica",
+  critical_alert: "Alerta crítico",
+};
 
 type JsonObject = Record<string, unknown>;
 
@@ -1590,6 +1600,66 @@ useEffect(() => {
         error instanceof Error
           ? error.message
           : "Erro ao salvar resposta da investigação.",
+      );
+
+      return false;
+    } finally {
+      setTriggerInvestigationSaving(false);
+    }
+  }
+
+  async function handleCompleteTriggerInvestigation(
+    triggerType: TriggerInvestigationType,
+  ): Promise<boolean> {
+    const currentContext = contextRef.current;
+    const investigation =
+      triggerInvestigations[triggerType] || null;
+
+    if (!investigation) {
+      setTriggerInvestigationError(
+        "Investigação do gatilho não encontrada.",
+      );
+      return false;
+    }
+
+    setTriggerInvestigationSaving(true);
+    setTriggerInvestigationError(null);
+
+    try {
+      const result =
+        await completeTriggerInvestigationClient({
+          request: fetchJson,
+          buildUrl,
+          context: currentContext,
+          investigationId: investigation.id,
+        });
+
+      setTriggerInvestigations((current) => ({
+        ...current,
+        [triggerType]: {
+          ...investigation,
+          investigation_status:
+            result.investigationStatus,
+          suggested_result:
+            result.suggestedResult,
+          technical_validation_required:
+            result.technicalValidationRequired,
+          critical_alert_required:
+            result.criticalAlertRequired,
+        },
+      }));
+
+      setActiveTriggerInvestigationType(triggerType);
+      setDiagnosisSuccess(
+        "Investigação concluída. O resultado sugerido está pronto para revisão.",
+      );
+
+      return true;
+    } catch (error) {
+      setTriggerInvestigationError(
+        error instanceof Error
+          ? error.message
+          : "Erro ao concluir investigação.",
       );
 
       return false;
@@ -6250,6 +6320,9 @@ useEffect(() => {
                         const isActive =
                           activeTriggerInvestigationType === definition.type;
 
+                        const isCompleted =
+                          investigation?.investigation_status === "completed";
+
                         const answers = investigation
                           ? triggerInvestigationAnswers[investigation.id] || {}
                           : {};
@@ -6272,7 +6345,7 @@ useEffect(() => {
                               {!investigation ? (
                                 <button
                                   type="button"
-                                  disabled={triggerInvestigationSaving}
+                                  disabled={triggerInvestigationSaving || isCompleted}
                                   onClick={() =>
                                     void handleOpenTriggerInvestigation(
                                       definition.type,
@@ -6338,7 +6411,7 @@ useEffect(() => {
                                     {question.kind === "yes_no" ? (
                                       <select
                                         value={answers[question.key] || ""}
-                                        disabled={triggerInvestigationSaving}
+                                        disabled={triggerInvestigationSaving || isCompleted}
                                         onChange={(event) =>
                                           void handleSaveTriggerInvestigationAnswer(
                                             definition.type,
@@ -6359,7 +6432,7 @@ useEffect(() => {
                                       <textarea
                                         key={`${investigation.id}-${question.key}-${answers[question.key] || ""}`}
                                         defaultValue={answers[question.key] || ""}
-                                        disabled={triggerInvestigationSaving}
+                                        disabled={triggerInvestigationSaving || isCompleted}
                                         rows={3}
                                         placeholder="Descreva de forma objetiva."
                                         onBlur={(event) => {
@@ -6381,6 +6454,77 @@ useEffect(() => {
                                     )}
                                   </div>
                                 ))}
+
+                                <div className="flex flex-col gap-3 rounded-xl border border-[#d8bd78] bg-[#fffaf3] p-4 md:flex-row md:items-center md:justify-between">
+                                  <div>
+                                    <p className="text-sm font-semibold text-[#10243e]">
+                                      {isCompleted
+                                        ? "Investigação concluída"
+                                        : "Concluir aprofundamento"}
+                                    </p>
+                                    <p className="mt-1 text-xs leading-5 text-[#6f665b]">
+                                      {isCompleted
+                                        ? "As respostas foram avaliadas pelo sistema e o resultado sugerido ficou registrado para revisão."
+                                        : "Conclua somente depois de responder todas as perguntas obrigatórias."}
+                                    </p>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    disabled={
+                                      triggerInvestigationSaving ||
+                                      isCompleted
+                                    }
+                                    onClick={() =>
+                                      void handleCompleteTriggerInvestigation(
+                                        definition.type,
+                                      )
+                                    }
+                                    className="shrink-0 rounded-xl bg-[#10243e] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0b1729] disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    {isCompleted
+                                      ? "Concluída"
+                                      : triggerInvestigationSaving
+                                        ? "Concluindo..."
+                                        : "Concluir investigação"}
+                                  </button>
+                                </div>
+
+                                {isCompleted && investigation.suggested_result ? (
+                                  <div
+                                    className={`rounded-xl border px-4 py-4 ${
+                                      investigation.critical_alert_required
+                                        ? "border-red-300 bg-red-50"
+                                        : investigation.technical_validation_required
+                                          ? "border-amber-300 bg-amber-50"
+                                          : "border-[#d8bd78] bg-[#fffaf3]"
+                                    }`}
+                                  >
+                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#6f665b]">
+                                      Resultado sugerido
+                                    </p>
+
+                                    <p className="mt-2 text-sm font-semibold text-[#10243e]">
+                                      {TRIGGER_INVESTIGATION_RESULT_LABELS[
+                                        investigation.suggested_result
+                                      ] || investigation.suggested_result}
+                                    </p>
+
+                                    {investigation.critical_alert_required ? (
+                                      <p className="mt-2 text-xs leading-5 text-red-800">
+                                        Este caso exige atenção imediata, validação técnica e encaminhamento competente. O sistema não confirma nem encerra o risco automaticamente.
+                                      </p>
+                                    ) : investigation.technical_validation_required ? (
+                                      <p className="mt-2 text-xs leading-5 text-amber-900">
+                                        Este resultado precisa de validação técnica antes de qualquer conversão em risco.
+                                      </p>
+                                    ) : (
+                                      <p className="mt-2 text-xs leading-5 text-[#6f665b]">
+                                        Resultado gerado a partir das respostas registradas. A confirmação humana continua necessária antes de qualquer conversão em risco.
+                                      </p>
+                                    )}
+                                  </div>
+                                ) : null}
 
                                 <div className="rounded-xl bg-[#10243e] px-4 py-3 text-xs leading-5 text-white">
                                   Nesta etapa o sistema apenas registra e aprofunda o ponto observado.
@@ -7514,6 +7658,12 @@ useEffect(() => {
     </main>
 );
 }
+
+
+
+
+
+
 
 
 

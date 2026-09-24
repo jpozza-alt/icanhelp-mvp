@@ -369,6 +369,7 @@ export async function POST(
       })
     }
     if (
+      investigationCheck.row.investigation_status === "completed" ||
       investigationCheck.row.investigation_status === "archived" ||
       investigationCheck.row.investigation_status === "converted_to_risk"
     ) {
@@ -565,6 +566,7 @@ export async function POST(
     return json(response.status, response.body)
   }
 }
+
 
 
 

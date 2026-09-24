@@ -8,6 +8,9 @@ export type TriggerInvestigationUiItem = {
   trigger_type: TriggerInvestigationType
   trigger_label?: string | null
   investigation_status?: string | null
+  suggested_result?: string | null
+  technical_validation_required?: boolean
+  critical_alert_required?: boolean
 }
 
 export type TriggerInvestigationAnswerState =
@@ -255,6 +258,17 @@ export async function loadTriggerInvestigationsClient(params: {
       investigation_status:
         firstString(rawItem, ["investigation_status"]) ||
         null,
+      suggested_result:
+        firstString(rawItem, [
+          "suggested_result",
+          "suggestedResult",
+        ]) || null,
+      technical_validation_required:
+        rawItem.technical_validation_required === true ||
+        rawItem.technicalValidationRequired === true,
+      critical_alert_required:
+        rawItem.critical_alert_required === true ||
+        rawItem.criticalAlertRequired === true,
     }
 
     const answerPath = buildUrl(
@@ -301,3 +315,80 @@ export async function loadTriggerInvestigationsClient(params: {
     answers,
   }
 }
+
+export type TriggerInvestigationCompletionResult = {
+  investigationStatus: string
+  suggestedResult: string | null
+  technicalValidationRequired: boolean
+  criticalAlertRequired: boolean
+}
+
+export async function completeTriggerInvestigationClient(params: {
+  request: Nr1TriggerInvestigationRequest
+  buildUrl: Nr1TriggerInvestigationBuildUrl
+  context: Nr1TriggerInvestigationContext
+  investigationId: string
+}): Promise<TriggerInvestigationCompletionResult> {
+  const {
+    request,
+    buildUrl,
+    context,
+    investigationId,
+  } = params
+
+  if (!context.tenantId || !context.establishmentId) {
+    throw new Error(
+      "Contexto da empresa ou estabelecimento não está disponível.",
+    )
+  }
+
+  const payload = await request(
+    buildUrl(
+      `/api/nr1/trigger-investigations/${encodeURIComponent(
+        investigationId,
+      )}/complete`,
+      {
+        tenantId: context.tenantId,
+        establishmentId: context.establishmentId,
+      },
+    ),
+    {
+      method: "POST",
+      body: JSON.stringify({
+        establishment_id: context.establishmentId,
+      }),
+    },
+    context,
+  )
+
+  if (!isRecord(payload)) {
+    throw new Error(
+      "Resposta inválida ao concluir investigação.",
+    )
+  }
+
+  const investigationStatus =
+    firstString(payload, [
+      "investigationStatus",
+      "investigation_status",
+    ]) || "completed"
+
+  const suggestedResult =
+    firstString(payload, [
+      "suggestedResult",
+      "suggested_result",
+    ])
+
+  return {
+    investigationStatus,
+    suggestedResult,
+    technicalValidationRequired:
+      payload.technicalValidationRequired === true ||
+      payload.technical_validation_required === true,
+    criticalAlertRequired:
+      payload.criticalAlertRequired === true ||
+      payload.critical_alert_required === true,
+  }
+}
+
+
