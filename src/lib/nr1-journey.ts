@@ -350,3 +350,479 @@ export function resolveNr1JourneyTarget(
     reason: "next-incomplete",
   };
 }
+
+/**
+ * Jornada canônica NR-1.
+ *
+ * Este contrato é intencionalmente separado da jornada legada acima.
+ * Durante a consolidação, consumidores serão migrados gradualmente para
+ * este resolver antes da remoção das APIs antigas.
+ */
+export const NR1_CANONICAL_JOURNEY_STEP_IDS = [
+  "empresa",
+  "estabelecimento",
+  "mapeamento",
+  "diagnostico",
+  "investigacao",
+  "validacao",
+  "inventario-riscos",
+  "plano-de-acao",
+  "prontidao-pgr",
+  "previa-pgr",
+  "formalizacao-pgr",
+] as const;
+
+export type Nr1CanonicalJourneyStepId =
+  (typeof NR1_CANONICAL_JOURNEY_STEP_IDS)[number];
+
+export type Nr1CanonicalJourneyStepStatus =
+  | "not_started"
+  | "in_progress"
+  | "pending"
+  | "completed"
+  | "not_applicable";
+
+export type Nr1CanonicalJourneyBlockingReason =
+  | "company_required"
+  | "establishment_required"
+  | "departments_required"
+  | "activities_required"
+  | "mapping_required"
+  | "diagnosis_required"
+  | "investigation_pending"
+  | "validation_pending"
+  | "risk_conversion_pending"
+  | "risk_classification_pending"
+  | "risk_treatment_decision_pending"
+  | "inventory_required"
+  | "action_plan_missing"
+  | "pgr_readiness_unknown"
+  | "pgr_not_ready"
+  | "pgr_preview_required";
+
+export type Nr1CanonicalJourneyFacts = {
+  hasCompany: boolean;
+  hasEstablishment: boolean;
+
+  hasDepartments: boolean;
+  allRelevantDepartmentsHaveActivities: boolean;
+
+  diagnosisStatus: "not_started" | "in_progress" | "completed";
+
+  investigationRequired: boolean;
+  investigationsResolved: boolean;
+
+  validationRequired: boolean;
+  validationsResolved: boolean;
+
+  risksRequiringConversion: number;
+  risksPendingClassification: number;
+  risksPendingTreatmentDecision: number;
+
+  actionPlansRequired: number;
+  actionPlansMissing: number;
+
+  pgrReadiness?: "unknown" | "ready" | "not_ready";
+  pgrPreviewGenerated?: boolean;
+
+  pgrFormalizationEnabled?: boolean;
+  pgrFormalized?: boolean;
+};
+
+export type Nr1CanonicalResolvedJourneyStep = {
+  id: Nr1CanonicalJourneyStepId;
+  title: string;
+  href: string;
+  status: Nr1CanonicalJourneyStepStatus;
+  available: boolean;
+  blockingReasons: Nr1CanonicalJourneyBlockingReason[];
+};
+
+export type Nr1CanonicalJourneyResolution = {
+  steps: Nr1CanonicalResolvedJourneyStep[];
+  currentStepId: Nr1CanonicalJourneyStepId | null;
+  nextAction: {
+    stepId: Nr1CanonicalJourneyStepId;
+    href: string;
+    label: string;
+  } | null;
+  progress: {
+    completed: number;
+    total: number;
+    percent: number;
+  };
+  blockingReasons: Nr1CanonicalJourneyBlockingReason[];
+};
+
+const NR1_CANONICAL_JOURNEY_STEP_META: Record<
+  Nr1CanonicalJourneyStepId,
+  { title: string; href: string }
+> = {
+  empresa: {
+    title: "Empresa",
+    href: "/dashboard/nr1/workspace",
+  },
+  estabelecimento: {
+    title: "Estabelecimento",
+    href: "/dashboard/nr1/workspace",
+  },
+  mapeamento: {
+    title: "Mapeamento",
+    href: "/dashboard/nr1/workspace",
+  },
+  diagnostico: {
+    title: "Diagnóstico",
+    href: "/dashboard/nr1/workspace",
+  },
+  investigacao: {
+    title: "Investigação",
+    href: "/dashboard/nr1/workspace",
+  },
+  validacao: {
+    title: "Validação",
+    href: "/dashboard/nr1/workspace",
+  },
+  "inventario-riscos": {
+    title: "Inventário de riscos",
+    href: "/dashboard/nr1/workspace?section=riscos",
+  },
+  "plano-de-acao": {
+    title: "Plano de ação",
+    href: "/dashboard/nr1/workspace?section=plano",
+  },
+  "prontidao-pgr": {
+    title: "Prontidão do PGR",
+    href: "/dashboard/nr1/relatorio-pgr",
+  },
+  "previa-pgr": {
+    title: "Prévia do PGR",
+    href: "/dashboard/nr1/relatorio-pgr",
+  },
+  "formalizacao-pgr": {
+    title: "Formalização do PGR",
+    href: "/dashboard/nr1/relatorio-pgr",
+  },
+};
+
+function createNr1CanonicalJourneyStep(
+  id: Nr1CanonicalJourneyStepId,
+  status: Nr1CanonicalJourneyStepStatus,
+  available: boolean,
+  blockingReasons: Nr1CanonicalJourneyBlockingReason[] = [],
+): Nr1CanonicalResolvedJourneyStep {
+  const meta = NR1_CANONICAL_JOURNEY_STEP_META[id];
+
+  return {
+    id,
+    title: meta.title,
+    href: meta.href,
+    status,
+    available,
+    blockingReasons,
+  };
+}
+
+export function resolveNr1CanonicalJourney(
+  facts: Nr1CanonicalJourneyFacts,
+): Nr1CanonicalJourneyResolution {
+  const mappingComplete =
+    facts.hasDepartments &&
+    facts.allRelevantDepartmentsHaveActivities;
+
+  const diagnosisComplete = facts.diagnosisStatus === "completed";
+
+  const investigationResolved =
+    !facts.investigationRequired || facts.investigationsResolved;
+
+  const validationResolved =
+    !facts.validationRequired || facts.validationsResolved;
+
+  const analysisResolved =
+    diagnosisComplete &&
+    investigationResolved &&
+    validationResolved;
+
+  const inventoryComplete =
+    analysisResolved &&
+    facts.risksRequiringConversion === 0 &&
+    facts.risksPendingClassification === 0 &&
+    facts.risksPendingTreatmentDecision === 0;
+
+  const actionPlanApplicable = facts.actionPlansRequired > 0;
+
+  const actionPlanComplete =
+    !actionPlanApplicable ||
+    (inventoryComplete && facts.actionPlansMissing === 0);
+
+  const steps: Nr1CanonicalResolvedJourneyStep[] = [];
+
+  steps.push(
+    createNr1CanonicalJourneyStep(
+      "empresa",
+      facts.hasCompany ? "completed" : "not_started",
+      true,
+    ),
+  );
+
+  steps.push(
+    createNr1CanonicalJourneyStep(
+      "estabelecimento",
+      facts.hasEstablishment ? "completed" : "not_started",
+      facts.hasCompany,
+      facts.hasCompany ? [] : ["company_required"],
+    ),
+  );
+
+  const mappingBlockingReasons: Nr1CanonicalJourneyBlockingReason[] = [];
+
+  if (!facts.hasEstablishment) {
+    mappingBlockingReasons.push("establishment_required");
+  } else {
+    if (!facts.hasDepartments) {
+      mappingBlockingReasons.push("departments_required");
+    } else if (!facts.allRelevantDepartmentsHaveActivities) {
+      mappingBlockingReasons.push("activities_required");
+    }
+  }
+
+  steps.push(
+    createNr1CanonicalJourneyStep(
+      "mapeamento",
+      mappingComplete
+        ? "completed"
+        : facts.hasDepartments
+          ? "in_progress"
+          : "not_started",
+      facts.hasEstablishment,
+      mappingBlockingReasons,
+    ),
+  );
+
+  steps.push(
+    createNr1CanonicalJourneyStep(
+      "diagnostico",
+      facts.diagnosisStatus,
+      mappingComplete,
+      mappingComplete ? [] : ["mapping_required"],
+    ),
+  );
+
+  if (!facts.investigationRequired) {
+    steps.push(
+      createNr1CanonicalJourneyStep(
+        "investigacao",
+        "not_applicable",
+        false,
+      ),
+    );
+  } else {
+    steps.push(
+      createNr1CanonicalJourneyStep(
+        "investigacao",
+        facts.investigationsResolved ? "completed" : "pending",
+        diagnosisComplete,
+        diagnosisComplete
+          ? facts.investigationsResolved
+            ? []
+            : ["investigation_pending"]
+          : ["diagnosis_required"],
+      ),
+    );
+  }
+
+  if (!facts.validationRequired) {
+    steps.push(
+      createNr1CanonicalJourneyStep(
+        "validacao",
+        "not_applicable",
+        false,
+      ),
+    );
+  } else {
+    steps.push(
+      createNr1CanonicalJourneyStep(
+        "validacao",
+        facts.validationsResolved ? "completed" : "pending",
+        diagnosisComplete && investigationResolved,
+        !diagnosisComplete
+          ? ["diagnosis_required"]
+          : !investigationResolved
+            ? ["investigation_pending"]
+            : facts.validationsResolved
+              ? []
+              : ["validation_pending"],
+      ),
+    );
+  }
+
+  const inventoryBlockingReasons: Nr1CanonicalJourneyBlockingReason[] = [];
+
+  if (!diagnosisComplete) {
+    inventoryBlockingReasons.push("diagnosis_required");
+  }
+
+  if (facts.investigationRequired && !facts.investigationsResolved) {
+    inventoryBlockingReasons.push("investigation_pending");
+  }
+
+  if (facts.validationRequired && !facts.validationsResolved) {
+    inventoryBlockingReasons.push("validation_pending");
+  }
+
+  if (facts.risksRequiringConversion > 0) {
+    inventoryBlockingReasons.push("risk_conversion_pending");
+  }
+
+  if (facts.risksPendingClassification > 0) {
+    inventoryBlockingReasons.push("risk_classification_pending");
+  }
+
+  if (facts.risksPendingTreatmentDecision > 0) {
+    inventoryBlockingReasons.push("risk_treatment_decision_pending");
+  }
+
+  steps.push(
+    createNr1CanonicalJourneyStep(
+      "inventario-riscos",
+      inventoryComplete
+        ? "completed"
+        : analysisResolved
+          ? "pending"
+          : "not_started",
+      analysisResolved,
+      inventoryBlockingReasons,
+    ),
+  );
+
+  if (!actionPlanApplicable) {
+    steps.push(
+      createNr1CanonicalJourneyStep(
+        "plano-de-acao",
+        "not_applicable",
+        false,
+      ),
+    );
+  } else {
+    steps.push(
+      createNr1CanonicalJourneyStep(
+        "plano-de-acao",
+        actionPlanComplete ? "completed" : inventoryComplete ? "pending" : "not_started",
+        inventoryComplete,
+        inventoryComplete
+          ? facts.actionPlansMissing > 0
+            ? ["action_plan_missing"]
+            : []
+          : ["inventory_required"],
+      ),
+    );
+  }
+
+  const readinessAvailable = inventoryComplete && actionPlanComplete;
+  const pgrReadiness = facts.pgrReadiness ?? "unknown";
+
+  steps.push(
+    createNr1CanonicalJourneyStep(
+      "prontidao-pgr",
+      !readinessAvailable
+        ? "not_started"
+        : pgrReadiness === "ready"
+          ? "completed"
+          : pgrReadiness === "not_ready"
+            ? "pending"
+            : "in_progress",
+      readinessAvailable,
+      !inventoryComplete
+        ? ["inventory_required"]
+        : !actionPlanComplete
+          ? ["action_plan_missing"]
+          : pgrReadiness === "not_ready"
+            ? ["pgr_not_ready"]
+            : pgrReadiness === "unknown"
+              ? ["pgr_readiness_unknown"]
+              : [],
+    ),
+  );
+
+  steps.push(
+    createNr1CanonicalJourneyStep(
+      "previa-pgr",
+      facts.pgrPreviewGenerated ? "completed" : "not_started",
+      diagnosisComplete,
+      diagnosisComplete ? [] : ["diagnosis_required"],
+    ),
+  );
+
+  if (!facts.pgrFormalizationEnabled) {
+    steps.push(
+      createNr1CanonicalJourneyStep(
+        "formalizacao-pgr",
+        "not_applicable",
+        false,
+      ),
+    );
+  } else {
+    const formalizationAvailable =
+      pgrReadiness === "ready" &&
+      Boolean(facts.pgrPreviewGenerated);
+
+    steps.push(
+      createNr1CanonicalJourneyStep(
+        "formalizacao-pgr",
+        facts.pgrFormalized ? "completed" : "not_started",
+        formalizationAvailable,
+        pgrReadiness !== "ready"
+          ? ["pgr_not_ready"]
+          : !facts.pgrPreviewGenerated
+            ? ["pgr_preview_required"]
+            : [],
+      ),
+    );
+  }
+
+  const applicableSteps = steps.filter(
+    (step) => step.status !== "not_applicable",
+  );
+
+  const completed = applicableSteps.filter(
+    (step) => step.status === "completed",
+  ).length;
+
+  const total = applicableSteps.length;
+
+  const percent =
+    total === 0
+      ? 0
+      : Math.round((completed / total) * 100);
+
+  const currentStep =
+    applicableSteps.find((step) => step.status !== "completed") ?? null;
+
+  const nextActionStep =
+    applicableSteps.find(
+      (step) => step.status !== "completed" && step.available,
+    ) ?? null;
+
+  const blockingReasons = Array.from(
+    new Set(
+      applicableSteps.flatMap((step) => step.blockingReasons),
+    ),
+  );
+
+  return {
+    steps,
+    currentStepId: currentStep?.id ?? null,
+    nextAction: nextActionStep
+      ? {
+          stepId: nextActionStep.id,
+          href: nextActionStep.href,
+          label: `Continuar: ${nextActionStep.title}`,
+        }
+      : null,
+    progress: {
+      completed,
+      total,
+      percent,
+    },
+    blockingReasons,
+  };
+}
