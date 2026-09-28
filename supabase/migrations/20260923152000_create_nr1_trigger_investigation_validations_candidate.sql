@@ -348,7 +348,89 @@ ON public.nr1_trigger_investigation_validations (
 -- Previous decisions are preserved for audit purposes.
 
 -- ============================================================
--- 5. HISTORY / IMMUTABILITY GUARD
+-- 5. TECHNICAL VALIDATION DEPENDENCY GUARD
+-- ============================================================
+
+-- A technical validation is only valid when the current human
+-- validation for the same investigation is validated and has a
+-- validated_result.
+--
+-- The technical suggested_result_snapshot must be exactly the
+-- current human validated_result. This prevents technical review
+-- from silently falling back to the investigation original
+-- suggested result after a human adjustment.
+
+CREATE OR REPLACE FUNCTION
+    public.nr1_tiv_guard_technical_requires_current_human()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    current_human_status text;
+    current_human_result text;
+BEGIN
+    IF NEW.validation_type <> 'technical' THEN
+        RETURN NEW;
+    END IF;
+
+    SELECT
+        human_validation.validation_status,
+        human_validation.validated_result
+    INTO
+        current_human_status,
+        current_human_result
+    FROM public.nr1_trigger_investigation_validations
+        AS human_validation
+    WHERE
+        human_validation.tenant_id = NEW.tenant_id
+        AND human_validation.establishment_id =
+            NEW.establishment_id
+        AND human_validation.trigger_investigation_id =
+            NEW.trigger_investigation_id
+        AND human_validation.validation_type = 'human'
+        AND human_validation.validation_status <> 'revoked'
+        AND human_validation.revoked_at IS NULL
+    ORDER BY
+        human_validation.created_at DESC,
+        human_validation.id DESC
+    LIMIT 1;
+
+    IF current_human_status IS NULL THEN
+        RAISE EXCEPTION
+            'Technical validation requires a current human validation';
+    END IF;
+
+    IF current_human_status <> 'validated'
+       OR current_human_result IS NULL
+    THEN
+        RAISE EXCEPTION
+            'Technical validation requires a validated current human result';
+    END IF;
+
+    IF NEW.suggested_result_snapshot IS DISTINCT FROM
+       current_human_result
+    THEN
+        RAISE EXCEPTION
+            'Technical validation snapshot must match the current human validated result';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS
+    trg_nr1_tiv_technical_requires_current_human
+ON public.nr1_trigger_investigation_validations;
+
+CREATE TRIGGER
+    trg_nr1_tiv_technical_requires_current_human
+BEFORE INSERT
+ON public.nr1_trigger_investigation_validations
+FOR EACH ROW
+EXECUTE FUNCTION
+    public.nr1_tiv_guard_technical_requires_current_human();
+-- ============================================================
+-- 6. HISTORY / IMMUTABILITY GUARD
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION
@@ -426,7 +508,7 @@ FOR EACH ROW
 EXECUTE FUNCTION public.nr1_tiv_guard_history();
 
 -- ============================================================
--- 6. UPDATED_AT
+-- 7. UPDATED_AT
 -- ============================================================
 
 DROP TRIGGER IF EXISTS
@@ -441,7 +523,7 @@ FOR EACH ROW
 EXECUTE FUNCTION public.icanhelp_nr1_touch_updated_at();
 
 -- ============================================================
--- 7. RLS
+-- 8. RLS
 -- ============================================================
 
 ALTER TABLE public.nr1_trigger_investigation_validations
@@ -509,7 +591,7 @@ WITH CHECK (
 -- Revocation is explicit and auditable.
 
 -- ============================================================
--- 8. DOCUMENTATION
+-- 9. DOCUMENTATION
 -- ============================================================
 
 COMMENT ON TABLE
