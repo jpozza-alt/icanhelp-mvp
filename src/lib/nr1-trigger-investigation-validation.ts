@@ -87,3 +87,70 @@ export function resolveTriggerInvestigationValidation(
   )
 }
 
+export type TriggerInvestigationValidationHistoryEntry = {
+  id: string
+  validation_type: TriggerInvestigationValidationType
+  validation_status: TriggerInvestigationValidationStatus
+  validated_result: TriggerInvestigationSuggestedResult | null
+  created_at: string
+  revoked_at?: string | null
+}
+
+export type CurrentHumanValidationForTechnicalGate = {
+  status: "ready" | "missing" | "not_validated"
+  validation:
+    | TriggerInvestigationValidationHistoryEntry
+    | null
+  validatedResult:
+    | TriggerInvestigationSuggestedResult
+    | null
+}
+
+export function resolveCurrentHumanValidationForTechnicalGate(
+  history: TriggerInvestigationValidationHistoryEntry[],
+): CurrentHumanValidationForTechnicalGate {
+  const currentHumanValidation = history
+    .filter(
+      (item) =>
+        item.validation_type === "human" &&
+        item.validation_status !== "revoked" &&
+        !item.revoked_at,
+    )
+    .slice()
+    .sort((left, right) => {
+      const byCreatedAt =
+        right.created_at.localeCompare(left.created_at)
+
+      if (byCreatedAt !== 0) {
+        return byCreatedAt
+      }
+
+      return right.id.localeCompare(left.id)
+    })[0]
+
+  if (!currentHumanValidation) {
+    return {
+      status: "missing",
+      validation: null,
+      validatedResult: null,
+    }
+  }
+
+  if (
+    currentHumanValidation.validation_status === "validated" &&
+    currentHumanValidation.validated_result
+  ) {
+    return {
+      status: "ready",
+      validation: currentHumanValidation,
+      validatedResult:
+        currentHumanValidation.validated_result,
+    }
+  }
+
+  return {
+    status: "not_validated",
+    validation: currentHumanValidation,
+    validatedResult: null,
+  }
+}
