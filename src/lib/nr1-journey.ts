@@ -375,12 +375,35 @@ export const NR1_CANONICAL_JOURNEY_STEP_IDS = [
 export type Nr1CanonicalJourneyStepId =
   (typeof NR1_CANONICAL_JOURNEY_STEP_IDS)[number];
 
-export type Nr1CanonicalJourneyStepStatus =
+export type Nr1CanonicalDiagnosisStatus =
   | "not_started"
   | "in_progress"
+  | "completed";
+
+export type Nr1CanonicalJourneyStepStatus =
+  | Nr1CanonicalDiagnosisStatus
   | "pending"
-  | "completed"
   | "not_applicable";
+
+export type Nr1CanonicalDiagnosisFacts = {
+  hasSession: boolean;
+  hasContext: boolean;
+  hasPsychosocial: boolean;
+};
+
+export function resolveNr1CanonicalDiagnosisStatus(
+  facts: Nr1CanonicalDiagnosisFacts,
+): Nr1CanonicalDiagnosisStatus {
+  if (!facts.hasSession) {
+    return "not_started";
+  }
+
+  if (facts.hasContext && facts.hasPsychosocial) {
+    return "completed";
+  }
+
+  return "in_progress";
+}
 
 export type Nr1CanonicalJourneyBlockingReason =
   | "company_required"
@@ -407,7 +430,7 @@ export type Nr1CanonicalJourneyFacts = {
   hasDepartments: boolean;
   allRelevantDepartmentsHaveActivities: boolean;
 
-  diagnosisStatus: "not_started" | "in_progress" | "completed";
+  diagnosisStatus: Nr1CanonicalDiagnosisStatus;
 
   investigationRequired: boolean;
   investigationsResolved: boolean;

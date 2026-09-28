@@ -3,7 +3,11 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { getNr1PlanFeatures, type Nr1PlanFeaturesResponse } from "@/lib/nr1-plan-features-client";
-import { getNr1FullJourneyProgress, NR1_JOURNEY_STEPS } from "@/lib/nr1-journey";
+import {
+  getNr1FullJourneyProgress,
+  NR1_JOURNEY_STEPS,
+  resolveNr1CanonicalDiagnosisStatus,
+} from "@/lib/nr1-journey";
 import Nr1WorkspaceV2Shell from "@/components/nr1/Nr1WorkspaceV2Shell";
 import {
   TRIGGER_INVESTIGATION_MATRIX,
@@ -1866,11 +1870,12 @@ useEffect(() => {
   const effectiveActiveSection =
     requestedWorkspaceSection ?? draft.activeSection;
 
-  const officialDiagnosisReady = Boolean(
-    diagnosisSessionId &&
-      diagnosisContextSaved &&
-      psychosocialDiagnosisSaved
-  );
+  const canonicalDiagnosisStatus = resolveNr1CanonicalDiagnosisStatus({
+    hasSession: Boolean(diagnosisSessionId),
+    hasContext: diagnosisContextSaved,
+    hasPsychosocial: psychosocialDiagnosisSaved,
+  });
+  const officialDiagnosisReady = canonicalDiagnosisStatus === "completed";
   const previousWorkspaceModeRef = useRef(isWorkspaceMode);
 
   function openGuidedSetupReview(): void {

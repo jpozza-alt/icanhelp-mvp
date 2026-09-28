@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   resolveNr1CanonicalJourney,
+  resolveNr1CanonicalDiagnosisStatus,
   type Nr1CanonicalJourneyFacts,
   type Nr1CanonicalJourneyStepId,
 } from "../src/lib/nr1-journey.ts";
@@ -205,4 +206,44 @@ test("formalização permanece fora da jornada enquanto desabilitada", () => {
   assert.equal(result.progress.percent, 100);
 });
 
+test("diagnóstico canônico fica não iniciado sem sessão persistente", () => {
+  assert.equal(
+    resolveNr1CanonicalDiagnosisStatus({
+      hasSession: false,
+      hasContext: false,
+      hasPsychosocial: false,
+    }),
+    "not_started",
+  );
+});
 
+test("diagnóstico canônico fica em andamento enquanto faltar bloco obrigatório", () => {
+  assert.equal(
+    resolveNr1CanonicalDiagnosisStatus({
+      hasSession: true,
+      hasContext: true,
+      hasPsychosocial: false,
+    }),
+    "in_progress",
+  );
+
+  assert.equal(
+    resolveNr1CanonicalDiagnosisStatus({
+      hasSession: true,
+      hasContext: false,
+      hasPsychosocial: true,
+    }),
+    "in_progress",
+  );
+});
+
+test("diagnóstico canônico conclui apenas com sessão, contexto e psicossocial persistidos", () => {
+  assert.equal(
+    resolveNr1CanonicalDiagnosisStatus({
+      hasSession: true,
+      hasContext: true,
+      hasPsychosocial: true,
+    }),
+    "completed",
+  );
+});
