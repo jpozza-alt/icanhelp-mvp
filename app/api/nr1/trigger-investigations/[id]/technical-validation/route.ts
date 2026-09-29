@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
+import type { Database } from "@/lib/database.types"
+
 import type {
   Nr1TriggerInvestigationAnswerRow,
   Nr1TriggerInvestigationRow,
@@ -22,6 +24,9 @@ import {
 } from "@/lib/server/nr1-scope"
 
 export const dynamic = "force-dynamic"
+
+type ValidationInsert =
+  Database["public"]["Tables"]["nr1_trigger_investigation_validations"]["Insert"]
 
 type TechnicalValidationBody = {
   establishment_id?: string
@@ -315,19 +320,60 @@ export async function POST(
       })
     }
 
-    const suggestedResult =
-      investigation.suggested_result
+    const humanValidationResult = await userClient
+      .from("nr1_trigger_investigation_validations")
+      .select(
+        "id, validation_status, validated_result, created_at, revoked_at",
+      )
+      .eq("tenant_id", scope.tenantId)
+      .eq("establishment_id", establishmentId)
+      .eq("trigger_investigation_id", investigationId)
+      .eq("validation_type", "human")
+      .is("revoked_at", null)
+      .neq("validation_status", "revoked")
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(1)
+
+    if (humanValidationResult.error) {
+      return json(500, {
+        ok: false,
+        error:
+          "nr1_trigger_human_validation_lookup_failed",
+        message: humanValidationResult.error.message,
+      })
+    }
+
+    const currentHumanValidation =
+      humanValidationResult.data?.[0] || null
+
+    if (!currentHumanValidation) {
+      return json(409, {
+        ok: false,
+        error:
+          "nr1_trigger_human_validation_required",
+      })
+    }
+
+    const humanValidatedResult =
+      currentHumanValidation.validated_result
 
     if (
-      !suggestedResult ||
-      !isSuggestedResult(suggestedResult)
+      currentHumanValidation.validation_status !==
+        "validated" ||
+      !humanValidatedResult ||
+      !isSuggestedResult(humanValidatedResult)
     ) {
       return json(409, {
         ok: false,
         error:
-          "nr1_trigger_investigation_result_unavailable",
+          "nr1_trigger_human_validation_not_validated",
+        humanValidationStatus:
+          currentHumanValidation.validation_status,
       })
     }
+
+    const suggestedResult = humanValidatedResult
 
     const answersResult = await userClient
       .from("nr1_trigger_investigation_answers")
@@ -388,6 +434,12 @@ export async function POST(
               investigation.trigger_type,
             suggested_result:
               suggestedResult,
+            investigation_suggested_result:
+              investigation.suggested_result,
+            human_validation_id:
+              currentHumanValidation.id,
+            human_validated_result:
+              humanValidatedResult,
             technical_validation_required:
               investigation.technical_validation_required,
             critical_alert_required:
@@ -415,47 +467,76 @@ export async function POST(
     const reopenInvestigation =
       validationBuild.reopenInvestigation
 
-    // Persistence remains intentionally disabled
-    // until the candidate validation migration is
-    // activated in the isolated local Supabase and
-    // the generated Database type is updated.
+    const validationResult = await userClient
+      .from("nr1_trigger_investigation_validations")
+      .insert(validationRecord as ValidationInsert)
+      .select("*")
+      .single()
 
-    return json(503, {
-      ok: false,
-      error:
-        "nr1_trigger_validation_storage_not_ready",
-      message:
-        "Technical validation contract is ready, but validation storage has not been activated yet.",
-      preview: {
-        validationType:
-          validationRecord.validation_type,
-        validationStatus:
-          validationRecord.validation_status,
-        decisionType:
-          validationRecord.decision_type,
-        validatedResult:
-          validationRecord.validated_result,
+    if (validationResult.error) {
+      return json(500, {
+        ok: false,
+        error:
+          "nr1_trigger_technical_validation_create_failed",
+        message: validationResult.error.message,
+      })
+    }
 
-        professionalName:
-          validationRecord.professional_name,
-        professionalRole:
-          validationRecord.professional_role,
-        professionalCouncil:
-          validationRecord.professional_council,
-        professionalRegistration:
-          validationRecord.professional_registration,
-        professionalState:
-          validationRecord.professional_state,
+    const savedValidation = validationResult.data
 
-        criticalAlertRequired:
-          investigation.critical_alert_required,
+    let nextInvestigationStatus =
+      investigation.investigation_status
 
-        reopenInvestigation,
-        nextInvestigationStatus:
-          reopenInvestigation
-            ? "in_investigation"
-            : "completed",
-      },
+    if (reopenInvestigation) {
+      const reopenResult = await userClient
+        .from("nr1_trigger_investigations")
+        .update({
+          investigation_status: "in_investigation",
+          completed_at: null,
+          completed_by: null,
+          updated_by: scope.user.id,
+        })
+        .eq("id", investigationId)
+        .eq("tenant_id", scope.tenantId)
+        .eq("establishment_id", establishmentId)
+        .select("investigation_status")
+        .single()
+
+      if (reopenResult.error) {
+        return json(500, {
+          ok: false,
+          error:
+            "nr1_trigger_technical_validation_reopen_failed",
+          message: reopenResult.error.message,
+          validationCreated: true,
+          validationId: savedValidation.id,
+        })
+      }
+
+      nextInvestigationStatus =
+        reopenResult.data.investigation_status
+    }
+
+    return json(201, {
+      ok: true,
+      tenantId: scope.tenantId,
+      establishmentId,
+      investigationId,
+      humanValidationId:
+        currentHumanValidation.id,
+      validationId: savedValidation.id,
+      validationType: savedValidation.validation_type,
+      validationStatus:
+        savedValidation.validation_status,
+      decisionType: savedValidation.decision_type,
+      validatedResult:
+        savedValidation.validated_result,
+      technicalInputResult:
+        humanValidatedResult,
+      criticalAlertRequired:
+        investigation.critical_alert_required,
+      reopenInvestigation,
+      nextInvestigationStatus,
     })
   } catch (error) {
     const response =

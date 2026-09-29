@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
+import type { Database } from "@/lib/database.types"
+
 import type {
   Nr1TriggerInvestigationAnswerRow,
   Nr1TriggerInvestigationRow,
@@ -22,6 +24,9 @@ import {
 } from "@/lib/server/nr1-scope"
 
 export const dynamic = "force-dynamic"
+
+type ValidationInsert =
+  Database["public"]["Tables"]["nr1_trigger_investigation_validations"]["Insert"]
 
 type HumanValidationBody = {
   establishment_id?: string
@@ -355,36 +360,73 @@ export async function POST(
     const reopenInvestigation =
       validationBuild.reopenInvestigation
 
-    // Persistence is intentionally disabled while
-    // nr1_trigger_investigation_validations remains
-    // a local candidate migration and is not part of
-    // the generated Supabase Database type.
+    const validationResult = await userClient
+      .from("nr1_trigger_investigation_validations")
+      .insert(validationRecord as ValidationInsert)
+      .select("*")
+      .single()
 
-    return json(503, {
-      ok: false,
-      error:
-        "nr1_trigger_validation_storage_not_ready",
-      message:
-        "Human validation contract is ready, but validation storage has not been activated yet.",
-      preview: {
-        validationType:
-          validationRecord.validation_type,
-        validationStatus:
-          validationRecord.validation_status,
-        decisionType:
-          validationRecord.decision_type,
-        validatedResult:
-          validationRecord.validated_result,
-        technicalValidationRequired:
-          investigation.technical_validation_required,
-        criticalAlertRequired:
-          investigation.critical_alert_required,
-        reopenInvestigation,
-        nextInvestigationStatus:
-          reopenInvestigation
-            ? "in_investigation"
-            : "completed",
-      },
+    if (validationResult.error) {
+      return json(500, {
+        ok: false,
+        error: "nr1_trigger_human_validation_create_failed",
+        message: validationResult.error.message,
+      })
+    }
+
+    const savedValidation = validationResult.data
+
+    let nextInvestigationStatus =
+      investigation.investigation_status
+
+    if (reopenInvestigation) {
+      const reopenResult = await userClient
+        .from("nr1_trigger_investigations")
+        .update({
+          investigation_status: "in_investigation",
+          completed_at: null,
+          completed_by: null,
+          updated_by: scope.user.id,
+        })
+        .eq("id", investigationId)
+        .eq("tenant_id", scope.tenantId)
+        .eq("establishment_id", establishmentId)
+        .select("investigation_status")
+        .single()
+
+      if (reopenResult.error) {
+        return json(500, {
+          ok: false,
+          error:
+            "nr1_trigger_human_validation_reopen_failed",
+          message: reopenResult.error.message,
+          validationCreated: true,
+          validationId: savedValidation.id,
+        })
+      }
+
+      nextInvestigationStatus =
+        reopenResult.data.investigation_status
+    }
+
+    return json(201, {
+      ok: true,
+      tenantId: scope.tenantId,
+      establishmentId,
+      investigationId,
+      validationId: savedValidation.id,
+      validationType: savedValidation.validation_type,
+      validationStatus:
+        savedValidation.validation_status,
+      decisionType: savedValidation.decision_type,
+      validatedResult:
+        savedValidation.validated_result,
+      technicalValidationRequired:
+        investigation.technical_validation_required,
+      criticalAlertRequired:
+        investigation.critical_alert_required,
+      reopenInvestigation,
+      nextInvestigationStatus,
     })
   } catch (error) {
     const response =
