@@ -22,16 +22,22 @@ test("geracao de risco consulta investigacoes de gatilho da mesma sessao", () =>
   assert.match(route, /\.is\("deleted_at", null\)/);
 });
 
-test("investigacao ativa bloqueia o fluxo antigo de geracao de risco", () => {
+test("conversao explicita avalia somente a investigacao escolhida", () => {
   const route = read(routePath);
-
-  assert.match(route, /unresolvedTriggerInvestigations/);
-  assert.match(route, /status !== "archived"/);
-  assert.match(route, /status !== "converted_to_risk"/);
 
   assert.match(
     route,
-    /unresolvedTriggerInvestigations\.length > 0[\s\S]*?reason: "investigation_required"/
+    /conversionInvestigation\.investigation_status/
+  );
+
+  assert.match(
+    route,
+    /!== "completed"/
+  );
+
+  assert.doesNotMatch(
+    route,
+    /unresolvedOtherTriggerInvestigations/
   );
 });
 

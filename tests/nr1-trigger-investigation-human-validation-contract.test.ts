@@ -77,15 +77,20 @@ test("rota usa o contrato oficial de validacao humana", () => {
   )
 })
 
-test("persistencia permanece desativada enquanto migration for candidata", () => {
+test("validacao humana persiste no storage oficial", () => {
   assert.match(
     source,
-    /nr1_trigger_validation_storage_not_ready/,
+    /\.from\("nr1_trigger_investigation_validations"\)/,
   )
 
   assert.match(
     source,
-    /return json\(503/,
+    /\.insert\(validationRecord as ValidationInsert\)/,
+  )
+
+  assert.doesNotMatch(
+    source,
+    /nr1_trigger_validation_storage_not_ready/,
   )
 })
 

@@ -20,20 +20,20 @@ const journey = fs.readFileSync(
   "utf8"
 );
 
-test("generated diagnosis risk exposes direct official inventory review action", () => {
+test("diagnosis review preserves explicit human step before risk conversion", () => {
   assert.match(
     workspace,
-    /href="\/dashboard\/nr1\/workspace\?section=riscos"[\s\S]{0,500}Revisar risco no Inventário/
+    /onClick=\{\(\) => void handleSaveDiagnosisReview\(\)\}[\s\S]{0,500}Confirmar revisão do diagnóstico/
   );
 
   assert.match(
     workspace,
-    /handleGeneratePreliminaryRiskFromDiagnosis\(\)/
+    /Converter em risco/
   );
 
-  assert.match(
+  assert.doesNotMatch(
     workspace,
-    />\s*Gerar risco sugerido\s*</
+    /onClick=\{\(\) => void handleGeneratePreliminaryRiskFromDiagnosis\(\)\}[\s\S]{0,500}Gerar risco sugerido/
   );
 });
 
@@ -128,10 +128,15 @@ test("workspace route selects official risk section without backend persistence"
   assert.doesNotMatch(routeBlock, /method:\s*"DELETE"/);
 });
 
-test("workspace diagnosis journey status uses official hydrated diagnosis state", () => {
+test("workspace diagnosis journey status uses canonical hydrated diagnosis state", () => {
   assert.match(
     workspace,
-    /const officialDiagnosisReady = Boolean\([\s\S]*diagnosisSessionId[\s\S]*diagnosisContextSaved[\s\S]*psychosocialDiagnosisSaved[\s\S]*\);/
+    /const canonicalDiagnosisStatus = resolveNr1CanonicalDiagnosisStatus\(\{[\s\S]*hasSession: Boolean\(diagnosisSessionId\)[\s\S]*hasContext: diagnosisContextSaved[\s\S]*hasPsychosocial: psychosocialDiagnosisSaved[\s\S]*\}\);/
+  );
+
+  assert.match(
+    workspace,
+    /const officialDiagnosisReady = canonicalDiagnosisStatus === "completed";/
   );
 
   assert.match(

@@ -27,6 +27,8 @@ type UpsertDiagnosisReviewBody = {
   reviewer_comment?: string | null
   reviewed_at?: string | null
   generate_risk?: boolean
+  explicit_conversion?: boolean
+  trigger_investigation_id?: string
   generated_risk_title?: string | null
   generated_risk_category?: string | null
   generated_risk_hazard_description?: string | null
@@ -197,12 +199,27 @@ async function maybeGenerateRiskFromReview(params: {
       reason: "missing_department_or_activity",
     }
   }
+  // C5.4 - trigger result gate:
+  // Gatilho nao e risco.
+  // Investigacao de gatilho somente pode virar risco quando houver:
+  // - conversao humana explicita;
+  // - validacao humana vigente e valida;
+  // - validacao tecnica vigente quando exigida;
+  // - effective_result = suggested_risk.
 
-  // trigger_investigation_gate:
-  // o fluxo antigo de revisao nao pode contornar uma investigacao de gatilho.
+  let conversionInvestigationId: string | null = null
+
+  const requestedConversionInvestigationId =
+    cleanText(params.body.trigger_investigation_id)
+
+  const explicitConversionRequested =
+    params.body.explicit_conversion === true
+
   const triggerInvestigationResult = await params.userClient
     .from("nr1_trigger_investigations")
-    .select("id,investigation_status,trigger_type")
+    .select(
+      "id,investigation_status,trigger_type,technical_validation_required,critical_alert_required",
+    )
     .eq("tenant_id", params.scope.tenantId)
     .eq("establishment_id", params.establishmentId)
     .eq("diagnosis_session_id", params.diagnosisSessionId)
@@ -215,44 +232,250 @@ async function maybeGenerateRiskFromReview(params: {
     )
   }
 
-  const unresolvedTriggerInvestigations =
-    (triggerInvestigationResult.data || []).filter((investigation) => {
-      const status = cleanText(investigation.investigation_status)
+  const triggerInvestigations =
+    (triggerInvestigationResult.data || []) as Array<{
+      id: string
+      investigation_status: string | null
+      trigger_type: string | null
+      technical_validation_required: boolean | null
+      critical_alert_required: boolean | null
+    }>
 
-      return (
-        status !== "archived" &&
-        status !== "converted_to_risk"
-      )
-    })
-
-  if (unresolvedTriggerInvestigations.length > 0) {
-    return {
-      generated: false,
-      riskId: null,
-      reason: "investigation_required",
+  if (triggerInvestigations.length > 0) {
+    if (
+      !explicitConversionRequested ||
+      !requestedConversionInvestigationId
+    ) {
+      return {
+        generated: false,
+        riskId: null,
+        reason: "explicit_conversion_required",
+      }
     }
-  }
-  const existingRiskResult = await params.userClient
-    .from("nr1_risks")
-    .select("id,status,title,risk_category,diagnosis_session_id,deleted_at")
-    .eq("tenant_id", params.scope.tenantId)
-    .eq("establishment_id", params.establishmentId)
-    .eq("diagnosis_session_id", params.diagnosisSessionId)
-    .limit(1)
 
-  if (existingRiskResult.error) {
-    throw new Error("nr1_generated_risk_existing_lookup_failed: " + existingRiskResult.error.message)
+    const conversionInvestigation =
+      triggerInvestigations.find(
+        (investigation) =>
+          cleanText(investigation.id) ===
+          requestedConversionInvestigationId,
+      ) || null
+
+    if (!conversionInvestigation) {
+      return {
+        generated: false,
+        riskId: null,
+        reason: "conversion_investigation_not_found",
+      }
+    }
+
+    if (
+      cleanText(
+        conversionInvestigation.investigation_status,
+      ) !== "completed"
+    ) {
+      return {
+        generated: false,
+        riskId: null,
+        reason: "investigation_required",
+      }
+    }
+
+    const validationResult = await params.userClient
+      .from("nr1_trigger_investigation_validations")
+      .select(
+        "id,validation_type,validation_status,validated_result,created_at,revoked_at,source_snapshot_json",
+      )
+      .eq("tenant_id", params.scope.tenantId)
+      .eq("establishment_id", params.establishmentId)
+      .eq(
+        "trigger_investigation_id",
+        requestedConversionInvestigationId,
+      )
+      .is("revoked_at", null)
+      .neq("validation_status", "revoked")
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+
+    if (validationResult.error) {
+      throw new Error(
+        "nr1_generated_risk_validation_lookup_failed: " +
+          validationResult.error.message,
+      )
+    }
+
+    const validationRows =
+      (validationResult.data || []) as Array<{
+        id: string
+        validation_type: string | null
+        validation_status: string | null
+        validated_result: string | null
+        created_at: string | null
+        revoked_at: string | null
+        source_snapshot_json: Json | null
+      }>
+
+    const currentHumanValidation =
+      validationRows.find(
+        (validation) =>
+          cleanText(validation.validation_type) ===
+          "human",
+      ) || null
+
+    if (
+      !currentHumanValidation ||
+      cleanText(
+        currentHumanValidation.validation_status,
+      ) !== "validated" ||
+      !cleanText(
+        currentHumanValidation.validated_result,
+      )
+    ) {
+      return {
+        generated: false,
+        riskId: null,
+        reason: "human_validation_required",
+      }
+    }
+
+    let effectiveResult =
+      cleanText(
+        currentHumanValidation.validated_result,
+      )
+
+    if (
+      conversionInvestigation
+        .technical_validation_required === true
+    ) {
+      const currentTechnicalValidation =
+        validationRows.find(
+          (validation) =>
+            cleanText(
+              validation.validation_type,
+            ) === "technical",
+        ) || null
+
+      if (
+        !currentTechnicalValidation ||
+        cleanText(
+          currentTechnicalValidation.validation_status,
+        ) !== "validated" ||
+        !cleanText(
+          currentTechnicalValidation.validated_result,
+        )
+      ) {
+        return {
+          generated: false,
+          riskId: null,
+          reason: "technical_validation_required",
+        }
+      }
+
+      const technicalSourceSnapshot =
+        currentTechnicalValidation.source_snapshot_json
+
+      const technicalSourceRecord =
+        technicalSourceSnapshot &&
+        typeof technicalSourceSnapshot === "object" &&
+        !Array.isArray(technicalSourceSnapshot)
+          ? (technicalSourceSnapshot as Record<string, unknown>)
+          : null
+
+      const technicalHumanValidationId =
+        technicalSourceRecord
+          ? cleanText(
+              technicalSourceRecord.human_validation_id,
+            )
+          : null
+
+      const technicalHumanValidatedResult =
+        technicalSourceRecord
+          ? cleanText(
+              technicalSourceRecord.human_validated_result,
+            )
+          : null
+
+      const currentHumanValidationId =
+        cleanText(currentHumanValidation.id)
+
+      const currentHumanValidatedResult =
+        cleanText(
+          currentHumanValidation.validated_result,
+        )
+
+      if (
+        !technicalHumanValidationId ||
+        !currentHumanValidationId ||
+        technicalHumanValidationId !==
+          currentHumanValidationId ||
+        !technicalHumanValidatedResult ||
+        technicalHumanValidatedResult !==
+          currentHumanValidatedResult
+      ) {
+        return {
+          generated: false,
+          riskId: null,
+          reason: "technical_validation_stale",
+        }
+      }
+
+      effectiveResult =
+        cleanText(
+          currentTechnicalValidation.validated_result,
+        )
+    }
+
+    if (effectiveResult !== "suggested_risk") {
+      return {
+        generated: false,
+        riskId: null,
+        reason: "effective_result_not_convertible",
+      }
+    }
+
+    conversionInvestigationId =
+      requestedConversionInvestigationId
   }
 
-  const existingRows = (existingRiskResult.data || []) as Array<{
+  type ExistingRiskRow = {
     id: string
     status: string | null
     title: string | null
     risk_category: string | null
     diagnosis_session_id: string | null
     deleted_at: string | null
-  }>
-  const existingRisk = existingRows[0] || null
+  }
+
+  let existingRisk: ExistingRiskRow | null = null
+
+  // Conversao explicita de investigacao deve gerar/vincular
+  // o risco daquela investigacao. Nao reutilizar outro risco
+  // apenas porque pertence a mesma sessao de diagnostico.
+  if (!conversionInvestigationId) {
+    const existingRiskResult = await params.userClient
+      .from("nr1_risks")
+      .select(
+        "id,status,title,risk_category,diagnosis_session_id,deleted_at",
+      )
+      .eq("tenant_id", params.scope.tenantId)
+      .eq("establishment_id", params.establishmentId)
+      .eq(
+        "diagnosis_session_id",
+        params.diagnosisSessionId,
+      )
+      .limit(1)
+
+    if (existingRiskResult.error) {
+      throw new Error(
+        "nr1_generated_risk_existing_lookup_failed: " +
+          existingRiskResult.error.message,
+      )
+    }
+
+    const existingRows =
+      (existingRiskResult.data || []) as ExistingRiskRow[]
+
+    existingRisk = existingRows[0] || null
+  }
 
   const psychosocialResult = await params.userClient
     .from("nr1_diagnosis_psychosocial")
@@ -329,20 +552,44 @@ async function maybeGenerateRiskFromReview(params: {
     .map((factor) => cleanText(factor.factor_label) || cleanText(factor.factor_key))
     .filter((value) => Boolean(value)) as string[]
 
-  if (needsInvestigationLabels.length > 0) {
+  if (
+
+    needsInvestigationLabels.length > 0 &&
+
+    !conversionInvestigationId
+
+  ) {
+
     return {
+
       generated: false,
+
       riskId: null,
+
       reason: "investigation_required",
+
     }
+
   }
 
-  if (evidenceFoundLabels.length === 0) {
+  if (
+
+    evidenceFoundLabels.length === 0 &&
+
+    !conversionInvestigationId
+
+  ) {
+
     return {
+
       generated: false,
+
       riskId: null,
+
       reason: "no_confirmed_evidence",
+
     }
+
   }
 
   const hasFactor = (key: string): boolean => {
@@ -543,6 +790,28 @@ async function maybeGenerateRiskFromReview(params: {
     throw new Error("nr1_generated_risk_missing_id")
   }
 
+  if (conversionInvestigationId) {
+    const conversionResult = await params.userClient
+      .from("nr1_trigger_investigations")
+      .update({
+        investigation_status: "converted_to_risk",
+        generated_risk_id: riskId,
+        updated_by: params.scope.membership.user_id,
+      })
+      .eq("id", conversionInvestigationId)
+      .eq("tenant_id", params.scope.tenantId)
+      .eq("establishment_id", params.establishmentId)
+      .eq("investigation_status", "completed")
+      .select("id,investigation_status")
+      .single()
+
+    if (conversionResult.error) {
+      throw new Error(
+        "nr1_trigger_investigation_conversion_update_failed: " +
+          conversionResult.error.message,
+      )
+    }
+  }
 
   const auditPayload: Nr1AuditEventInsert = {
     tenant_id: params.scope.tenantId,
@@ -558,6 +827,14 @@ async function maybeGenerateRiskFromReview(params: {
       persistence_action: riskPersistenceAction,
       diagnosis_session_id: params.diagnosisSessionId,
       diagnosis_review_id: params.reviewRow.id,
+      trigger_investigation_id:
+        conversionInvestigationId,
+      explicit_conversion:
+        conversionInvestigationId !== null,
+      effective_result:
+        conversionInvestigationId
+          ? "suggested_risk"
+          : null,
       department_id: departmentId,
       activity_id: activityId,
       risk_category: riskCategory,
@@ -570,7 +847,9 @@ async function maybeGenerateRiskFromReview(params: {
       needs_investigation_factors: needsInvestigationLabels,
     } as Json,
     persistence_type: "formal_version",
-    reason: "diagnosis_review_generate_risk",
+    reason: conversionInvestigationId
+      ? "trigger_investigation_explicit_conversion"
+      : "diagnosis_review_generate_risk",
     user_id: params.scope.membership.user_id,
   }
 

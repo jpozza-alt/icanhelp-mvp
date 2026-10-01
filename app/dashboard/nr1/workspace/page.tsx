@@ -16,6 +16,9 @@ import {
 } from "@/lib/nr1-trigger-investigation-matrix";
 import {
   completeTriggerInvestigationClient,
+  convertTriggerInvestigationToRiskClient,
+  validateTriggerInvestigationHumanClient,
+  validateTriggerInvestigationTechnicalClient,
   loadTriggerInvestigationsClient,
   openTriggerInvestigationClient,
   saveTriggerInvestigationAnswerClient,
@@ -1317,6 +1320,7 @@ export default function Nr1WorkspacePage() {
 
     return Boolean(
       investigation &&
+        status !== "completed" &&
         status !== "archived" &&
         status !== "converted_to_risk",
     );
@@ -3962,8 +3966,8 @@ useEffect(() => {
     }
   }
 
-  async function handleSaveDiagnosisReview(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
+  async function handleSaveDiagnosisReview(event?: FormEvent<HTMLFormElement>): Promise<void> {
+    event?.preventDefault();
     setDiagnosisStatus("saving");
     setDiagnosisError(null);
     setDiagnosisSuccess(null);
@@ -3992,7 +3996,7 @@ useEffect(() => {
             confirmed_hazards_json: [],
             preliminary_priority: reviewForm.preliminary_priority,
             reviewer_comment: reviewForm.reviewer_comment,
-            reviewed_at: reviewForm.reviewed_at,
+            reviewed_at: reviewForm.reviewed_at || new Date().toISOString(),
           }),
         },
         currentContext
@@ -4004,7 +4008,7 @@ useEffect(() => {
 
       await refreshAuditEvents();
 
-      setDiagnosisSuccess("Revisão técnica do diagnóstico salva.");
+      setDiagnosisSuccess("Revisão do diagnóstico confirmada.");
       setDiagnosisStatus("saved");
     } catch (error) {
       setDiagnosisStatus("error");
@@ -4204,6 +4208,294 @@ useEffect(() => {
     } catch (error) {
       setDiagnosisStatus("error");
       setDiagnosisError(error instanceof Error ? error.message : "Erro ao gerar risco sugerido a partir do diagnostico.");
+    }
+  }
+  async function handleConfirmTriggerInvestigationResult(
+    triggerType: TriggerInvestigationType,
+  ): Promise<boolean> {
+    const currentContext = contextRef.current
+    const investigation =
+      triggerInvestigations[triggerType] || null
+
+    if (!investigation) {
+      setTriggerInvestigationError(
+        "Investigação do gatilho não encontrada.",
+      )
+      return false
+    }
+
+    if (
+      investigation.investigation_status !== "completed"
+    ) {
+      setTriggerInvestigationError(
+        "Conclua a investigação antes de confirmar o resultado.",
+      )
+      return false
+    }
+
+    setTriggerInvestigationSaving(true)
+    setTriggerInvestigationError(null)
+
+    try {
+      const result =
+        await validateTriggerInvestigationHumanClient({
+          request: fetchJson,
+          buildUrl,
+          context: currentContext,
+          investigationId: investigation.id,
+          decision: "confirm_result",
+        })
+
+      setTriggerInvestigations((current) => ({
+        ...current,
+        [triggerType]: {
+          ...investigation,
+          investigation_status:
+            result.nextInvestigationStatus,
+          human_validation: {
+            id: result.validationId,
+            validation_type: "human",
+            validation_status:
+              result.validationStatus,
+            decision_type:
+              result.decisionType,
+            validated_result:
+              result.validatedResult,
+          },
+          effective_result:
+            result.technicalValidationRequired
+              ? null
+              : result.validatedResult,
+        },
+      }))
+
+      setDiagnosisSuccess(
+        result.technicalValidationRequired
+          ? "Resultado confirmado pela revisão humana. Agora é necessária a validação técnica."
+          : "Resultado confirmado pela revisão humana.",
+      )
+
+      return true
+    } catch (error) {
+      setTriggerInvestigationError(
+        error instanceof Error
+          ? error.message
+          : "Erro ao confirmar o resultado da investigação.",
+      )
+
+      return false
+    } finally {
+      setTriggerInvestigationSaving(false)
+    }
+  }
+  async function handleConfirmTriggerInvestigationTechnicalValidation(
+    triggerType: TriggerInvestigationType,
+  ): Promise<boolean> {
+    const currentContext = contextRef.current
+    const investigation =
+      triggerInvestigations[triggerType] || null
+
+    if (!investigation) {
+      setTriggerInvestigationError(
+        "Investigação do gatilho não encontrada.",
+      )
+      return false
+    }
+
+    if (
+      investigation.investigation_status !== "completed"
+    ) {
+      setTriggerInvestigationError(
+        "Conclua a investigação antes da validação técnica.",
+      )
+      return false
+    }
+
+    if (
+      investigation.human_validation?.validation_status !==
+      "validated"
+    ) {
+      setTriggerInvestigationError(
+        "A revisão humana precisa estar confirmada antes da validação técnica.",
+      )
+      return false
+    }
+
+    if (!investigation.technical_validation_required) {
+      setTriggerInvestigationError(
+        "Esta investigação não exige validação técnica.",
+      )
+      return false
+    }
+
+    setTriggerInvestigationSaving(true)
+    setTriggerInvestigationError(null)
+
+    try {
+      const result =
+        await validateTriggerInvestigationTechnicalClient({
+          request: fetchJson,
+          buildUrl,
+          context: currentContext,
+          investigationId: investigation.id,
+          decision: "confirm_result",
+        })
+
+      setTriggerInvestigations((current) => ({
+        ...current,
+        [triggerType]: {
+          ...investigation,
+          investigation_status:
+            result.nextInvestigationStatus,
+          technical_validation: {
+            id: result.validationId,
+            validation_type: "technical",
+            validation_status:
+              result.validationStatus,
+            decision_type:
+              result.decisionType,
+            validated_result:
+              result.validatedResult,
+          },
+          technical_validation_current: true,
+          effective_result:
+            result.validatedResult,
+        },
+      }))
+
+      setDiagnosisSuccess(
+        "Validação técnica registrada. O resultado efetivo está pronto para a próxima decisão.",
+      )
+
+      return true
+    } catch (error) {
+      setTriggerInvestigationError(
+        error instanceof Error
+          ? error.message
+          : "Erro ao registrar a validação técnica.",
+      )
+
+      return false
+    } finally {
+      setTriggerInvestigationSaving(false)
+    }
+  }
+  async function handleConvertTriggerInvestigationToRisk(
+    triggerType: TriggerInvestigationType,
+  ): Promise<boolean> {
+    const currentContext = contextRef.current
+    const investigation =
+      triggerInvestigations[triggerType] || null
+
+    if (!investigation) {
+      setTriggerInvestigationError(
+        "Investigação do gatilho não encontrada.",
+      )
+      return false
+    }
+
+    if (
+      investigation.investigation_status !== "completed"
+    ) {
+      setTriggerInvestigationError(
+        "A investigação precisa estar concluída antes da conversão em risco.",
+      )
+      return false
+    }
+
+    if (
+      investigation.human_validation?.validation_status !==
+      "validated"
+    ) {
+      setTriggerInvestigationError(
+        "Confirme o resultado pela revisão humana antes da conversão em risco.",
+      )
+      return false
+    }
+
+    if (
+      investigation.technical_validation_required &&
+      !(
+        investigation.technical_validation_current &&
+        investigation.technical_validation?.validation_status ===
+          "validated"
+      )
+    ) {
+      setTriggerInvestigationError(
+        "Conclua a validação técnica vigente antes da conversão em risco.",
+      )
+      return false
+    }
+
+    if (
+      investigation.effective_result !==
+      "suggested_risk"
+    ) {
+      setTriggerInvestigationError(
+        "Somente um resultado efetivo classificado como risco sugerido pode ser convertido em risco.",
+      )
+      return false
+    }
+
+    if (investigation.generated_risk_id) {
+      setTriggerInvestigationError(null)
+      setDiagnosisSuccess(
+        "Este resultado já foi convertido em risco.",
+      )
+      return true
+    }
+
+    if (!diagnosisSessionId) {
+      setTriggerInvestigationError(
+        "Sessão de diagnóstico não encontrada.",
+      )
+      return false
+    }
+
+    setTriggerInvestigationSaving(true)
+    setTriggerInvestigationError(null)
+
+    try {
+      const result =
+        await convertTriggerInvestigationToRiskClient({
+          request: fetchJson,
+          buildUrl,
+          context: currentContext,
+          diagnosisSessionId,
+          investigationId: investigation.id,
+        })
+
+      setTriggerInvestigations((current) => ({
+        ...current,
+        [triggerType]: {
+          ...investigation,
+          investigation_status:
+            "converted_to_risk",
+          generated_risk_id:
+            result.riskId,
+        },
+      }))
+
+      setDiagnosisRiskId(result.riskId)
+      setSelectedRiskId(result.riskId)
+
+      await refreshRiskActionData(result.riskId)
+
+      setDiagnosisSuccess(
+        "Resultado convertido em risco. O registro já pode ser revisado no Inventário de Riscos.",
+      )
+
+      return true
+    } catch (error) {
+      setTriggerInvestigationError(
+        error instanceof Error
+          ? error.message
+          : "Erro ao converter o resultado em risco.",
+      )
+
+      return false
+    } finally {
+      setTriggerInvestigationSaving(false)
     }
   }
   const loadRisks = useCallback(async (nextContext: BackendContext): Promise<SimpleEntity[]> => {
@@ -6528,6 +6820,141 @@ useEffect(() => {
                                         Resultado gerado a partir das respostas registradas. A confirmação humana continua necessária antes de qualquer conversão em risco.
                                       </p>
                                     )}
+
+                                    <div className="mt-4 border-t border-black/10 pt-4">
+                                      {investigation.human_validation?.validation_status === "validated" ? (
+                                        <div className="rounded-lg bg-emerald-50 px-3 py-2 text-xs leading-5 text-emerald-900">
+                                          <span className="font-semibold">
+                                            Resultado confirmado pela revisão humana.
+                                          </span>
+                                          {investigation.technical_validation_required
+                                            ? investigation.technical_validation_current &&
+                                              investigation.technical_validation?.validation_status === "validated"
+                                              ? ` Validação técnica concluída. Resultado efetivo: ${
+                                                  TRIGGER_INVESTIGATION_RESULT_LABELS[
+                                                    investigation.effective_result || ""
+                                                  ] || investigation.effective_result || "confirmado"
+                                                }.`
+                                              : " Agora é necessária a validação técnica antes da conversão em risco."
+                                            : investigation.effective_result
+                                              ? ` Resultado efetivo: ${
+                                                  TRIGGER_INVESTIGATION_RESULT_LABELS[
+                                                    investigation.effective_result
+                                                  ] || investigation.effective_result
+                                                }.`
+                                              : ""}
+                                        </div>
+                                      ) : (
+                                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                          <p className="text-xs leading-5 text-[#6f665b]">
+                                            Revise o resultado sugerido acima. Ao confirmar, a decisão ficará registrada na trilha.
+                                          </p>
+
+                                          <button
+                                            type="button"
+                                            disabled={triggerInvestigationSaving}
+                                            onClick={() =>
+                                              void handleConfirmTriggerInvestigationResult(
+                                                definition.type,
+                                              )
+                                            }
+                                            className="shrink-0 rounded-xl bg-[#10243e] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0b1729] disabled:cursor-not-allowed disabled:opacity-60"
+                                          >
+                                            {triggerInvestigationSaving
+                                              ? "Confirmando..."
+                                              : "Confirmar resultado"}
+                                          </button>
+                                        </div>
+                                      )}
+
+                                      {investigation.technical_validation_required &&
+                                      !(
+                                        investigation.technical_validation_current &&
+                                        investigation.technical_validation?.validation_status ===
+                                          "validated"
+                                      ) ? (
+                                        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3">
+                                          <p className="text-xs leading-5 text-amber-950">
+                                            A revisão humana foi concluída, mas este caso ainda precisa de validação técnica antes de qualquer conversão em risco.
+                                          </p>
+
+                                          {membershipRole === "owner" ||
+                                          membershipRole === "admin" ? (
+                                            <button
+                                              type="button"
+                                              disabled={
+                                                triggerInvestigationSaving
+                                              }
+                                              onClick={() =>
+                                                void handleConfirmTriggerInvestigationTechnicalValidation(
+                                                  definition.type,
+                                                )
+                                              }
+                                              className="mt-3 rounded-xl bg-amber-900 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-950 disabled:cursor-not-allowed disabled:opacity-60"
+                                            >
+                                              {triggerInvestigationSaving
+                                                ? "Validando..."
+                                                : "Registrar validação técnica"}
+                                            </button>
+                                          ) : (
+                                            <p className="mt-2 text-xs font-semibold text-amber-950">
+                                              O registro técnico está disponível para usuário com perfil owner ou admin.
+                                            </p>
+                                          )}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                ) : null}
+
+                                {investigation.investigation_status === "converted_to_risk" &&
+                                investigation.generated_risk_id ? (
+                                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs leading-5 text-emerald-900">
+                                    <span className="font-semibold">
+                                      Convertido em risco.
+                                    </span>
+                                    {" "}O risco foi criado por decisão explícita e permanece vinculado a esta investigação.
+                                  </div>
+                                ) : investigation.investigation_status === "completed" &&
+                                  investigation.effective_result === "suggested_risk" &&
+                                  investigation.human_validation?.validation_status === "validated" &&
+                                  (
+                                    !investigation.technical_validation_required ||
+                                    (
+                                      investigation.technical_validation_current &&
+                                      investigation.technical_validation?.validation_status === "validated"
+                                    )
+                                  ) ? (
+                                  <div className="rounded-xl border border-[#d8bd78] bg-[#fffaf3] px-4 py-4">
+                                    <p className="text-sm font-semibold text-[#10243e]">
+                                      Resultado pronto para decisão
+                                    </p>
+
+                                    <p className="mt-2 text-xs leading-5 text-[#6f665b]">
+                                      As validações aplicáveis foram concluídas. Converter cria um risco no inventário vinculado a esta investigação. O Plano de Ação não será criado automaticamente.
+                                    </p>
+
+                                    {membershipRole === "owner" ||
+                                    membershipRole === "admin" ? (
+                                      <button
+                                        type="button"
+                                        disabled={triggerInvestigationSaving}
+                                        onClick={() =>
+                                          void handleConvertTriggerInvestigationToRisk(
+                                            definition.type,
+                                          )
+                                        }
+                                        className="mt-3 rounded-xl bg-[#10243e] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0b1729] disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        {triggerInvestigationSaving
+                                          ? "Convertendo..."
+                                          : "Converter em risco"}
+                                      </button>
+                                    ) : (
+                                      <p className="mt-2 text-xs font-semibold text-[#6f665b]">
+                                        A conversão em risco está disponível para usuário com perfil owner ou admin.
+                                      </p>
+                                    )}
                                   </div>
                                 ) : null}
 
@@ -6666,7 +7093,7 @@ useEffect(() => {
                           Etapa 03
                         </p>
                         <h3 className="mt-2 text-2xl font-semibold text-[#10243e]">
-                          Revisar sinais e gerar risco sugerido
+                          Revisar sinais antes da conversão em risco
                         </h3>
                         <p className="mt-2 max-w-3xl text-sm leading-6 text-[#6f665b]">
                           Esta etapa será liberada depois que os sinais observados forem salvos.
@@ -6685,7 +7112,7 @@ useEffect(() => {
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-800">
                       Etapa 03
                     </p>
-                    <h3 className="mt-2 text-2xl font-semibold text-emerald-950">Revisar sinais e gerar risco sugerido</h3>
+                    <h3 className="mt-2 text-2xl font-semibold text-emerald-950">Revisar sinais antes da conversão em risco</h3>
                     <p className="mt-2 max-w-3xl text-sm leading-6 text-emerald-900">
                       Consolida a revisão dos sinais e prepara um risco sugerido vinculado à atividade, setor e local de trabalho.
                     </p>
@@ -6700,11 +7127,11 @@ useEffect(() => {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => void handleGeneratePreliminaryRiskFromDiagnosis()}
-                      disabled={diagnosisStatus === "saving" || hasPendingDiagnosisInvestigation}
+                      onClick={() => void handleSaveDiagnosisReview()}
+                      disabled={diagnosisStatus === "saving" || hasPendingTriggerInvestigation}
                       className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-60"
                     >
-                      Gerar risco sugerido
+                      Confirmar revisão do diagnóstico
                     </button>
                   )}
                 </div>
@@ -6714,7 +7141,7 @@ useEffect(() => {
                     ? "O risco sugerido foi gerado e precisa de revisão humana antes de qualquer consolidação."
                     : hasPendingDiagnosisInvestigation
                       ? "Ainda existem pontos que precisam de aprofundamento. Conclua as investigações antes de gerar qualquer risco sugerido."
-                      : "Depois da revisão, o sistema pode gerar um risco sugerido para conferência humana antes de adicionar ao inventário e revisar o plano de ação."}
+                      : "Depois da revisão e das validações aplicáveis, somente um resultado elegível poderá ser convertido em risco por ação humana explícita."}
                 </div>
 
                 {diagnosisRiskId ? (
