@@ -207,8 +207,8 @@ export const NR1_JOURNEY_STEPS = [
   {
     id: "geracao-pgr",
     order: 16,
-    title: "Geração do PGR",
-    description: "Revise e gere a versao formal do PGR.",
+    title: "Documento de apoio ao PGR",
+    description: "Revise e gere o documento estruturado de apoio à formalização do PGR.",
     href: "/dashboard/nr1/relatorio-pgr",
     availability: "available",
     countsTowardProgress: false,

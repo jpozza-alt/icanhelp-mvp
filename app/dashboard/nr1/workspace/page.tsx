@@ -1903,6 +1903,32 @@ useEffect(() => {
     setOnboardingMicroStepIndex(0);
     setGuidedSetupOpen(true);
   }
+  function openGuidedNewEstablishment(): void {
+    const currentCompanyId =
+      activeCompanyIdRef.current ||
+      activeCompanyId;
+
+    if (!currentCompanyId) {
+      setFormError(
+        "Selecione uma empresa ativa antes de cadastrar um novo local de trabalho."
+      );
+      return;
+    }
+
+    setFormError(null);
+    setSuccessMessage(null);
+
+    setEstablishmentForm({
+      ...INITIAL_ESTABLISHMENT_FORM,
+      company_id: currentCompanyId,
+    });
+
+    setGuidedSetupChoice("review");
+    setGuidedStepKey("estabelecimento");
+    setOnboardingMicroStepIndex(0);
+    setGuidedSetupOpen(true);
+  }
+
   function openGuidedSetupAtPendingStep(): void {
     const pendingStep: GuidedStepKey =
       !hasCompany
@@ -5050,7 +5076,7 @@ useEffect(() => {
           </p>
         </div>
 
-        <div className={`grid w-full gap-3 ${membershipRole === "owner" || membershipRole === "admin" ? "xl:max-w-5xl xl:grid-cols-3" : "xl:max-w-4xl xl:grid-cols-2"}`}>
+        <div className={`grid w-full gap-3 ${membershipRole === "owner" || membershipRole === "admin" ? "xl:max-w-6xl xl:grid-cols-4" : "xl:max-w-4xl xl:grid-cols-2"}`}>
           <label className="text-sm font-semibold text-[#10243e]">
             Empresa ativa
             <select
@@ -5104,6 +5130,20 @@ useEffect(() => {
               })}
             </select>
           </label>
+
+          {(membershipRole === "owner" || membershipRole === "admin") && (
+            <div className="flex items-end">
+              <button
+                id="nr1-new-establishment-button"
+                type="button"
+                onClick={openGuidedNewEstablishment}
+                disabled={!activeCompanyId}
+                className="w-full rounded-2xl border border-[#10243e] bg-white px-4 py-3 text-sm font-semibold text-[#10243e] transition hover:bg-[#f7f1e8] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                + Novo local de trabalho
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

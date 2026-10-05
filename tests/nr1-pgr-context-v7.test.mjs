@@ -119,7 +119,7 @@ test("PGR context is read only on this screen", () => {
   );
 });
 
-test("non formal preview and current API contracts remain preserved", () => {
+test("support document remains explicitly separate from formal PGR operations", () => {
   assert.match(
     page,
     /const FORMAL_PGR_OPERATIONS_ENABLED = false;/
@@ -132,21 +132,26 @@ test("non formal preview and current API contracts remain preserved", () => {
 
   assert.match(
     page,
-    /\/api\/nr1\/pgr-snapshot/
+    /\/api\/nr1\/pgr-support-document/
   );
 
   assert.match(
     page,
-    /Prévia estruturada do PGR — não formal/
+    /Documento Estruturado de Apoio à Formalização do PGR/
   );
 
   assert.match(
     page,
-    /Imprimir prévia — não formal/
+    /Imprimir \/ salvar em PDF/
   );
 
   assert.match(
     page,
-    /method: "POST"[\s\S]*?\/api\/nr1\/pgr-snapshot|\/api\/nr1\/pgr-snapshot[\s\S]*?method: "POST"/
+    /id="nr1CreatePgrSupportDocumentButton"/
+  );
+
+  assert.doesNotMatch(
+    page,
+    /const FORMAL_PGR_OPERATIONS_ENABLED = true;/
   );
 });

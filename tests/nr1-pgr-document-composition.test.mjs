@@ -90,7 +90,7 @@ test("GRO/PGR criteria are displayed from persisted criteria and never invented"
 
   assert.match(
     page,
-    /A prévia não preencherá critérios por inferência/
+    /O documento de apoio não preencherá critérios por inferência/
   );
 });
 
@@ -129,12 +129,12 @@ test("human review and non-formal boundaries remain explicit", () => {
 
   assert.match(
     page,
-    /Prévia estruturada do PGR — não formal/
+    /Documento Estruturado de Apoio à Formalização do PGR/
   );
 
   assert.match(
     page,
-    /Imprimir prévia — não formal/
+    /Imprimir \/ salvar em PDF/
   );
 
   assert.match(

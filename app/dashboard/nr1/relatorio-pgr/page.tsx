@@ -100,7 +100,8 @@ const AUDIT_EVENT_LABELS: Readonly<Record<string, string>> = {
   diagnosis_session_started_from_workspace: "Diagnóstico iniciado",
   diagnosis_review_risk_generated: "Risco gerado após revisão do diagnóstico",
   diagnosis_review_risk_updated: "Risco atualizado após revisão do diagnóstico",
-  pgr_report_generated: "Prévia do PGR gerada",
+  pgr_report_generated: "Conteúdo-base do documento de apoio gerado",
+  pgr_support_document_generated: "Documento de apoio à formalização do PGR gerado",
   establishment_selected: "Local de trabalho selecionado",
   activity_created_from_workspace: "Atividade criada",
   department_created_from_workspace: "Setor criado",
@@ -120,7 +121,8 @@ const AUDIT_ENTITY_LABELS: Readonly<Record<string, string>> = {
   nr1_department: "Setor",
   nr1_activity: "Atividade",
   diagnosis_session: "Diagnóstico",
-  pgr_report: "Prévia do PGR",
+  pgr_report: "Conteúdo-base do documento de apoio",
+  pgr_support_document: "Documento de apoio à formalização do PGR",
 };
 
 function asRecord(value: unknown): AnyRecord {
@@ -657,8 +659,9 @@ function EmptyState(props: { text: string }) {
 function PrintFooter() {
   return (
     <footer id="nr1PrintLayoutVersion" className="mt-10 border-t border-slate-300 pt-4 text-[11px] leading-5 text-slate-500">
-      <p>Prévia não formal gerada pelo icanHelp para apoio ao Gerenciamento de Riscos Ocupacionais.</p>
-      <p>Esta visualização não constitui versão formal, aprovação profissional ou documento para assinatura.</p>
+      <p>Documento Estruturado de Apoio à Formalização do PGR gerado pelo icanHelp.</p>
+      <p>Este documento organiza informações do GRO/PGR, mas não constitui PGR formal, aprovação profissional ou assinatura.</p>
+      <p>A organização permanece responsável pela revisão, formalização, data e assinatura dos documentos integrantes do PGR.</p>
     </footer>
   );
 }
@@ -675,10 +678,12 @@ export default function Nr1PgrReportPage() {
   const [selectedEstablishmentId, setSelectedEstablishmentId] = useState("");
   const [reportPayload, setReportPayload] = useState<unknown>(null);
   const [snapshotVersions, setSnapshotVersions] = useState<PgrSnapshotVersion[]>([]);
+  const [supportDocumentVersions, setSupportDocumentVersions] = useState<PgrSnapshotVersion[]>([]);
   const [journeyProgressPercent, setJourneyProgressPercent] = useState(0);
 
   const report = getReport(reportPayload);
   const latestFormalDocumentVersionId = snapshotVersions[0]?.id ?? "";
+  const latestSupportDocumentVersion = supportDocumentVersions[0] ?? null;
   const selectedEstablishment = establishments.find(
     (item) => item.id === selectedEstablishmentId
   );
@@ -700,12 +705,21 @@ export default function Nr1PgrReportPage() {
     selectedEstablishment?.name ||
     "Local de trabalho não selecionado";
   const previewProgress = journeyProgressPercent;
-  const previewProgressDescription = report
-    ? "Preparação da prévia concluída. Isso não representa formalização do PGR."
-    : topSelectorScopeReady
-      ? "Contexto selecionado. Gere a prévia para conferir a consolidação."
-      : "Selecione a empresa e o local de trabalho para preparar a prévia.";
-  const previewStatus = report ? "Prévia gerada" : topSelectorScopeReady ? "Pronta para gerar" : "Contexto pendente";
+  const previewProgressDescription = supportDocumentVersions.length > 0
+    ? "Documento de apoio versionado e pronto para impressão ou salvamento em PDF."
+    : report
+      ? "Conteúdo consolidado. Gere o documento de apoio para registrar uma versão rastreável."
+      : topSelectorScopeReady
+        ? "Contexto selecionado. Prepare o conteúdo do documento de apoio."
+        : "Selecione a empresa e o local de trabalho para preparar o documento.";
+
+  const previewStatus = supportDocumentVersions.length > 0
+    ? "Documento de apoio gerado"
+    : report
+      ? "Conteúdo preparado"
+      : topSelectorScopeReady
+        ? "Pronto para preparar"
+        : "Contexto pendente";
 
   const summary = useMemo(() => {
     if (!report) {
@@ -819,7 +833,7 @@ export default function Nr1PgrReportPage() {
     }
 
     setStatus("loading");
-    setMessage("Gerando prévia do PGR...");
+    setMessage("Preparando conteúdo do Documento Estruturado de Apoio à Formalização do PGR...");
 
     try {
       const accessToken = token || (await getAccessToken());
@@ -842,9 +856,12 @@ export default function Nr1PgrReportPage() {
         throw new Error(payload?.message || payload?.error || "Falha ao gerar relatório PGR.");
       }
 
-      await loadFormalPgrSnapshots(accessToken);
+      await Promise.all([
+        loadFormalPgrSnapshots(accessToken),
+        loadPgrSupportDocuments(accessToken),
+      ]);
       setStatus("loaded");
-      setMessage("Prévia do PGR carregada. Use o botão de impressão para salvar uma cópia não formal.");
+      setMessage("Conteúdo do documento de apoio carregado. Confira os dados e gere a versão rastreável.");
     } catch (error) {
       setStatus("error");
       setMessage(error instanceof Error ? error.message : "Falha ao gerar relatório PGR.");
@@ -879,6 +896,142 @@ export default function Nr1PgrReportPage() {
       setSnapshotVersions(parseSnapshotVersions(payload));
     } catch {
       setSnapshotVersions([]);
+    }
+  }
+
+  async function loadPgrSupportDocuments(accessTokenOverride?: string) {
+    if (!selectedTenantId || !selectedEstablishmentId) {
+      setSupportDocumentVersions([]);
+      return;
+    }
+
+    try {
+      const accessToken =
+        accessTokenOverride ||
+        token ||
+        (await getAccessToken());
+
+      const response = await fetch(
+        "/api/nr1/pgr-support-document?establishmentId=" +
+          encodeURIComponent(
+            selectedEstablishmentId
+          ),
+        {
+          headers: {
+            Authorization:
+              "Bearer " + accessToken,
+            "x-icanhelp-tenant":
+              selectedTenantId,
+            Accept:
+              "application/json",
+          },
+        }
+      );
+
+      const payload =
+        await response.json();
+
+      if (!response.ok) {
+        setSupportDocumentVersions([]);
+        return;
+      }
+
+      setSupportDocumentVersions(
+        parseSnapshotVersions(payload)
+      );
+    } catch {
+      setSupportDocumentVersions([]);
+    }
+  }
+
+  async function createPgrSupportDocument() {
+    if (
+      !selectedTenantId ||
+      !selectedEstablishmentId
+    ) {
+      setMessage(
+        "Selecione empresa e local de trabalho antes de gerar o documento de apoio."
+      );
+      return;
+    }
+
+    if (!reportPayload) {
+      setMessage(
+        "Prepare o conteúdo antes de gerar o documento de apoio."
+      );
+      return;
+    }
+
+    try {
+      setStatus("loading");
+
+      setMessage(
+        "Gerando Documento Estruturado de Apoio à Formalização do PGR..."
+      );
+
+      const accessToken =
+        token ||
+        (await getAccessToken());
+
+      const response = await fetch(
+        "/api/nr1/pgr-support-document",
+        {
+          method: "POST",
+          headers: {
+            Authorization:
+              "Bearer " + accessToken,
+            "x-icanhelp-tenant":
+              selectedTenantId,
+            "Content-Type":
+              "application/json",
+            Accept:
+              "application/json",
+          },
+          body: JSON.stringify({
+            establishment_id:
+              selectedEstablishmentId,
+            source_snapshot_json:
+              reportPayload,
+          }),
+        }
+      );
+
+      const payload =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          payload?.message ||
+            payload?.error ||
+            "Falha ao gerar o documento de apoio."
+        );
+      }
+
+      await loadPgrSupportDocuments(
+        accessToken
+      );
+
+      const version =
+        payload?.data?.version
+          ? " Versão " +
+            String(payload.data.version) +
+            "."
+          : "";
+
+      setStatus("loaded");
+
+      setMessage(
+        "Documento Estruturado de Apoio à Formalização do PGR gerado." +
+          version
+      );
+    } catch (error) {
+      setStatus("error");
+
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Falha ao gerar o documento de apoio."
+      );
     }
   }
 
@@ -931,8 +1084,13 @@ export default function Nr1PgrReportPage() {
   }
 
   function handlePrintPdf() {
-    if (!report) {
-      setMessage("Gere a prévia antes de imprimir ou salvar em PDF.");
+    if (
+      !report ||
+      supportDocumentVersions.length === 0
+    ) {
+      setMessage(
+        "Gere uma versão do Documento Estruturado de Apoio à Formalização do PGR antes de imprimir ou salvar em PDF."
+      );
       return;
     }
 
@@ -1267,12 +1425,13 @@ export default function Nr1PgrReportPage() {
         );
         setReportPayload(null);
         setSnapshotVersions([]);
+        setSupportDocumentVersions([]);
         setJourneyProgressPercent(
           journeyProgress.percent
         );
         setStatus("idle");
         setMessage(
-          "Contexto ativo da jornada carregado. Gere a prévia para conferir a consolidação."
+          "Contexto ativo da jornada carregado. Prepare o conteúdo do documento de apoio para conferir a consolidação."
         );
       } catch (error) {
         if (cancelled) {
@@ -1366,8 +1525,10 @@ export default function Nr1PgrReportPage() {
           </p>
         </div>
         <div className="rounded-2xl border border-[#e2d4bf] bg-[#fffdf9] p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9d7b37]">Prévia gerada</p>
-          <p className="mt-2 text-sm font-semibold text-[#10243e]">{report ? "Sim" : "Ainda não"}</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9d7b37]">Documento de apoio gerado</p>
+          <p className="mt-2 text-sm font-semibold text-[#10243e]">
+            {supportDocumentVersions.length > 0 ? "Sim" : "Ainda não"}
+          </p>
         </div>
       </div>
 
@@ -1381,17 +1542,27 @@ export default function Nr1PgrReportPage() {
             disabled={status === "loading" || !topSelectorScopeReady}
             className="rounded-2xl bg-[#10243e] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1d344f] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {status === "loading" ? "Gerando..." : "Gerar prévia"}
+            {status === "loading" ? "Preparando..." : "Preparar conteúdo"}
+          </button>
+
+          <button
+            id="nr1CreatePgrSupportDocumentButton"
+            type="button"
+            onClick={createPgrSupportDocument}
+            disabled={!reportPayload || status === "loading"}
+            className="rounded-2xl border border-[#D6B56C] bg-[#FFF8EA] px-5 py-3 text-sm font-semibold text-[#10243E] transition hover:bg-[#F4ECE2] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Gerar documento de apoio
           </button>
 
           <button
             id="nr1PrintPgrReportButton"
             type="button"
             onClick={handlePrintPdf}
-            disabled={!report || status === "loading"}
+            disabled={!report || supportDocumentVersions.length === 0 || status === "loading"}
             className="rounded-2xl border border-[#10243e] bg-[#FFFCF7] px-5 py-3 text-sm font-semibold text-[#10243e] transition hover:bg-[#f7f1e8] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Imprimir prévia — não formal
+            Imprimir / salvar em PDF
           </button>
 
           {FORMAL_PGR_OPERATIONS_ENABLED ? (
@@ -1409,9 +1580,9 @@ export default function Nr1PgrReportPage() {
       </div>
 
       <div className="mt-5 rounded-2xl border border-[#e2d4bf] bg-[#f7efe6] p-4 text-sm text-[#10243e]">
-        <strong>Versão formal em preparação</strong>
+        <strong>Documento de apoio à formalização</strong>
         <p className="mt-1 leading-6 text-[#6f665b]">
-          Você já pode conferir e imprimir a prévia. A criação da versão formal permanece indisponível enquanto esse fluxo está em validação.
+          O icanHelp gera uma versão rastreável para revisão e impressão. Ela não constitui PGR formal, aprovação profissional ou assinatura. A formalização permanece fora do escopo deste fluxo.
         </p>
       </div>
     </section>
@@ -1571,21 +1742,35 @@ export default function Nr1PgrReportPage() {
           activeModule="PGR"
           modules={["Base", "Mapeamento", "Riscos", "Plano", "Evidências", "Trilha", "PGR"]}
           pendingItems={[
-            topSelectorScopeReady ? "Contexto da prévia conferido" : "Selecionar empresa e local de trabalho",
-            report ? "Conferir a consolidação gerada" : "Gerar a prévia do PGR",
-            report ? "Imprimir a prévia não formal" : "A impressão será liberada após a geração",
+            topSelectorScopeReady ? "Contexto do documento conferido" : "Selecionar empresa e local de trabalho",
+            report ? "Conteúdo consolidado" : "Preparar o conteúdo do documento de apoio",
+            supportDocumentVersions.length > 0
+              ? "Documento de apoio versionado"
+              : "Gerar o Documento Estruturado de Apoio à Formalização do PGR",
           ]}
           nextBestActionLabel="Etapa da jornada"
-          nextBestActionTitle="Conferir a prévia do PGR"
-          nextBestActionDescription="Revise a consolidação da empresa e do local de trabalho antes da formalização. Esta prévia não é uma versão formal."
+          nextBestActionTitle={
+            supportDocumentVersions.length > 0
+              ? "Revisar e imprimir o documento de apoio"
+              : report
+                ? "Gerar o documento de apoio"
+                : "Preparar o documento de apoio"
+          }
+          nextBestActionDescription="Revise a consolidação da empresa e do local de trabalho. O resultado apoia a formalização do PGR, mas não constitui PGR formal."
           nextBestActionPrimaryHref="#nr1-pgr-generation"
-          nextBestActionPrimaryLabel="Gerar prévia"
+          nextBestActionPrimaryLabel={
+            supportDocumentVersions.length > 0
+              ? "Documento gerado"
+              : report
+                ? "Gerar documento de apoio"
+                : "Preparar conteúdo"
+          }
           nextBestActionSecondaryHref="/dashboard/nr1/trilha-acompanhamento"
           nextBestActionSecondaryLabel="Revisar trilha"
           nextBestActionReasons={[
-            "A prévia reúne riscos, plano de ação, evidências e acompanhamentos.",
+            "O documento reúne riscos, plano de ação, evidências e acompanhamentos.",
             "Confira se a empresa e o local de trabalho estão corretos.",
-            "A impressão continua identificada como prévia não formal.",
+            "Formalização, aprovação profissional e assinatura permanecem separadas.",
           ]}
           pgrHref="/dashboard/nr1/relatorio-pgr"
           moduleHref="#nr1-pgr-generation"
@@ -1598,16 +1783,17 @@ export default function Nr1PgrReportPage() {
             <header className="nr1-print-cover border-b border-slate-300 pb-6">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#A36B16]">Programa de Gerenciamento de Riscos</p>
-                  <h1 className="mt-3 text-3xl font-bold text-slate-950">Prévia estruturada do PGR — não formal</h1>
-                  <p className="mt-2 text-sm text-slate-600">Visualização dinâmica gerada a partir da base NR1 do icanHelp; não constitui versão formal.</p>
+                  <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#A36B16]">Apoio ao Gerenciamento de Riscos Ocupacionais</p>
+                  <h1 className="mt-3 text-3xl font-bold text-slate-950">Documento Estruturado de Apoio à Formalização do PGR</h1>
+                  <p className="mt-2 text-sm text-slate-600">Documento gerado a partir dos registros da jornada NR-1 do icanHelp. Não constitui PGR formal, aprovação profissional ou assinatura.</p>
                 </div>
                 <div className="nr1-print-badge rounded-2xl px-4 py-3 text-right text-xs font-semibold uppercase tracking-[0.08em] text-[#8B5E34]">
-                  Prévia não formal
+                  Documento de apoio — não formal
                 </div>
               </div>
               <div className="mt-4 grid gap-2 text-sm text-slate-700 md:grid-cols-2">
-                <p><strong>Gerado em:</strong> {generatedAt ? dateTimeText(generatedAt) : "-"}</p>
+                <p><strong>Conteúdo consolidado em:</strong> {generatedAt ? dateTimeText(generatedAt) : "-"}</p>
+                <p><strong>Versão do documento de apoio:</strong> {latestSupportDocumentVersion ? "v" + String(latestSupportDocumentVersion.version) : "Ainda não versionado"}</p>
                 <p><strong>Empresa:</strong> {reportCompanyName}</p>
                 <p><strong>Local de trabalho:</strong> {reportEstablishmentName}</p>
               </div>
@@ -1830,7 +2016,7 @@ export default function Nr1PgrReportPage() {
                 </div>
               </article>
             ) : (
-              <EmptyState text="Pendente: não há critérios GRO/PGR cadastrados para este estabelecimento. A prévia não preencherá critérios por inferência." />
+              <EmptyState text="Pendente: não há critérios GRO/PGR cadastrados para este estabelecimento. O documento de apoio não preencherá critérios por inferência." />
             )}
 
             <SectionTitle>6. Plano de ação</SectionTitle>
@@ -1937,6 +2123,60 @@ export default function Nr1PgrReportPage() {
             )}
 
             <PrintFooter />
+          </section>
+        ) : null}
+
+        {supportDocumentVersions.length > 0 ? (
+          <section id="nr1PgrSupportDocumentVersionsPanel" className="nr1-screen-only mt-6 min-w-0 rounded-[24px] border border-[#e2d4bf] bg-[#FFFCF7] p-6 shadow-sm">
+            <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[#9d7b37]">documento de apoio — versões rastreáveis</p>
+                <h2 className="mt-1 text-xl font-semibold text-[#10243e]">Histórico do documento de apoio</h2>
+                <p className="mt-1 text-sm text-[#6f665b]">Cada geração fica vinculada à empresa e ao local de trabalho. Estas versões não representam formalização ou aprovação profissional do PGR.</p>
+              </div>
+
+              <button
+                id="nr1RefreshPgrSupportDocumentsButton"
+                type="button"
+                onClick={() => void loadPgrSupportDocuments()}
+                disabled={!selectedTenantId || !selectedEstablishmentId || status === "loading"}
+                className="rounded-2xl border border-[#d9c9b8] bg-[#FFFCF7] px-4 py-2 text-sm font-semibold text-[#10243e] transition hover:bg-[#f7f1e8] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Atualizar versões
+              </button>
+            </div>
+
+            <div className="mt-4 max-w-full overflow-x-auto rounded-2xl border border-[#E2D4BF]">
+              <table className="min-w-[560px] border-collapse text-left text-sm">
+                <thead className="bg-[#f7efe6] text-xs uppercase tracking-[0.08em] text-[#6f665b]">
+                  <tr>
+                    <th className="px-4 py-3">Versão</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Gerado em</th>
+                    <th className="px-4 py-3">Substitui</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {supportDocumentVersions.map((documentVersion) => (
+                    <tr key={documentVersion.id} className="border-t border-[#E2D4BF]">
+                      <td className="px-4 py-3 font-semibold text-[#10243e]">
+                        v{documentVersion.version}
+                      </td>
+                      <td className="px-4 py-3 text-[#10243E]">
+                        {documentVersion.status}
+                      </td>
+                      <td className="px-4 py-3 text-[#10243E]">
+                        {dateTimeText(documentVersion.generated_at)}
+                      </td>
+                      <td className="px-4 py-3 text-[#6f665b]">
+                        {documentVersion.supersedes_document_id ? "Sim" : "Não"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
         ) : null}
 

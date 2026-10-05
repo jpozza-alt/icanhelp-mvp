@@ -206,6 +206,10 @@ function normalizePersistenceType(
     return "formal_version";
   }
 
+  if (value === "versioned_support_document") {
+    return "versioned_support_document";
+  }
+
   return null;
 }
 
@@ -429,7 +433,12 @@ export async function POST(request: NextRequest) {
     return json(400, {
       ok: false,
       error: "invalid_persistence_type",
-      allowed: ["draft", "formal", "formal_version"],
+      allowed: [
+        "draft",
+        "formal",
+        "formal_version",
+        "versioned_support_document",
+      ],
     });
   }
 

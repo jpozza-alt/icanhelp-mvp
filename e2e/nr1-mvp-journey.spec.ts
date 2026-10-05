@@ -1481,33 +1481,39 @@ test("MVP empresa nova chega do login ao diagnostico", async ({
   console.log("PW_MVP_SLICE4=PASS");
 
   // ----------------------------------------------------------
-  // SLICE 5 — EVIDENCIA -> PREVIA ESTRUTURADA DO PGR
+  // SLICE 5 — EVIDENCIA -> DOCUMENTO ESTRUTURADO DE APOIO AO PGR
   // ----------------------------------------------------------
 
   await page.goto(
     "/dashboard/nr1/relatorio-pgr",
   );
 
-  const generatePgrPreviewButton = page
+  const preparePgrSupportDocumentButton = page
     .locator("#nr1GeneratePgrReportButton")
     .first();
 
-  await expect(generatePgrPreviewButton).toBeVisible({
+  await expect(
+    preparePgrSupportDocumentButton,
+  ).toBeVisible({
     timeout: 20_000,
   });
 
-  await expect(generatePgrPreviewButton).toBeEnabled({
+  await expect(
+    preparePgrSupportDocumentButton,
+  ).toBeEnabled({
     timeout: 20_000,
   });
 
-  console.log("[PW_MVP] PGR_PAGE_REACHED=PASS");
+  console.log(
+    "[PW_MVP] PGR_PAGE_REACHED=PASS",
+  );
 
-  await generatePgrPreviewButton.click();
+  await preparePgrSupportDocumentButton.click();
 
   await expect(
     page
       .getByText(
-        /prévia do pgr carregada/i,
+        /conteúdo do documento de apoio carregado/i,
       )
       .first(),
   ).toBeVisible({
@@ -1518,22 +1524,52 @@ test("MVP empresa nova chega do login ao diagnostico", async ({
     .locator("#nr1-pgr-print-area")
     .first();
 
-  await expect(pgrPrintArea).toBeVisible({
+  await expect(
+    pgrPrintArea,
+  ).toBeVisible({
     timeout: 20_000,
+  });
+
+  const createPgrSupportDocumentButton = page
+    .locator("#nr1CreatePgrSupportDocumentButton")
+    .first();
+
+  await expect(
+    createPgrSupportDocumentButton,
+  ).toBeVisible({
+    timeout: 20_000,
+  });
+
+  await expect(
+    createPgrSupportDocumentButton,
+  ).toBeEnabled({
+    timeout: 20_000,
+  });
+
+  await createPgrSupportDocumentButton.click();
+
+  await expect(
+    page
+      .getByText(
+        /Documento Estruturado de Apoio à Formalização do PGR gerado/i,
+      )
+      .first(),
+  ).toBeVisible({
+    timeout: 30_000,
   });
 
   await expect(
     pgrPrintArea
       .getByText(
-        /prévia estruturada do pgr/i,
+        /Documento Estruturado de Apoio à Formalização do PGR/i,
       )
       .first(),
   ).toBeVisible();
 
-  console.log("[PW_MVP] PGR_PREVIEW_GENERATED=PASS");
+  console.log(
+    "[PW_MVP] PGR_SUPPORT_DOCUMENT_GENERATED=PASS",
+  );
 
-  // O plano criado na mesma jornada precisa aparecer
-  // na consolidação do PGR.
   await expect(
     pgrPrintArea
       .getByText(
@@ -1548,8 +1584,6 @@ test("MVP empresa nova chega do login ao diagnostico", async ({
     "[PW_MVP] PGR_ACTION_PLAN_PRESENT=PASS",
   );
 
-  // O acompanhamento criado na Slice 4 precisa ser
-  // consolidado na mesma prévia.
   await expect(
     pgrPrintArea
       .getByText(
@@ -1564,8 +1598,6 @@ test("MVP empresa nova chega do login ao diagnostico", async ({
     "[PW_MVP] PGR_FOLLOWUP_PRESENT=PASS",
   );
 
-  // A evidência criada na mesma jornada também precisa
-  // estar presente no documento consolidado.
   await expect(
     pgrPrintArea
       .getByText(
@@ -1581,11 +1613,13 @@ test("MVP empresa nova chega do login ao diagnostico", async ({
   );
 
   console.log(
-    "[PW_MVP] PGR_PREVIEW_COHERENCE=PASS",
+    "[PW_MVP] PGR_SUPPORT_DOCUMENT_COHERENCE=PASS",
   );
+
   console.log(
-    "[PW_MVP] PGR_GENERATION=PARTIAL_PREVIEW_ONLY",
+    "[PW_MVP] PGR_GENERATION=PASS",
   );
+
   console.log("PW_MVP_SLICE5=PASS");
 
   // ----------------------------------------------------------
@@ -1810,11 +1844,43 @@ test("MVP empresa nova chega do login ao diagnostico", async ({
 
   await expect(
     page
-      .getByText(/prévia do pgr carregada/i)
+      .getByText(/conteúdo do documento de apoio carregado/i)
       .first(),
   ).toBeVisible({
     timeout: 30_000,
   });
+
+  // O documento de apoio gerado antes da saída precisa
+  // reaparecer como versão persistida após a retomada.
+  const reentrySupportDocumentPanel = page
+    .locator("#nr1PgrSupportDocumentVersionsPanel")
+    .first();
+
+  await expect(
+    reentrySupportDocumentPanel,
+  ).toBeVisible({
+    timeout: 20_000,
+  });
+
+  await expect(
+    reentrySupportDocumentPanel
+      .getByText(/^v1$/i)
+      .first(),
+  ).toBeVisible({
+    timeout: 20_000,
+  });
+
+  await expect(
+    reentrySupportDocumentPanel
+      .getByText(/^generated$/i)
+      .first(),
+  ).toBeVisible({
+    timeout: 20_000,
+  });
+
+  console.log(
+    "[PW_MVP] PGR_SUPPORT_DOCUMENT_REENTRY_VERSION=PASS",
+  );
 
   const reentryPgrPrintArea = page
     .locator("#nr1-pgr-print-area")
@@ -1856,6 +1922,22 @@ test("MVP empresa nova chega do login ao diagnostico", async ({
     timeout: 20_000,
   });
 
+  // A geração do documento de apoio também precisa
+  // reaparecer na trilha consolidada após a retomada.
+  await expect(
+    reentryPgrPrintArea
+      .getByText(
+        /Documento de apoio à formalização do PGR gerado/i,
+      )
+      .first(),
+  ).toBeVisible({
+    timeout: 20_000,
+  });
+
+  console.log(
+    "[PW_MVP] PGR_SUPPORT_DOCUMENT_AUDIT_TRAIL=PASS",
+  );
+
   console.log(
     "[PW_MVP] REENTRY_DATA_PERSISTENCE=PASS",
   );
@@ -1863,4 +1945,618 @@ test("MVP empresa nova chega do login ao diagnostico", async ({
     "[PW_MVP] REENTRY_PERSISTENCE=PASS",
   );
   console.log("PW_MVP_SLICE6=PASS");
+
+  // ----------------------------------------------------------
+  // SLICE 7 — MULTIPLOS ESTABELECIMENTOS
+  // Cadastro, selecao, isolamento e reentrada.
+  // ----------------------------------------------------------
+
+  await page.goto(
+    "/dashboard/nr1/workspace",
+  );
+
+  await expect(
+    page.getByText(
+      /Carregando sua jornada NR-1/i,
+    ),
+  ).toHaveCount(0, {
+    timeout: 30_000,
+  });
+
+  const existingBaseResumeMulti = page
+    .getByText(
+      /Encontramos uma base ja iniciada/i,
+    )
+    .first();
+
+  if (
+    (await existingBaseResumeMulti.count()) > 0 &&
+    (await existingBaseResumeMulti.isVisible())
+  ) {
+    const openOverviewButtonMulti = page
+      .getByRole("button", {
+        name: /Abrir vis[aã]o geral/i,
+      })
+      .first();
+
+    await expect(
+      openOverviewButtonMulti,
+    ).toBeVisible({
+      timeout: 20_000,
+    });
+
+    await openOverviewButtonMulti.click();
+  }
+
+  const activeContextPanel = page
+    .locator(
+      "#workspace-active-company-selector",
+    )
+    .first();
+
+  await expect(
+    activeContextPanel,
+  ).toBeVisible({
+    timeout: 30_000,
+  });
+
+  const contextSelects =
+    activeContextPanel.locator("select");
+
+  await expect(
+    contextSelects,
+  ).toHaveCount(2);
+
+  const companySelect =
+    contextSelects.nth(0);
+
+  const establishmentSelect =
+    contextSelects.nth(1);
+
+  const firstCompanyId =
+    await companySelect.inputValue();
+
+  const firstEstablishmentId =
+    await establishmentSelect.inputValue();
+
+  expect(firstCompanyId).not.toBe("");
+  expect(firstEstablishmentId).not.toBe("");
+
+  const firstSelectedOptionText =
+    (
+      await establishmentSelect
+        .locator("option:checked")
+        .textContent()
+    )?.trim() || "";
+
+  expect(
+    firstSelectedOptionText,
+  ).toMatch(
+    /Matriz PW MVP/i,
+  );
+
+  const sectorCardValue =
+    activeContextPanel
+      .getByText("Setor", {
+        exact: true,
+      })
+      .first()
+      .locator("..")
+      .locator("strong");
+
+  const activityCardValue =
+    activeContextPanel
+      .getByText("Atividade", {
+        exact: true,
+      })
+      .first()
+      .locator("..")
+      .locator("strong");
+
+  await expect(
+    sectorCardValue,
+  ).toHaveText(
+    /Administrativo PW MVP/i,
+    {
+      timeout: 30_000,
+    },
+  );
+
+  await expect(
+    activityCardValue,
+  ).toHaveText(
+    /Atendimento administrativo/i,
+    {
+      timeout: 30_000,
+    },
+  );
+
+  console.log(
+    "[PW_MVP] MULTI_ESTABLISHMENT_FIRST_CONTEXT_CONFIRMED=PASS",
+  );
+
+  // A ação precisa existir para o RH sem criar outra empresa.
+  const newEstablishmentButton = page
+    .locator(
+      "#nr1-new-establishment-button",
+    )
+    .first();
+
+  await expect(
+    newEstablishmentButton,
+  ).toBeVisible({
+    timeout: 20_000,
+  });
+
+  await expect(
+    newEstablishmentButton,
+  ).toBeEnabled();
+
+  await newEstablishmentButton.click();
+
+  // O fluxo guiado deve abrir diretamente no cadastro do local.
+  const secondEstablishmentName = page
+    .locator(
+      '[placeholder="Nome do local de trabalho"]:visible',
+    )
+    .first();
+
+  await expect(
+    secondEstablishmentName,
+  ).toBeVisible({
+    timeout: 20_000,
+  });
+
+  await secondEstablishmentName.fill(
+    "Filial PW MVP",
+  );
+
+  const secondEstablishmentAdvance = page
+    .getByRole("button", {
+      name: /^Continuar$/i,
+    })
+    .first();
+
+  await expect(
+    secondEstablishmentAdvance,
+  ).toBeVisible({
+    timeout: 20_000,
+  });
+
+  await secondEstablishmentAdvance.click();
+
+  const secondCity = page
+    .locator(
+      '[placeholder="Cidade"]:visible',
+    )
+    .first();
+
+  const secondUf = page
+    .locator(
+      '[placeholder="UF"]:visible',
+    )
+    .first();
+
+  await expect(
+    secondCity,
+  ).toBeVisible({
+    timeout: 20_000,
+  });
+
+  await expect(
+    secondUf,
+  ).toBeVisible({
+    timeout: 20_000,
+  });
+
+  await secondCity.fill("Orleans");
+  await secondUf.fill("SC");
+
+  const saveSecondEstablishment = page
+    .getByRole("button", {
+      name:
+        /Salvar local de trabalho e continuar/i,
+    })
+    .first();
+
+  await expect(
+    saveSecondEstablishment,
+  ).toBeVisible({
+    timeout: 20_000,
+  });
+
+  await saveSecondEstablishment.click();
+
+  await expect(
+    page
+      .getByText(
+        /Local de trabalho cadastrado. Vamos para o proximo passo./i,
+      )
+      .first(),
+  ).toBeVisible({
+    timeout: 30_000,
+  });
+
+  const secondOption =
+    establishmentSelect
+      .locator("option")
+      .filter({
+        hasText: "Filial PW MVP",
+      });
+
+  await expect(
+    secondOption,
+  ).toHaveCount(1, {
+    timeout: 30_000,
+  });
+
+  const secondEstablishmentId =
+    (
+      await secondOption
+        .getAttribute("value")
+    ) || "";
+
+  expect(
+    secondEstablishmentId,
+  ).not.toBe("");
+
+  expect(
+    secondEstablishmentId,
+  ).not.toBe(
+    firstEstablishmentId,
+  );
+
+  await expect(
+    establishmentSelect,
+  ).toHaveValue(
+    secondEstablishmentId,
+    {
+      timeout: 30_000,
+    },
+  );
+
+  console.log(
+    "[PW_MVP] MULTI_ESTABLISHMENT_SECOND_CREATED=PASS",
+  );
+
+  // Sai apenas do modal guiado; o novo local deve continuar ativo.
+  page.once(
+    "dialog",
+    (dialog) => {
+      void dialog.accept();
+    },
+  );
+
+  await page
+    .getByRole("button", {
+      name:
+        /Sair da jornada guiada/i,
+    })
+    .click();
+
+  await expect(
+    newEstablishmentButton,
+  ).toBeVisible({
+    timeout: 20_000,
+  });
+
+  await expect(
+    establishmentSelect,
+  ).toHaveValue(
+    secondEstablishmentId,
+    {
+      timeout: 30_000,
+    },
+  );
+
+  // A Filial acabou de nascer. Dados da Matriz não podem vazar.
+  await expect(
+    sectorCardValue,
+  ).toHaveText(
+    /^Pendente$/i,
+    {
+      timeout: 30_000,
+    },
+  );
+
+  await expect(
+    activityCardValue,
+  ).toHaveText(
+    /^Pendente$/i,
+    {
+      timeout: 30_000,
+    },
+  );
+
+  console.log(
+    "[PW_MVP] MULTI_ESTABLISHMENT_NO_CONTEXT_MIXING=PASS",
+  );
+
+  // Volta à Matriz e recupera exatamente os dados dela.
+  await establishmentSelect.selectOption(
+    firstEstablishmentId,
+  );
+
+  await expect(
+    establishmentSelect,
+  ).toHaveValue(
+    firstEstablishmentId,
+    {
+      timeout: 30_000,
+    },
+  );
+
+  await expect(
+    sectorCardValue,
+  ).toHaveText(
+    /Administrativo PW MVP/i,
+    {
+      timeout: 30_000,
+    },
+  );
+
+  await expect(
+    activityCardValue,
+  ).toHaveText(
+    /Atendimento administrativo/i,
+    {
+      timeout: 30_000,
+    },
+  );
+
+  console.log(
+    "[PW_MVP] MULTI_ESTABLISHMENT_SWITCH_BACK_FIRST=PASS",
+  );
+
+  // E retorna à Filial sem recuperar os dados da Matriz.
+  await establishmentSelect.selectOption(
+    secondEstablishmentId,
+  );
+
+  await expect(
+    establishmentSelect,
+  ).toHaveValue(
+    secondEstablishmentId,
+    {
+      timeout: 30_000,
+    },
+  );
+
+  await expect(
+    sectorCardValue,
+  ).toHaveText(
+    /^Pendente$/i,
+    {
+      timeout: 30_000,
+    },
+  );
+
+  await expect(
+    activityCardValue,
+  ).toHaveText(
+    /^Pendente$/i,
+    {
+      timeout: 30_000,
+    },
+  );
+
+  console.log(
+    "[PW_MVP] MULTI_ESTABLISHMENT_SWITCH_SECOND=PASS",
+  );
+
+  // A escolha deve ficar persistida no contexto do tenant.
+  const persistedMultiSelection =
+    await page.evaluate(() => {
+      const key = Object
+        .keys(window.localStorage)
+        .find((item) =>
+          item.startsWith(
+            "nr1_workspace_selection:",
+          ),
+        );
+
+      if (!key) {
+        return null;
+      }
+
+      const raw =
+        window.localStorage.getItem(key);
+
+      if (!raw) {
+        return null;
+      }
+
+      try {
+        const parsed =
+          JSON.parse(raw) as {
+            companyId?: string;
+            establishmentId?: string;
+          };
+
+        return {
+          companyId:
+            String(
+              parsed.companyId || "",
+            ).trim(),
+          establishmentId:
+            String(
+              parsed.establishmentId || "",
+            ).trim(),
+        };
+      } catch {
+        return null;
+      }
+    });
+
+  expect(
+    persistedMultiSelection,
+  ).not.toBeNull();
+
+  expect(
+    persistedMultiSelection?.companyId,
+  ).toBe(
+    firstCompanyId,
+  );
+
+  expect(
+    persistedMultiSelection?.establishmentId,
+  ).toBe(
+    secondEstablishmentId,
+  );
+
+  console.log(
+    "[PW_MVP] MULTI_ESTABLISHMENT_SELECTION_PERSISTED=PASS",
+  );
+
+  // Riscos deve reconhecer a Filial selecionada e bloquear corretamente
+  // porque o novo local ainda nao possui setores/atividades.
+  await page.goto(
+    "/dashboard/nr1/riscos",
+  );
+
+  await expect(
+    page.getByRole("heading", {
+      name: /Setores e atividades pendentes/i,
+    }),
+  ).toBeVisible({
+    timeout: 30_000,
+  });
+
+  await expect(
+    page.getByText(
+      /Conclua a etapa de setores e atividades antes de liberar esta etapa/i,
+    ),
+  ).toBeVisible({
+    timeout: 30_000,
+  });
+
+  console.log(
+    "[PW_MVP] MULTI_ESTABLISHMENT_RISK_GUARD_FOR_SECOND=PASS",
+  );
+
+  // A tela de Setores nao exige que a etapa ja esteja concluida.
+  // Ela permite comprovar nominalmente o contexto cross-screen.
+  await page.goto(
+    "/dashboard/nr1/setores",
+  );
+
+  const crossScreenEstablishmentContext = page
+    .getByText(
+      "Estabelecimento ativo",
+      {
+        exact: true,
+      },
+    )
+    .first()
+    .locator("..");
+
+  await expect(
+    crossScreenEstablishmentContext
+      .getByText(
+        "Filial PW MVP",
+        {
+          exact: true,
+        },
+      ),
+  ).toBeVisible({
+    timeout: 30_000,
+  });
+
+  console.log(
+    "[PW_MVP] MULTI_ESTABLISHMENT_CROSS_SCREEN_CONTEXT=PASS",
+  );
+
+  // Reload real da segunda tela deve manter a Filial.
+  await page.reload();
+
+  await expect(
+    page
+      .getByText(
+        "Filial PW MVP",
+        {
+          exact: true,
+        },
+      )
+      .first(),
+  ).toBeVisible({
+    timeout: 30_000,
+  });
+
+  console.log(
+    "[PW_MVP] MULTI_ESTABLISHMENT_REENTRY_CONTEXT=PASS",
+  );
+  // Volta ao workspace e comprova que a seleção oficial permanece na Filial.
+  await page.goto(
+    "/dashboard/nr1/workspace",
+  );
+
+  await expect(
+    page.getByText(
+      /Carregando sua jornada NR-1/i,
+    ),
+  ).toHaveCount(0, {
+    timeout: 30_000,
+  });
+
+  const resumeSecondEstablishment = page
+    .getByRole("button", {
+      name: /Abrir vis[aã]o geral/i,
+    })
+    .first();
+
+  if (
+    (await resumeSecondEstablishment.count()) > 0 &&
+    (await resumeSecondEstablishment.isVisible())
+  ) {
+    await resumeSecondEstablishment.click();
+  }
+
+  const reentryContextPanel = page
+    .locator(
+      "#workspace-active-company-selector",
+    )
+    .first();
+
+  await expect(
+    reentryContextPanel,
+  ).toBeVisible({
+    timeout: 30_000,
+  });
+
+  const reentryEstablishmentSelect =
+    reentryContextPanel
+      .locator("select")
+      .nth(1);
+
+  await expect(
+    reentryEstablishmentSelect,
+  ).toHaveValue(
+    secondEstablishmentId,
+    {
+      timeout: 30_000,
+    },
+  );
+
+  await expect(
+    reentryEstablishmentSelect
+      .locator("option:checked"),
+  ).toHaveText(
+    /Filial PW MVP/i,
+  );
+
+  console.log(
+    "[PW_MVP] MULTI_ESTABLISHMENT_WORKSPACE_REENTRY=PASS",
+  );
+
+  console.log(
+    "[PW_MVP] MULTI_ESTABLISHMENT_REGISTER_SELECT=PASS",
+  );
+
+  console.log(
+    "[PW_MVP] MULTI_ESTABLISHMENT_ISOLATION=PASS",
+  );
+
+  console.log(
+    "PW_MVP_SLICE7=PASS",
+  );
 });

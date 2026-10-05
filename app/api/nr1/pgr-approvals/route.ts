@@ -258,6 +258,17 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    if (documentVersion.document_type !== "review_report") {
+      return jsonError(
+        "Document version is not eligible for PGR professional approval",
+        409,
+        {
+          code: "pgr_approval_requires_review_report_document",
+          document_type: documentVersion.document_type,
+        }
+      );
+    }
+
     const now = new Date().toISOString();
     const approvalStatus = approvalStatusRaw;
 
