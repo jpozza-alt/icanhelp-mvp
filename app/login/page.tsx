@@ -1,10 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
-
-type LoginMode = "password" | "email_link";
 
 function getSafeReturnPath(): string {
   if (typeof window === "undefined") return "/dashboard/nr1/workspace";
@@ -28,25 +27,54 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || ""
 );
 
+async function resolvePostLoginPath(
+  accessToken: string,
+  requestedPath: string
+): Promise<string> {
+  if (!accessToken) return requestedPath;
+
+  try {
+    const response = await fetch("/api/tenants", {
+      method: "GET",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: {
+        Authorization: "Bearer " + accessToken,
+      },
+    });
+
+    if (!response.ok) {
+      return requestedPath;
+    }
+
+    const payload = (await response.json()) as unknown;
+
+    if (Array.isArray(payload) && payload.length === 0) {
+      return "/onboarding";
+    }
+  } catch {
+    return requestedPath;
+  }
+
+  return requestedPath;
+}
+
 export default function LoginPage() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode] = useState<LoginMode>("password");
   const [returnTo] = useState(getSafeReturnPath);
   const [sessionStatus, setSessionStatus] = useState("Verificando sessao...");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [message, setMessage] = useState("");
 
-  const canSubmit = useMemo(() => {
-    if (!email.trim()) return false;
-    if (mode === "password" && !password.trim()) return false;
-    return status !== "loading";
-  }, [email, password, mode, status]);
+  const canSubmit = useMemo(
+    () => Boolean(email.trim() && password.trim()) && status !== "loading",
+    [email, password, status]
+  );
 
   useEffect(() => {
-    const nextPath = getSafeReturnPath();
 
     supabase.auth.getSession().then((result) => {
       if (result.data.session?.access_token) {
@@ -93,37 +121,17 @@ export default function LoginPage() {
       return;
     }
 
+    const destination = await resolvePostLoginPath(
+      result.data.session?.access_token || "",
+      returnTo
+    );
+
     setStatus("done");
     setMessage("Login realizado. Redirecionando...");
-    router.replace(returnTo);
+    router.replace(destination);
     router.refresh();
   }
 
-  async function handleEmailLink() {
-    setStatus("loading");
-    setMessage("");
-
-    const redirectTo =
-      typeof window !== "undefined"
-        ? window.location.origin + returnTo
-        : undefined;
-
-    const result = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: {
-        emailRedirectTo: redirectTo,
-      },
-    });
-
-    if (result.error) {
-      setStatus("error");
-      setMessage(result.error.message || "Nao foi possivel enviar o link.");
-      return;
-    }
-
-    setStatus("done");
-    setMessage("Link enviado para o email informado.");
-  }
 return (
     <main className="min-h-dvh overflow-x-hidden bg-[#f4efe7] text-[#10243e]">
       <section className="mx-auto grid min-h-dvh w-full max-w-7xl gap-8 px-5 py-6 sm:px-8 lg:grid-cols-[1fr_0.78fr] lg:items-center lg:px-10">
@@ -247,14 +255,29 @@ return (
               </button>
             </form>
 
-            <button
-              type="button"
-              onClick={handleEmailLink}
-              disabled={!canSubmit}
-              className="mt-3 w-full rounded-2xl border border-white/18 bg-white/[0.03] px-4 py-3 text-sm font-semibold text-white/82 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-75"
-            >
-              Receber link por e-mail
-            </button>
+            <div className="mt-4 flex items-center justify-between gap-3 text-sm">
+              <Link
+                href="/auth/forgot-password"
+                className="font-semibold text-white/70 underline-offset-4 transition hover:text-white hover:underline"
+              >
+                Esqueci minha senha
+              </Link>
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-white/12 bg-white/[0.04] p-4">
+              <p className="text-sm font-semibold text-white">
+                Novo no icanHelp?
+              </p>
+              <p className="mt-1 text-xs leading-5 text-white/65">
+                Crie sua conta com e-mail e senha. O vínculo com uma organização acontece somente depois.
+              </p>
+              <Link
+                href="/cadastro"
+                className="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-[#dcc27e]/55 px-4 py-3 text-sm font-bold text-[#f0d684] transition hover:bg-white/10"
+              >
+                Criar minha conta
+              </Link>
+            </div>
 
             {message ? (
               <div

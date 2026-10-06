@@ -121,3 +121,159 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+export async function POST(req: NextRequest) {
+  try {
+    const token = getBearer(req);
+
+    if (!token) {
+      return json({ ok: false, error: "missing_bearer" }, 401);
+    }
+
+    const supabase = createUserSupabase(token);
+    const { data: authData, error: authError } =
+      await supabase.auth.getUser();
+
+    if (authError || !authData.user) {
+      return json(
+        {
+          ok: false,
+          error: authError?.message ?? "user_not_found",
+        },
+        401
+      );
+    }
+
+    const body = (await req.json().catch(() => null)) as
+      | Record<string, unknown>
+      | null;
+
+    const name =
+      typeof body?.name === "string" ? body.name.trim() : "";
+
+    if (name.length < 3 || name.length > 120) {
+      return json(
+        {
+          ok: false,
+          error: "invalid_tenant_name",
+          message:
+            "Informe um nome entre 3 e 120 caracteres.",
+        },
+        400
+      );
+    }
+
+    const { data: ownedMemberships, error: membershipError } =
+      await supabase
+        .from("tenant_memberships")
+        .select("tenant_id, role")
+        .eq("user_id", authData.user.id)
+        .eq("role", "owner")
+        .limit(1);
+
+    if (membershipError) {
+      return json(
+        {
+          ok: false,
+          error: "membership_lookup_failed",
+        },
+        500
+      );
+    }
+
+    if ((ownedMemberships ?? []).length > 0) {
+      return json(
+        {
+          ok: false,
+          error: "user_already_owns_tenant",
+          message:
+            "Este usuário já possui uma organização própria.",
+        },
+        409
+      );
+    }
+
+    const createResult = await supabase.rpc(
+      "icanhelp_create_initial_tenant",
+      {
+        p_name: name,
+      }
+    );
+
+    if (createResult.error) {
+      const message = createResult.error.message || "";
+
+      if (message.includes("user_already_owns_tenant")) {
+        return json(
+          {
+            ok: false,
+            error: "user_already_owns_tenant",
+            message:
+              "Este usuário já possui uma organização própria.",
+          },
+          409
+        );
+      }
+
+      if (message.includes("tenant_name_invalid")) {
+        return json(
+          {
+            ok: false,
+            error: "invalid_tenant_name",
+          },
+          400
+        );
+      }
+
+      return json(
+        {
+          ok: false,
+          error: "tenant_create_failed",
+        },
+        500
+      );
+    }
+
+    const rows = Array.isArray(createResult.data)
+      ? createResult.data
+      : [];
+
+    const created = rows[0] as
+      | {
+          tenant_id?: string;
+          role?: string;
+        }
+      | undefined;
+
+    if (!created?.tenant_id) {
+      return json(
+        {
+          ok: false,
+          error: "tenant_create_result_invalid",
+        },
+        500
+      );
+    }
+
+    return json(
+      {
+        ok: true,
+        id: created.tenant_id,
+        tenant_id: created.tenant_id,
+        role: created.role || "owner",
+      },
+      201
+    );
+  } catch (error) {
+    return json(
+      {
+        ok: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "unknown_error",
+      },
+      500
+    );
+  }
+}
