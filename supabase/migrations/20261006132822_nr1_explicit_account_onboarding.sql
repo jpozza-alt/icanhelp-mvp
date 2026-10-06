@@ -80,6 +80,13 @@ revoke all
 on function public.icanhelp_create_initial_tenant(text)
 from public;
 
+-- O ambiente Supabase pode manter grant explicito para anon.
+-- Remover explicitamente esse privilegio para que somente
+-- usuarios autenticados utilizem o bootstrap inicial.
+revoke execute
+on function public.icanhelp_create_initial_tenant(text)
+from anon;
+
 grant execute
 on function public.icanhelp_create_initial_tenant(text)
 to authenticated;

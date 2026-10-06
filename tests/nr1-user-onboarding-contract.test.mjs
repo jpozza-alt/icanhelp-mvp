@@ -11,7 +11,7 @@ const signup = read("app/cadastro/page.tsx");
 const onboarding = read("app/onboarding/page.tsx");
 const tenantsRoute = read("app/api/tenants/route.ts");
 const migration = read(
-  "supabase/migrations/20261006090000_nr1_explicit_account_onboarding.sql"
+  "supabase/migrations/20261006132822_nr1_explicit_account_onboarding.sql"
 );
 
 test("login separa entrada de cadastro", () => {
@@ -36,6 +36,14 @@ test("cadastro usa email e senha de forma explicita", () => {
   assert.match(signup, /\/auth\/callback\?next=/);
   assert.match(signup, /encodeURIComponent\("\/onboarding"\)/);
   assert.doesNotMatch(signup, /signInWithOtp/);
+  assert.match(
+    signup,
+    /organização que já esteja vinculada ao seu e-mail/
+  );
+  assert.doesNotMatch(
+    signup,
+    /tenha sido convidado/
+  );
 });
 
 test("onboarding cria tenant somente por acao consciente", () => {
@@ -111,6 +119,11 @@ test("migration remove somente bootstrap automatico e preserva trigger de profil
   assert.match(
     migration,
     /role\s*=\s*'owner'/
+  );
+
+  assert.match(
+    migration,
+    /revoke execute[\s\S]*from anon/i
   );
 
   assert.match(

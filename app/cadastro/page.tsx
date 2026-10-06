@@ -117,7 +117,7 @@ export default function CadastroPage() {
 
           <div className="mt-6 rounded-3xl border border-[#d9c9b8] bg-white/70 p-5 text-sm leading-6 text-[#304761]">
             Depois do cadastro, você poderá criar o espaço da sua empresa ou
-            acessar uma organização à qual tenha sido convidado.
+            acessar uma organização que já esteja vinculada ao seu e-mail.
           </div>
         </div>
 
