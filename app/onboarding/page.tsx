@@ -131,6 +131,7 @@ export default function OnboardingPage() {
     }
 
     setCreating(true);
+    let tenantCreated = false;
 
     try {
       const accessToken = await getAccessToken();
@@ -176,11 +177,19 @@ export default function OnboardingPage() {
         );
       }
 
-      setMessage("Espaço criado. Abrindo a jornada NR-1...");
+      tenantCreated = true;
       await activateTenant(tenantId, accessToken);
+      setMessage("Espaço criado. Abrindo a jornada NR-1...");
     } catch (caught) {
+      setMessage("");
       setError(
-        caught instanceof Error
+        tenantCreated
+          ? "A empresa foi cadastrada, mas não foi possível ativar " +
+              "o ambiente neste momento. Tente acessar novamente." +
+              (caught instanceof Error && caught.message
+                ? " Detalhe: " + caught.message
+                : "")
+          : caught instanceof Error
           ? caught.message
           : "Não foi possível criar o espaço da empresa."
       );
