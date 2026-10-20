@@ -1301,6 +1301,10 @@ export default function Nr1WorkspacePage() {
   const [diagnosisError, setDiagnosisError] = useState<string | null>(null);
   const [diagnosisSuccess, setDiagnosisSuccess] = useState<string | null>(null);
   const [diagnosisContextSaved, setDiagnosisContextSaved] = useState(false);
+  const [diagnosisHydrationStatus, setDiagnosisHydrationStatus] =
+    useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [diagnosisHydrationRetry, setDiagnosisHydrationRetry] = useState(0);
+  const [diagnosisContextDirty, setDiagnosisContextDirty] = useState(false);
   const [psychosocialDiagnosisSaved, setPsychosocialDiagnosisSaved] = useState(false);
   const [activeTriggerInvestigationType, setActiveTriggerInvestigationType] =
     useState<TriggerInvestigationType | null>(null);
@@ -1312,6 +1316,12 @@ export default function Nr1WorkspacePage() {
     useState(false);
   const [triggerInvestigationError, setTriggerInvestigationError] =
     useState<string | null>(null);
+  type TriggerAnswerSaveStatus = "dirty" | "saving" | "saved" | "error";
+  const [triggerAnswerDrafts, setTriggerAnswerDrafts] = useState<Record<string, string>>({});
+  const [triggerAnswerSaveStatuses, setTriggerAnswerSaveStatuses] =
+    useState<Record<string, TriggerAnswerSaveStatus>>({});
+  const [triggerHydrationStatus, setTriggerHydrationStatus] =
+    useState<"idle" | "loading" | "ready" | "error">("idle");
 
   const hasPendingTriggerInvestigation = Object.values(
     triggerInvestigations,
@@ -1365,6 +1375,9 @@ export default function Nr1WorkspacePage() {
   const contextRef = useRef<BackendContext>({ tenantId: null, establishmentId: null });
   const activeCompanyIdRef = useRef<string>("");
   const diagnosisHydrationCoordinatorRef = useRef(createDiagnosisHydrationCoordinator());
+  const diagnosisContextDirtyRef = useRef(false);
+  const triggerAnswerSaveStatusesRef = useRef<Record<string, "dirty" | "saving" | "saved" | "error">>({});
+  const triggerHydrationRevisionRef = useRef(0);
   const [sessionDebug, setSessionDebug] = useState<SessionDebugState>(INITIAL_SESSION_DEBUG);
   const [planFeatures, setPlanFeatures] = useState<Nr1PlanFeaturesResponse | null>(null);
   const [planFeaturesLoading, setPlanFeaturesLoading] = useState<boolean>(false);
@@ -1493,8 +1506,56 @@ useEffect(() => {
   const effectiveDiagnosisDepartmentId =
     firstString(effectiveDiagnosisActivity, ["department_id"]) || "";
 
+  const hasPendingDiagnosisChanges = useCallback((): boolean => {
+    return diagnosisContextDirtyRef.current || Object.values(triggerAnswerSaveStatusesRef.current)
+      .some((status) => status === "dirty" || status === "saving" || status === "error");
+  }, []);
+
+  const canLeaveDiagnosis = useCallback((): boolean => {
+    const statuses = Object.values(triggerAnswerSaveStatusesRef.current);
+    if (diagnosisStatus === "saving" || statuses.some((status) => status === "saving")) {
+      window.alert("Aguarde a gravação da resposta antes de trocar o contexto.");
+      return false;
+    }
+    return !hasPendingDiagnosisChanges() || window.confirm(
+      "Existem alterações do diagnóstico ainda não confirmadas no servidor. Deseja sair mesmo assim?",
+    );
+  }, [hasPendingDiagnosisChanges, diagnosisStatus]);
+
+  useEffect(() => {
+    const warnIfPending = (event: BeforeUnloadEvent) => {
+      if (!hasPendingDiagnosisChanges()) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnIfPending);
+    return () => window.removeEventListener("beforeunload", warnIfPending);
+  }, [hasPendingDiagnosisChanges]);
+
+  function markTriggerAnswerStatus(
+    key: string,
+    status: "dirty" | "saving" | "saved" | "error",
+  ): void {
+    triggerAnswerSaveStatusesRef.current = {
+      ...triggerAnswerSaveStatusesRef.current,
+      [key]: status,
+    };
+    setTriggerAnswerSaveStatuses(triggerAnswerSaveStatusesRef.current);
+  }
+
+  function clearTriggerAnswerStatus(key: string): void {
+    const next = { ...triggerAnswerSaveStatusesRef.current };
+    delete next[key];
+    triggerAnswerSaveStatusesRef.current = next;
+    setTriggerAnswerSaveStatuses(next);
+  }
+
   function updateDiagnosisContextForm(patch: Partial<DiagnosisContextForm>): void {
     diagnosisHydrationCoordinatorRef.current.markEdited();
+    diagnosisContextDirtyRef.current = true;
+    setDiagnosisContextDirty(true);
+    setDiagnosisStatus("idle");
+    setDiagnosisSuccess(null);
     setDiagnosisContextForm((current) => ({ ...current, ...patch }));
   }
 
@@ -1559,6 +1620,8 @@ useEffect(() => {
       return false;
     }
 
+    const answerKey = triggerType + ":" + question.key;
+    markTriggerAnswerStatus(answerKey, "saving");
     setTriggerInvestigationSaving(true);
     setTriggerInvestigationError(null);
 
@@ -1601,9 +1664,16 @@ useEffect(() => {
       }));
 
       setActiveTriggerInvestigationType(triggerType);
+      setTriggerAnswerDrafts((current) => {
+        const next = { ...current };
+        delete next[answerKey];
+        return next;
+      });
+      markTriggerAnswerStatus(answerKey, "saved");
 
       return true;
     } catch (error) {
+      markTriggerAnswerStatus(answerKey, "error");
       setTriggerInvestigationError(
         error instanceof Error
           ? error.message
@@ -1619,6 +1689,12 @@ useEffect(() => {
   async function handleCompleteTriggerInvestigation(
     triggerType: TriggerInvestigationType,
   ): Promise<boolean> {
+    const pendingAnswers = Object.entries(triggerAnswerSaveStatusesRef.current)
+      .some(([key, status]) => key.startsWith(triggerType + ":") && status !== "saved");
+    if (pendingAnswers) {
+      setTriggerInvestigationError("Aguarde a gravação das respostas pendentes ou tente salvá-las novamente antes de concluir.");
+      return false;
+    }
     const currentContext = contextRef.current;
     const investigation =
       triggerInvestigations[triggerType] || null;
@@ -1678,6 +1754,7 @@ useEffect(() => {
 
   async function loadTriggerInvestigationsForSession(
     sessionId: string,
+    expectedRevision: number,
   ): Promise<void> {
     const currentContext = contextRef.current;
 
@@ -1687,6 +1764,11 @@ useEffect(() => {
       context: currentContext,
       diagnosisSessionId: sessionId,
     });
+
+    // An earlier request cannot populate another establishment/activity after a change.
+    if (expectedRevision !== triggerHydrationRevisionRef.current) return;
+    if (contextRef.current.tenantId !== currentContext.tenantId ||
+        contextRef.current.establishmentId !== currentContext.establishmentId) return;
 
     setTriggerInvestigations(result.investigations);
     setTriggerInvestigationAnswers(result.answers);
@@ -1698,10 +1780,12 @@ useEffect(() => {
         ? current
         : null;
     });
+    setTriggerHydrationStatus("ready");
   }
   useEffect(() => {
     const coordinator = diagnosisHydrationCoordinatorRef.current;
     const token = coordinator.begin();
+    const triggerLoadRevision = ++triggerHydrationRevisionRef.current;
     const hydrationContext = {
       tenantId: context.tenantId,
       establishmentId: context.establishmentId,
@@ -1715,6 +1799,17 @@ useEffect(() => {
     setDiagnosisContextForm({ ...INITIAL_DIAGNOSIS_CONTEXT_FORM });
     setDiagnosisStatus("idle");
     setDiagnosisError(null);
+    setDiagnosisHydrationStatus("idle");
+    diagnosisContextDirtyRef.current = false;
+    setDiagnosisContextDirty(false);
+    triggerAnswerSaveStatusesRef.current = {};
+    setTriggerAnswerSaveStatuses({});
+    setTriggerAnswerDrafts({});
+    setTriggerInvestigations({});
+    setTriggerInvestigationAnswers({});
+    setActiveTriggerInvestigationType(null);
+    setTriggerHydrationStatus("idle");
+    setTriggerInvestigationError(null);
 
     if (
       !hydrationContext.tenantId ||
@@ -1725,6 +1820,7 @@ useEffect(() => {
       return () => coordinator.cancel();
     }
 
+    setDiagnosisHydrationStatus("loading");
     void loadWorkspaceDiagnosisHydration({
       context: hydrationContext,
       departmentId: effectiveDiagnosisDepartmentId,
@@ -1743,20 +1839,25 @@ useEffect(() => {
       setDiagnosisActivityId(hydratedDiagnosis.activityId);
       setDiagnosisSessionId(hydratedDiagnosis.sessionId);
       if (hydratedDiagnosis.sessionId) {
+        setTriggerHydrationStatus("loading");
         void loadTriggerInvestigationsForSession(
           hydratedDiagnosis.sessionId,
+          triggerLoadRevision,
         ).catch((error) => {
-          if (!coordinator.canApply(token)) return;
-
+          if (triggerLoadRevision !== triggerHydrationRevisionRef.current) return;
+          setTriggerHydrationStatus("error");
           setTriggerInvestigationError(
             error instanceof Error
               ? error.message
               : "Erro ao carregar investigações salvas.",
           );
         });
+      } else {
+        setTriggerHydrationStatus("ready");
       }
       setDiagnosisContextForm(hydratedDiagnosis.form);
       setDiagnosisContextSaved(hydratedDiagnosis.contextSaved);
+      setDiagnosisHydrationStatus("ready");
       setDiagnosisStatus(hydratedDiagnosis.contextSaved ? "saved" : "idle");
 
       if (!hydratedDiagnosis.sessionId) {
@@ -1795,6 +1896,7 @@ useEffect(() => {
       });
     }).catch((error) => {
       if (!coordinator.canApply(token)) return;
+      setDiagnosisHydrationStatus("error");
       setDiagnosisStatus("error");
       setDiagnosisError(
         error instanceof Error ? error.message : "Erro ao carregar diagnostico salvo."
@@ -1807,6 +1909,7 @@ useEffect(() => {
     context.establishmentId,
     effectiveDiagnosisActivityId,
     effectiveDiagnosisDepartmentId,
+    diagnosisHydrationRetry,
   ]);
 
   const departmentIds = useMemo(
@@ -2928,6 +3031,7 @@ useEffect(() => {
 
   const selectEstablishment = useCallback(
     async (establishmentId: string): Promise<void> => {
+      if (!canLeaveDiagnosis()) return;
       const nextContext = {
         tenantId: contextRef.current.tenantId,
         establishmentId,
@@ -2977,11 +3081,12 @@ useEffect(() => {
         setSaveStatus("save_error");
       }
     },
-    [establishments, loadActivities, loadAuditEvents, loadDepartments, loadDraftState, recordAuditEvent, refreshAuditEvents]
+    [canLeaveDiagnosis, establishments, loadActivities, loadAuditEvents, loadDepartments, loadDraftState, recordAuditEvent, refreshAuditEvents]
   );
 
   const handleActiveCompanyChange = useCallback(
     async (selectedCompanyId: string): Promise<void> => {
+      if (!canLeaveDiagnosis()) return;
       const currentTenantId = contextRef.current.tenantId;
       const emptyContext: BackendContext = {
         tenantId: currentTenantId,
@@ -3068,7 +3173,7 @@ useEffect(() => {
         setSaveStatus("save_error");
       }
     },
-    [loadActivities, loadAuditEvents, loadDepartments, loadDraftState, loadEstablishments]
+    [canLeaveDiagnosis, loadActivities, loadAuditEvents, loadDepartments, loadDraftState, loadEstablishments]
   );
   function handlePreparedCnpjLookup(): void {
     const cnpjDigits = normalizeCnpj(companyForm.cnpj);
@@ -3734,12 +3839,17 @@ useEffect(() => {
     try {
       const sessionId = await ensureDiagnosisSession();
       await saveDiagnosisContextBlock(sessionId);
-      await refreshAuditEvents();
-
-              setDiagnosisContextSaved(true);
-        setPsychosocialDiagnosisSaved(false);
-        setDiagnosisSuccess("Contexto salvo. Agora avance para os fatores do trabalho.");
-        setDiagnosisStatus("saved");
+      setDiagnosisContextSaved(true);
+      diagnosisContextDirtyRef.current = false;
+      setDiagnosisContextDirty(false);
+      setPsychosocialDiagnosisSaved(false);
+      setDiagnosisSuccess("Contexto salvo. Agora avance para os fatores do trabalho.");
+      setDiagnosisStatus("saved");
+      try {
+        await refreshAuditEvents();
+      } catch {
+        setDiagnosisSuccess("Contexto salvo no servidor. O historico nao foi atualizado neste momento.");
+      }
     } catch (error) {
       setDiagnosisStatus("error");
       setDiagnosisError(error instanceof Error ? error.message : "Erro ao salvar contexto.");
@@ -6424,7 +6534,7 @@ useEffect(() => {
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
                       Andamento da atividade
                     </p>
-                    <p className="mt-3 text-lg font-semibold text-[#10243e]">{diagnosisStatus === "saving" ? "Salvando análise" : diagnosisStatus === "saved" ? "Análise salva" : diagnosisStatus === "error" ? "Precisa revisar" : "Pronta para continuar"}</p>
+                    <p className="mt-3 text-lg font-semibold text-[#10243e]">{diagnosisHydrationStatus === "loading" ? "Carregando diagnóstico salvo..." : diagnosisHydrationStatus === "error" ? "Falha ao carregar diagnóstico" : diagnosisStatus === "saving" ? "Salvando análise" : diagnosisStatus === "error" ? "Precisa revisar" : diagnosisContextDirty ? "Alterações ainda não salvas" : diagnosisStatus === "saved" ? "Análise salva" : "Pronta para continuar"}</p>
                     <p className="mt-2 text-xs leading-5 text-[#6f665b]">
                       {diagnosisSessionId ? "Análise em andamento" : "Análise ainda não iniciada"}
                     </p>
@@ -6434,6 +6544,7 @@ useEffect(() => {
                       <select
                         value={diagnosisActivityId || firstString(activities[0], ["id"]) || ""}
                         onChange={(event) => {
+                          if (!canLeaveDiagnosis()) return;
                           diagnosisHydrationCoordinatorRef.current.cancel();
                           setDiagnosisActivityId(event.target.value);
                           setDiagnosisSessionId("");
@@ -6469,7 +6580,21 @@ useEffect(() => {
 
               </div>
 
+              {diagnosisHydrationStatus === "loading" ? (
+                <div role="status" aria-live="polite" className="rounded-xl border border-[#d8bd78] bg-[#fffaf3] p-4 text-sm text-[#6f4f17]">
+                  Carregando diagnóstico salvo... Aguarde antes de preencher informações.
+                </div>
+              ) : null}
+              {diagnosisHydrationStatus === "error" ? (
+                <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                  <p>Não foi possível recuperar o diagnóstico. Nenhum dado foi apagado.</p>
+                  <button type="button" onClick={() => setDiagnosisHydrationRetry((value) => value + 1)} className="mt-2 underline">
+                    Tentar carregar novamente
+                  </button>
+                </div>
+              ) : null}
               <form onSubmit={handleSaveDiagnosisContext} className="rounded-[2rem] border border-[#e2d4bf] bg-white p-6 shadow-sm">
+                <fieldset disabled={diagnosisHydrationStatus !== "ready" || diagnosisStatus === "saving"} className="min-w-0">
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#9d7b37]">
@@ -6586,8 +6711,14 @@ useEffect(() => {
                   disabled={diagnosisStatus === "saving"}
                   className="mt-6 rounded-xl bg-[#10243e] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0b1729] disabled:opacity-60"
                 >
-                  Salvar contexto e seguir
+                  {diagnosisStatus === "saving" ? "Salvando..." : diagnosisContextDirty ? "Salvar alterações" : "Salvar contexto e seguir"}
                 </button>
+                {diagnosisContextDirty ? (
+                  <p role="status" className="mt-2 text-xs text-[#6f4f17]">Alterações do contexto ainda não salvas no servidor.</p>
+                ) : diagnosisHydrationStatus === "ready" && diagnosisContextSaved ? (
+                  <p role="status" className="mt-2 text-xs text-[#315a44]">Contexto recuperado/salvo no servidor.</p>
+                ) : null}
+                </fieldset>
               </form>
 
               {!diagnosisContextSaved ? (
@@ -6649,6 +6780,20 @@ useEffect(() => {
                       </div>
                     ) : null}
 
+                    {triggerHydrationStatus === "loading" ? (
+                      <p role="status" aria-live="polite" className="mt-3 rounded-xl border border-[#d8bd78] bg-[#fffaf3] p-4 text-sm text-[#6f4f17]">
+                        Recuperando investigações e respostas já salvas. Aguarde antes de responder.
+                      </p>
+                    ) : null}
+                    {triggerHydrationStatus === "error" ? (
+                      <div role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                        Não foi possível carregar as investigações salvas. Evite preencher novamente antes de recuperar os dados.
+                        <button type="button" onClick={() => { if (canLeaveDiagnosis()) window.location.reload(); }} className="ml-2 font-semibold underline">
+                          Tentar carregar novamente
+                        </button>
+                      </div>
+                    ) : null}
+                    {triggerHydrationStatus !== "loading" && triggerHydrationStatus !== "error" ? (
                     <div className="mt-5 grid gap-3">
                       {Object.values(TRIGGER_INVESTIGATION_MATRIX).map((definition) => {
                         const investigation =
@@ -6734,9 +6879,15 @@ useEffect(() => {
                                   <p className="mt-1 text-xs leading-5 text-[#6f665b]">
                                     As respostas ficam vinculadas a esta investigação e podem ser retomadas depois.
                                   </p>
+                                  <p className="mt-1 text-xs font-medium text-[#6f4f17]">
+                                    {Object.keys(answers).length} de {definition.questions.length} respostas recuperadas/gravadas.
+                                  </p>
                                 </div>
 
-                                {definition.questions.map((question, questionIndex) => (
+                                {definition.questions.map((question, questionIndex) => {
+                                  const answerKey = definition.type + ":" + question.key;
+                                  const answerSaveStatus = triggerAnswerSaveStatuses[answerKey];
+                                  return (
                                   <div
                                     key={question.key}
                                     className="rounded-xl border border-[#eadfce] bg-[#fffaf6] p-4"
@@ -6747,15 +6898,18 @@ useEffect(() => {
 
                                     {question.kind === "yes_no" ? (
                                       <select
-                                        value={answers[question.key] || ""}
+                                        value={triggerAnswerDrafts[answerKey] ?? answers[question.key] ?? ""}
                                         disabled={triggerInvestigationSaving || isCompleted}
-                                        onChange={(event) =>
+                                        onChange={(event) => {
+                                          const nextValue = event.target.value;
+                                          if (!nextValue) return;
+                                          setTriggerAnswerDrafts((current) => ({ ...current, [answerKey]: nextValue }));
                                           void handleSaveTriggerInvestigationAnswer(
                                             definition.type,
                                             questionIndex,
-                                            event.target.value,
-                                          )
-                                        }
+                                            nextValue,
+                                          );
+                                        }}
                                         className="mt-3 w-full rounded-xl border border-[#d9c9b8] bg-white px-3 py-2 text-sm"
                                       >
                                         <option value="">Selecione</option>
@@ -6767,30 +6921,63 @@ useEffect(() => {
                                       </select>
                                     ) : (
                                       <textarea
-                                        key={`${investigation.id}-${question.key}-${answers[question.key] || ""}`}
-                                        defaultValue={answers[question.key] || ""}
+                                        value={triggerAnswerDrafts[answerKey] ?? answers[question.key] ?? ""}
                                         disabled={triggerInvestigationSaving || isCompleted}
                                         rows={3}
                                         placeholder="Descreva de forma objetiva."
+                                        onChange={(event) => {
+                                          const nextValue = event.target.value;
+                                          setTriggerAnswerDrafts((current) => ({ ...current, [answerKey]: nextValue }));
+                                          markTriggerAnswerStatus(answerKey, "dirty");
+                                        }}
                                         onBlur={(event) => {
                                           const value = event.target.value.trim();
-
-                                          if (
-                                            value &&
-                                            value !== (answers[question.key] || "")
-                                          ) {
-                                            void handleSaveTriggerInvestigationAnswer(
-                                              definition.type,
-                                              questionIndex,
-                                              value,
-                                            );
+                                          const persistedValue = answers[question.key] || "";
+                                          if (!value || value === persistedValue) {
+                                            setTriggerAnswerDrafts((current) => {
+                                              const next = { ...current };
+                                              delete next[answerKey];
+                                              return next;
+                                            });
+                                            if (persistedValue) {
+                                              markTriggerAnswerStatus(answerKey, "saved");
+                                            } else {
+                                              clearTriggerAnswerStatus(answerKey);
+                                            }
+                                            if (!value && persistedValue) {
+                                              setTriggerInvestigationError(
+                                                "A resposta anterior foi mantida. Para substitui-la, informe um texto nao vazio."
+                                              );
+                                            }
+                                            return;
                                           }
+                                          void handleSaveTriggerInvestigationAnswer(
+                                            definition.type,
+                                            questionIndex,
+                                            value,
+                                          );
                                         }}
                                         className="mt-3 w-full rounded-xl border border-[#d9c9b8] bg-white px-3 py-2 text-sm"
                                       />
                                     )}
+                                    <p aria-live="polite" role="status" className="mt-2 text-xs text-[#6f665b]">
+                                      {answerSaveStatus === "saving" ? "Salvando resposta..." :
+                                        answerSaveStatus === "dirty" ? "Alteração pendente de salvamento" :
+                                        answerSaveStatus === "saved" ? "Resposta salva no servidor" :
+                                        answerSaveStatus === "error" ? "Falha ao salvar resposta" :
+                                        answers[question.key] ? "Resposta recuperada do servidor" : "Ainda não respondida"}
+                                    </p>
+                                    {answerSaveStatus === "error" ? (
+                                      <button type="button" className="mt-1 text-xs font-semibold underline text-red-800"
+                                        onClick={() => void handleSaveTriggerInvestigationAnswer(
+                                          definition.type, questionIndex,
+                                          triggerAnswerDrafts[answerKey] ?? answers[question.key] ?? "",
+                                        )}
+                                      >Tentar salvar novamente</button>
+                                    ) : null}
                                   </div>
-                                ))}
+                                  );
+                                })}
 
                                 <div className="flex flex-col gap-3 rounded-xl border border-[#d8bd78] bg-[#fffaf3] p-4 md:flex-row md:items-center md:justify-between">
                                   <div>
@@ -7008,6 +7195,7 @@ useEffect(() => {
                         );
                       })}
                     </div>
+                    ) : null}
                   </div>
 <div className="mt-6 rounded-2xl border border-[#eadfce] bg-[#fffaf6] p-4">
   <p className="text-sm font-semibold text-[#10243e]">

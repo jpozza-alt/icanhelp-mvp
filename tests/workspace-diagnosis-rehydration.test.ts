@@ -83,6 +83,10 @@ async function loadWorkspaceTestApi(): Promise<WorkspaceTestApi> {
       return { getNr1PlanFeatures: async () => ({}) };
     }
     if (id === "@/lib/nr1-journey") return { NR1_JOURNEY_STEPS: [] };
+    if (id === "@/lib/nr1-trigger-investigation-matrix") {
+      return { TRIGGER_INVESTIGATION_MATRIX: {}, TRIGGER_INVESTIGATION_OFFICIAL_MESSAGE: "" };
+    }
+    if (id === "@/lib/nr1-trigger-investigation-client") return {};
     if (id === "@/components/nr1/Nr1WorkspaceV2Shell") {
       return { __esModule: true, default: () => null };
     }
