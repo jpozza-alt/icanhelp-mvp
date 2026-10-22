@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import type {
   Nr1CompanyInsert,
   Nr1CompanyRow,
+  Nr1CompanyUpdate,
 } from "@/lib/nr1-db-types"
+import { canCreateNr1Company } from "@/lib/nr1-company-creation-access"
+import { resolveTenantPlanFeatures } from "@/lib/server/tenant-plan-features"
 import {
   createNr1UserClientFromBearer,
   extractBearerToken,
@@ -119,10 +122,44 @@ export async function GET(req: NextRequest) {
 
     const rows = (result.data || []) as Nr1CompanyRow[]
 
+    // Inclui registros excluidos logicamente: clientes comuns possuem uma
+    // unica empresa historica, nao uma nova empresa apos soft-delete.
+    const countResult = await userClient
+      .from("nr1_companies")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", scope.tenantId)
+
+    if (countResult.error || countResult.count === null) {
+      return json(500, { ok: false, error: "nr1_companies_count_failed" })
+    }
+
+    let portfolioEnabled = false
+    let partnerModeEnabled = false
+    if (countResult.count > 0 && isTenantAdminRole(scope.role)) {
+      try {
+        const entitlement = await resolveTenantPlanFeatures(scope.tenantId, userClient)
+        const eligiblePlan = ["partner_sst", "pasini"].includes(
+          String(entitlement.plan.slug || ""),
+        )
+        portfolioEnabled = entitlement.isEntitled && entitlement.planIsActive &&
+          eligiblePlan && entitlement.featureFlags.multi_company_portfolio === true
+        partnerModeEnabled = entitlement.isEntitled && entitlement.planIsActive &&
+          eligiblePlan && entitlement.featureFlags.partner_mode === true
+      } catch {
+        // Falha de consulta do plano NAO libera nova empresa.
+      }
+    }
+
     return json(200, {
       ok: true,
       tenantId: scope.tenantId,
       membershipRole: scope.role,
+      canCreateCompany: canCreateNr1Company({
+        membershipRole: scope.role,
+        companyCount: countResult.count,
+        portfolioEnabled,
+        partnerModeEnabled,
+      }),
       count: rows.length,
       items: rows.map((row) => ({
         id: row.id,
@@ -226,16 +263,35 @@ export async function POST(req: NextRequest) {
       status: cleanStatus(body.status),
     }
 
-    const insertResult = await userClient
-      .from("nr1_companies")
-      .insert(payload)
-      .select("*")
+    // Banco transacional: nao confiar no papel do tenant nem em contagem
+    // anterior no frontend. O RPC valida auth, tenant, plano e concorrencia.
+    const insertResult = await userClient.rpc("icanhelp_nr1_create_company", {
+      p_tenant_id: scope.tenantId,
+      p_legal_name: payload.legal_name,
+      p_trade_name: payload.trade_name,
+      p_cnpj: payload.cnpj,
+      p_cnae_main: payload.cnae_main,
+      p_company_size: payload.company_size,
+      p_risk_grade: payload.risk_grade,
+      p_employee_count: payload.employee_count,
+      p_has_cipa: payload.has_cipa,
+      p_has_sesmt: payload.has_sesmt,
+      p_has_public_service: payload.has_public_service,
+      p_has_remote_work: payload.has_remote_work,
+      p_has_third_parties: payload.has_third_parties,
+      p_has_external_activities: payload.has_external_activities,
+      p_status: payload.status,
+    })
 
     if (insertResult.error) {
-      return json(500, {
+      const denied = insertResult.error.message.includes("nr1_company_create_forbidden") ||
+        insertResult.error.code === "42501"
+      return json(denied ? 403 : 500, {
         ok: false,
-        error: "nr1_company_create_failed",
-        message: insertResult.error.message,
+        error: denied ? "nr1_companies_create_forbidden" : "nr1_company_create_failed",
+        message: denied
+          ? "Sua organizacao nao possui permissao para cadastrar outra empresa."
+          : "Falha ao cadastrar a empresa. Confira o servidor ou migration pendente.",
       })
     }
 
@@ -276,6 +332,71 @@ export async function POST(req: NextRequest) {
         updated_at: row.updated_at,
       },
     })
+  } catch (error) {
+    const response = nr1ErrorToResponsePayload(error)
+    return json(response.status, response.body)
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const tenantId = getTenantId(req)
+    const companyId = (req.nextUrl.searchParams.get("companyId") || "").trim()
+    if (!tenantId) return json(400, { ok: false, error: "missing_tenant_id" })
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(companyId)) {
+      return json(400, { ok: false, error: "invalid_company_id" })
+    }
+
+    const scope = await resolveNr1Scope({ req, tenantId })
+    if (!isTenantAdminRole(scope.role)) {
+      return json(403, { ok: false, error: "nr1_company_update_forbidden" })
+    }
+    const bearerToken = extractBearerToken(req)
+    if (!bearerToken) return json(401, { ok: false, error: "missing_bearer" })
+
+    let body: CreateCompanyBody
+    try {
+      body = (await req.json()) as CreateCompanyBody
+      if (!body || typeof body !== "object" || Array.isArray(body)) {
+        throw new Error("invalid_body")
+      }
+    } catch {
+      return json(400, { ok: false, error: "invalid_json" })
+    }
+    const legalName = cleanText(body.legal_name)
+    if (!legalName || legalName.length < 3) {
+      return json(400, { ok: false, error: "invalid_legal_name" })
+    }
+
+    const payload: Nr1CompanyUpdate = {
+      legal_name: legalName,
+      trade_name: cleanText(body.trade_name),
+      cnpj: cleanText(body.cnpj),
+      cnae_main: cleanText(body.cnae_main),
+      company_size: cleanText(body.company_size),
+      risk_grade: cleanText(body.risk_grade),
+      employee_count: cleanNullableNumber(body.employee_count),
+      has_cipa: cleanBoolean(body.has_cipa),
+      has_sesmt: cleanBoolean(body.has_sesmt),
+      has_public_service: cleanBoolean(body.has_public_service),
+      has_remote_work: cleanBoolean(body.has_remote_work),
+      has_third_parties: cleanBoolean(body.has_third_parties),
+      has_external_activities: cleanBoolean(body.has_external_activities),
+    }
+    const userClient = createNr1UserClientFromBearer(bearerToken)
+    const result = await userClient.from("nr1_companies")
+      .update(payload)
+      .eq("tenant_id", scope.tenantId)
+      .eq("id", companyId)
+      .is("deleted_at", null)
+      .select("*")
+    if (result.error) {
+      return json(500, { ok: false, error: "nr1_company_update_failed" })
+    }
+    const rows = (result.data || []) as Nr1CompanyRow[]
+    if (rows.length === 0) return json(404, { ok: false, error: "company_not_found" })
+    if (rows.length !== 1) return json(500, { ok: false, error: "invalid_update_result" })
+    return json(200, { ok: true, tenantId: scope.tenantId, membershipRole: scope.role, item: rows[0] })
   } catch (error) {
     const response = nr1ErrorToResponsePayload(error)
     return json(response.status, response.body)

@@ -3570,6 +3570,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      icanhelp_nr1_create_company: {
+        Args: {
+          p_tenant_id: string
+          p_legal_name: string
+          p_trade_name: string | null
+          p_cnpj: string | null
+          p_cnae_main: string | null
+          p_company_size: string | null
+          p_risk_grade: string | null
+          p_employee_count: number | null
+          p_has_cipa: boolean
+          p_has_sesmt: boolean
+          p_has_public_service: boolean
+          p_has_remote_work: boolean
+          p_has_third_parties: boolean
+          p_has_external_activities: boolean
+          p_status: string
+        }
+        Returns: Database["public"]["Tables"]["nr1_companies"]["Row"][]
+      }
       icanhelp_nr1_is_tenant_admin: {
         Args: { p_tenant_id: string }
         Returns: boolean

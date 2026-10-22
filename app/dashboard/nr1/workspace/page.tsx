@@ -1268,6 +1268,7 @@ export default function Nr1WorkspacePage() {
 
   const [companies, setCompanies] = useState<SimpleEntity[]>([]);
   const [membershipRole, setMembershipRole] = useState<string | null>(null);
+  const [canCreateCompany, setCanCreateCompany] = useState(false);
   const [establishments, setEstablishments] = useState<SimpleEntity[]>([]);
   const [departments, setDepartments] = useState<SimpleEntity[]>([]);
   const [activities, setActivities] = useState<SimpleEntity[]>([]);
@@ -1286,6 +1287,7 @@ export default function Nr1WorkspacePage() {
   const [cnpjLookupMessage, setCnpjLookupMessage] = useState<string | null>(null);
 
   const [companyForm, setCompanyForm] = useState<CompanyForm>(INITIAL_COMPANY_FORM);
+  const [editingCompanyId, setEditingCompanyId] = useState<string | null>(null);
   const [establishmentForm, setEstablishmentForm] = useState<EstablishmentForm>(INITIAL_ESTABLISHMENT_FORM);
   const [departmentForm, setDepartmentForm] = useState<DepartmentForm>(INITIAL_DEPARTMENT_FORM);
   const [activityForm, setActivityForm] = useState<ActivityForm>(INITIAL_ACTIVITY_FORM);
@@ -1986,6 +1988,39 @@ useEffect(() => {
   const previousWorkspaceModeRef = useRef(isWorkspaceMode);
 
   function openGuidedSetupReview(): void {
+    const existing = selectedCompany || (companies.length === 1 ? companies[0] : null);
+    const existingId = firstString(existing, ["id"]);
+    if (hasCompany && !existingId) {
+      setFormError("Selecione uma empresa para revisar.");
+      return;
+    }
+    setEditingCompanyId(existingId);
+    if (existing && existingId) {
+      activeCompanyIdRef.current = existingId;
+      setActiveCompanyId(existingId);
+      const existingForm: CompanyForm = {
+        legal_name: firstString(existing, ["legal_name"]) || "",
+        trade_name: firstString(existing, ["trade_name"]) || "",
+        cnpj: firstString(existing, ["cnpj"]) || "",
+        cnae_main: firstString(existing, ["cnae_main"]) || "",
+        company_size: firstString(existing, ["company_size"]) || "",
+        risk_grade: firstString(existing, ["risk_grade"]) || "",
+        employee_count: typeof existing.employee_count === "number" ? String(existing.employee_count) : "",
+        has_cipa: existing.has_cipa === true,
+        has_sesmt: existing.has_sesmt === true,
+        has_public_service: existing.has_public_service === true,
+        has_remote_work: existing.has_remote_work === true,
+        has_third_parties: existing.has_third_parties === true,
+        has_external_activities: existing.has_external_activities === true,
+      };
+      setCompanyForm(existingForm);
+      setCnpjLookupStatus(isValidCnpj(existingForm.cnpj) ? "ready" : "idle");
+    } else {
+      setCompanyForm(INITIAL_COMPANY_FORM);
+      setCnpjLookupStatus("idle");
+    }
+    setCompanyFinalSubmitAttempted(false);
+    setCnpjLookupMessage(null);
     setFormError(null);
     setSuccessMessage(null);
     setGuidedSetupChoice("review");
@@ -2000,6 +2035,7 @@ useEffect(() => {
     setCnpjLookupStatus("idle");
     setCnpjLookupMessage(null);
     setCompanyFinalSubmitAttempted(false);
+    setEditingCompanyId(null);
     setCompanyForm(INITIAL_COMPANY_FORM);
     setGuidedSetupChoice("review");
     setGuidedStepKey("empresa");
@@ -2696,6 +2732,7 @@ useEffect(() => {
   const loadCompanies = useCallback(async (nextContext: BackendContext): Promise<SimpleEntity[]> => {
     if (!nextContext.tenantId) {
       setMembershipRole(null);
+      setCanCreateCompany(false);
       return [];
     }
 
@@ -2708,6 +2745,7 @@ useEffect(() => {
     setMembershipRole(
       firstString(payload, ["membershipRole", "membership_role", "role"])?.toLowerCase() || null
     );
+    setCanCreateCompany((payload as { canCreateCompany?: boolean }).canCreateCompany === true);
 
     return extractArray<SimpleEntity>(payload, ["items", "companies", "data"]);
   }, []);
@@ -3205,6 +3243,16 @@ useEffect(() => {
   }
   async function handleCreateCompany(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (editingCompanyId && selectedCompany?.id !== editingCompanyId) {
+      setFormStatus("error");
+      setFormError("A empresa ativa mudou. Reabra a revisao.");
+      return;
+    }
+    if (!editingCompanyId && !canCreateCompany) {
+      setFormStatus("error");
+      setFormError("Sua organizacao nao pode cadastrar outra empresa.");
+      return;
+    }
     if (isGuidedCompanyFinalMicroStep) {
       setCompanyFinalSubmitAttempted(true);
     }
@@ -3274,6 +3322,7 @@ useEffect(() => {
     try {
       const path = buildUrl("/api/nr1/companies", {
         tenantId: currentContext.tenantId,
+        companyId: editingCompanyId || undefined,
       });
 
       const headers = new Headers({
@@ -3288,7 +3337,7 @@ useEffect(() => {
       }
 
       const companyResponse = await fetch(path, {
-        method: "POST",
+        method: editingCompanyId ? "PATCH" : "POST",
         headers,
         cache: "no-store",
         credentials: "same-origin",
@@ -3319,8 +3368,11 @@ useEffect(() => {
 
       const created = extractFirstEntity(response);
       const createdCompanyId = firstString(created, ["id"]);
+      if (!createdCompanyId || (editingCompanyId && createdCompanyId !== editingCompanyId)) {
+        throw new Error("Resposta de salvamento da empresa invalida.");
+      }
 
-      if (createdCompanyId) {
+      if (!editingCompanyId && createdCompanyId) {
         activeCompanyIdRef.current = createdCompanyId;
         setActiveCompanyId(createdCompanyId);
         setStoredWorkspaceSelection(currentContext.tenantId, {
@@ -3330,17 +3382,17 @@ useEffect(() => {
         setEstablishmentForm((prev) => ({ ...prev, company_id: createdCompanyId }));
       }
 
-      await recordAuditEvent("company_created_from_workspace", {
+      await recordAuditEvent(editingCompanyId ? "company_updated_from_workspace" : "company_created_from_workspace", {
         company_id: createdCompanyId,
         legal_name: companyForm.legal_name,
       }, "formal");
 
-      setCompanyForm(INITIAL_COMPANY_FORM);
+      if (!editingCompanyId) setCompanyForm(INITIAL_COMPANY_FORM);
       await reloadOperationalData(currentContext, {
         preferredCompanyId: createdCompanyId || undefined,
       });
 
-      if (createdCompanyId) {
+      if (!editingCompanyId && createdCompanyId) {
         activeCompanyIdRef.current = createdCompanyId;
         setActiveCompanyId(createdCompanyId);
         setStoredWorkspaceSelection(currentContext.tenantId, {
@@ -3355,16 +3407,16 @@ useEffect(() => {
         setGuidedSetupChoice("review");
         setGuidedStepKey("estabelecimento");
         setOnboardingMicroStepIndex(0);
-        setSuccessMessage("Triagem da empresa cadastrada. Agora informe o estabelecimento.");
+        setSuccessMessage(editingCompanyId ? "Triagem atualizada. Revise o estabelecimento." : "Triagem da empresa cadastrada. Agora informe o estabelecimento.");
       } else {
-        setSuccessMessage("Triagem da empresa cadastrada.");
+        setSuccessMessage(editingCompanyId ? "Triagem da empresa atualizada." : "Triagem da empresa cadastrada.");
       }
 
       setFormError(null);
       setFormStatus("saved");
     } catch (error) {
       setFormStatus("error");
-      setFormError(error instanceof Error ? error.message : "Erro ao cadastrar empresa.");
+      setFormError(error instanceof Error ? error.message : editingCompanyId ? "Erro ao atualizar empresa." : "Erro ao cadastrar empresa.");
     }
   }
 
@@ -5186,7 +5238,7 @@ useEffect(() => {
           </p>
         </div>
 
-        <div className={`grid w-full gap-3 ${membershipRole === "owner" || membershipRole === "admin" ? "xl:max-w-6xl xl:grid-cols-4" : "xl:max-w-4xl xl:grid-cols-2"}`}>
+        <div className={`grid w-full gap-3 ${canCreateCompany ? "xl:max-w-6xl xl:grid-cols-4" : "xl:max-w-4xl xl:grid-cols-2"}`}>
           <label className="text-sm font-semibold text-[#10243e]">
             Empresa ativa
             <select
@@ -5208,7 +5260,7 @@ useEffect(() => {
             </select>
           </label>
 
-          {(membershipRole === "owner" || membershipRole === "admin") && (
+          {(membershipRole === "owner" || membershipRole === "admin") && canCreateCompany && (
             <div className="flex items-end">
               <button
                 type="button"
@@ -6104,7 +6156,7 @@ useEffect(() => {
                       ? "Salvando..."
                       : showGuidedSetup
                         ? (isLastOnboardingMicroStep ? onboardingCurrentStep.buttonLabel : "Continuar")
-                        : "Cadastrar empresa"}
+                        : (editingCompanyId ? "Salvar alterações" : "Cadastrar empresa")}
                   </button>
                 </div>
               </form>
